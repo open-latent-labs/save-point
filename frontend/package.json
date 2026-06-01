@@ -1,0 +1,23 @@
+{
+  "name": "gamedocs-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "GameDocs.AI — 게임 기술 문서 요약·분류 + Q&A 챗봇",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.8"
+  }
+}

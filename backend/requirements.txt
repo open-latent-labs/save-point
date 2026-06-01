@@ -1,0 +1,48 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database (SQLAlchemy)
+sqlalchemy
+pymysql
+alembic
+pydantic-settings
+
+# Security & Auth
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Environment & Utils
+python-dotenv
+pydantic[email]
+requests
+
+# AI & Document Processing (LLM 연결 대비)
+openai
+python-docx
+PyMuPDF
+langchain
+
+# Development & Cross-Origin
+flask-cors # (필요시)
+httpx
+pytest
+pytest-asyncio
+pydantic
+
+olefile
+
+python-docx
+opencv-python
+numpy 
+Pillow 
+lxml 
+easyocr 
+mammoth 
+ollama 
+sqlalchemy
+elasticsearch
+pdfplumber
+
+python-pptx>=0.6.23

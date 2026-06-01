@@ -1,0 +1,330 @@
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import Topbar from "../components/Topbar.jsx";
+import UploadItem from "../components/UploadItem.jsx";
+import { IconUpload, IconSpark, IconStar, IconPin, IconTrash } from "../components/Icons.jsx";
+import {
+  ACCEPT, validateFile, extOf, guessCategory, formatSize,
+  loadFavs, saveFavs, loadPins, savePins, MOCK_DOCS, CATEGORY_OPTIONS,
+} from "../data/upload.js";
+
+let _uid = 0;
+const uid = () => `f${++_uid}_${Date.now()}`;
+
+// 카테고리 색상 맵
+const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
+const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
+
+// 확장자별 뱃지 색
+const extColors = {
+  pdf: "#E08A8A",
+  md: "#36E0A1",
+  txt: "#8A93FF",
+  docx: "#5BC8FF",
+  doc: "#5BC8FF",
+};
+
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete }) {
+  return (
+    <div className={"gd-docitem" + (isPin ? " pinned" : "")}>
+      <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
+        {doc.ext.toUpperCase()}
+      </div>
+
+      <div className="gd-docitem-body">
+        <div className="gd-docitem-name" title={doc.name}>
+          {isPin && <span className="gd-docitem-pin-badge" title="고정됨" />}
+          {doc.name}
+        </div>
+        <div className="gd-docitem-meta">
+          <span className="gd-cat-dot" style={{ background: catColor[doc.category] }} />
+          <span className="gd-cat-name">{catLabel[doc.category] || doc.category}</span>
+          <span className="gd-meta-sep">·</span>
+          <span>{formatSize(doc.size)}</span>
+          <span className="gd-meta-sep">·</span>
+          <span>{doc.date}</span>
+        </div>
+      </div>
+
+      <div className="gd-docitem-actions">
+        <button
+          className={"gd-docitem-pin" + (isPin ? " on" : "")}
+          onClick={() => onPin(doc.id)}
+          aria-label={isPin ? "고정 해제" : "고정하기"}
+          title={isPin ? "고정 해제" : "고정하기"}
+        >
+          <IconPin filled={isPin} width="14" height="14" />
+        </button>
+        <button
+          className={"gd-docitem-fav" + (isFav ? " on" : "")}
+          onClick={() => onFav(doc.id)}
+          aria-label={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+          title={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+        >
+          <IconStar filled={isFav} width="15" height="15" />
+        </button>
+        {onDelete && (
+          <button
+            className="gd-docitem-del"
+            onClick={() => onDelete(doc.id)}
+            aria-label="삭제"
+            title="삭제"
+          >
+            <IconTrash width="14" height="14" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Upload() {
+  const { onMenu } = useOutletContext();
+  const navigate = useNavigate();
+
+  // ── 업로드 진행 state ──
+  const [items, setItems] = useState([]);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
+  const timersRef = useRef({});
+
+  // ── 내 문서 state ──
+  const [myDocs, setMyDocs] = useState(MOCK_DOCS);
+  const [favIds, setFavIds] = useState(() => loadFavs());
+  const [pinIds, setPinIds] = useState(() => loadPins());
+  const [catFilter, setCatFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
+  const [favOnly, setFavOnly] = useState(false);
+
+  // ── 즐겨찾기 토글 ──
+  const toggleFav = (id) => {
+    const next = favIds.includes(id) ? favIds.filter((f) => f !== id) : [...favIds, id];
+    setFavIds(next);
+    saveFavs(next);
+  };
+
+  // ── 고정핀 토글 ──
+  const togglePin = (id) => {
+    const next = pinIds.includes(id) ? pinIds.filter((p) => p !== id) : [...pinIds, id];
+    setPinIds(next);
+    savePins(next);
+  };
+
+  // ── 문서 삭제 (더미) ──
+  const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
+
+  // ── 필터 + 정렬 ──
+  const filteredDocs = myDocs
+    .filter((d) => catFilter === "all" || d.category === catFilter)
+    .filter((d) => !favOnly || favIds.includes(d.id))
+    .sort((a, b) => {
+      if (sortBy === "date") return new Date(b.date) - new Date(a.date);
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "size") return b.size - a.size;
+      if (sortBy === "category") return a.category.localeCompare(b.category);
+      return 0;
+    });
+
+  // ── mock 업로드 ──
+  const startUpload = useCallback((id) => {
+    let p = 0;
+    const tick = () => {
+      p += Math.random() * 18 + 7;
+      const next = Math.min(100, Math.round(p));
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, progress: next } : it)));
+      if (next < 100) {
+        timersRef.current[id] = setTimeout(tick, 180 + Math.random() * 160);
+      } else {
+        setItems((prev) =>
+          prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
+        );
+        delete timersRef.current[id];
+      }
+    };
+    timersRef.current[id] = setTimeout(tick, 250);
+  }, []);
+
+  const addFiles = useCallback(
+    (fileList) => {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const created = files.map((f) => {
+        const error = validateFile(f);
+        return {
+          id: uid(),
+          name: f.name,
+          size: f.size,
+          ext: extOf(f.name) || "file",
+          category: guessCategory(f.name),
+          status: error ? "error" : "uploading",
+          progress: 0,
+          error,
+        };
+      });
+      setItems((prev) => [...prev, ...created]);
+      created.forEach((it) => {
+        if (it.status === "uploading") startUpload(it.id);
+      });
+    },
+    [startUpload]
+  );
+
+  const onDrop = (e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); };
+  const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
+  const onDragLeave = (e) => { e.preventDefault(); if (e.currentTarget.contains(e.relatedTarget)) return; setDragging(false); };
+
+  const removeItem = (id) => {
+    clearTimeout(timersRef.current[id]);
+    delete timersRef.current[id];
+    setItems((prev) => prev.filter((it) => it.id !== id));
+  };
+  const setCategory = (id, category) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, category } : it)));
+
+  useEffect(() => () => { Object.values(timersRef.current).forEach(clearTimeout); }, []);
+
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const uploading = items.some((i) => i.status === "uploading");
+  const canIndex = doneCount > 0 && !uploading;
+
+  const onIndex = () => {
+    const first = items.find((i) => i.status === "done");
+    const q = first ? `${first.name} 문서 요약해줘` : "업로드한 문서 요약해줘";
+    navigate("/chat?q=" + encodeURIComponent(q));
+  };
+
+  const favCount = myDocs.filter((d) => favIds.includes(d.id)).length;
+
+  return (
+    <div className="gd-page">
+      <Topbar onMenu={onMenu} />
+      <div className="gd-page-scroll">
+        <div className="gd-up-wrap">
+
+          {/* ── 새 문서 업로드 ── */}
+          <div className="gd-up-head">
+            <h1 className="gd-up-title">문서 업로드</h1>
+            <p className="gd-up-desc">
+              엔진 레퍼런스·포스트모템·성능 분석 문서를 올리면 AI가 요약·분류해 검색에 활용합니다.
+            </p>
+          </div>
+
+          <div
+            className={"gd-dropzone" + (dragging ? " dragging" : "")}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragEnter={onDragOver}
+            onDragLeave={onDragLeave}
+            onClick={() => inputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") inputRef.current?.click(); }}
+          >
+            <span className="gd-drop-ic"><IconUpload width="26" height="26" /></span>
+            <div className="gd-drop-main">
+              파일을 여기로 끌어다 놓거나 <span className="mint">클릭해서 선택</span>하세요
+            </div>
+            <div className="gd-drop-sub">PDF · MD · TXT · DOCX · 최대 20MB</div>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={ACCEPT}
+              style={{ display: "none" }}
+              onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+            />
+          </div>
+
+          {items.length > 0 && (
+            <div className="gd-up-list">
+              <div className="gd-up-listhead">
+                <span>{items.length}개 파일 · 완료 {doneCount}</span>
+                <button
+                  className="gd-up-clear"
+                  onClick={() => { items.forEach((i) => clearTimeout(timersRef.current[i.id])); timersRef.current = {}; setItems([]); }}
+                >
+                  전체 비우기
+                </button>
+              </div>
+              {items.map((it) => (
+                <UploadItem key={it.id} item={it} onRemove={removeItem} onCategory={setCategory} />
+              ))}
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="gd-up-actions">
+              <button className="gd-auth-btn" style={{ width: "auto", padding: "13px 26px" }} onClick={onIndex} disabled={!canIndex}>
+                <IconSpark width="15" height="15" />
+                {uploading ? "업로드 중…" : "색인하고 질문하기"}
+              </button>
+            </div>
+          )}
+
+          {/* ── 내 문서 목록 ── */}
+          <div className="gd-mydocs">
+            <div className="gd-mydocs-head">
+              <span className="gd-mydocs-title">내 문서</span>
+              <span className="gd-mydocs-count">{filteredDocs.length}개</span>
+            </div>
+
+            {/* 필터 바 */}
+            <div className="gd-docs-filterbar">
+              <select
+                className="gd-combo"
+                value={catFilter}
+                onChange={(e) => setCatFilter(e.target.value)}
+              >
+                <option value="all">전체 카테고리</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+
+              <select
+                className="gd-combo"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="date">최신순</option>
+                <option value="name">이름순</option>
+                <option value="size">크기순</option>
+                <option value="category">카테고리순</option>
+              </select>
+
+              <button
+                className={"gd-fav-toggle" + (favOnly ? " on" : "")}
+                onClick={() => setFavOnly(!favOnly)}
+              >
+                <IconStar filled={favOnly} width="13" height="13" />
+                즐겨찾기만 {favOnly && favCount > 0 ? `(${favCount})` : ""}
+              </button>
+            </div>
+
+            {/* 문서 리스트 */}
+            {filteredDocs.length === 0 ? (
+              <div className="gd-mydocs-empty">
+                {favOnly ? "즐겨찾기한 문서가 없습니다." : "조건에 맞는 문서가 없습니다."}
+              </div>
+            ) : (
+              <div className="gd-doclist">
+                {filteredDocs.map((doc) => (
+                  <DocItem
+                    key={doc.id}
+                    doc={doc}
+                    isFav={favIds.includes(doc.id)}
+                    onFav={toggleFav}
+                    isPin={pinIds.includes(doc.id)}
+                    onPin={togglePin}
+                    onDelete={deleteDoc}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
