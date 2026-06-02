@@ -1,5 +1,5 @@
 node_modules/
-.claude/s
+.claude/
 
 # Build output
 dist/
@@ -12,9 +12,6 @@ frontend/.vite/
 .env
 .env.local
 .env.*.local
-
-# Claude Code settings (local only)
-.claude/settings.local.json
 
 # OS
 .DS_Store
