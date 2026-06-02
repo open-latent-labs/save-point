@@ -1554,6 +1554,53 @@ a {
   border: 1px solid rgba(255, 180, 84, .25);
 }
 
+/* PUBLIC / PRIVATE 뱃지 (docitem-name 옆) */
+.gd-vis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin-left: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.gd-vis-badge.public  { color: var(--mint); background: rgba(54,224,161,.10); border: 1px solid rgba(54,224,161,.22); }
+.gd-vis-badge.private { color: var(--faint); background: rgba(255,255,255,.04); border: 1px solid var(--border); }
+
+/* 상태 필터 탭 — gd-fav-toggle 동일 스타일 */
+.gd-vis-filterbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.gd-vis-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--elev2);
+  color: var(--dim);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.gd-vis-tab:hover { color: var(--text); border-color: var(--border-strong); }
+.gd-vis-tab.on         { color: var(--text); background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.20); }
+.gd-vis-tab.on.public  { color: var(--mint); background: rgba(54,224,161,.08); border-color: rgba(54,224,161,.30); }
+.gd-vis-tab.on.private { color: var(--dim);  background: rgba(255,255,255,.06); border-color: var(--border-strong); }
+.gd-vis-tab.on.pending { color: #FFB454;     background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.30); }
+.gd-vis-tab.on.fav     { color: #FFB454;     background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.30); }
+
 .gd-mydocs-empty {
   padding: 40px 0;
   text-align: center;
