@@ -1,32 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
+import { motion } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
+import SidebarToggle from "./SidebarToggle.jsx";
 import MintCascades from "./MintCascades.jsx";
+import { useSidebar } from "../hooks/useSidebar.js";
+import { useMediaQuery } from "../hooks/useMediaQuery.js";
+
+const EASE = [0.4, 0, 0.2, 1];
 
 export default function Shell() {
-  const [sbOpen, setSbOpen] = useState(false);
-  const [sbHover, setSbHover] = useState(false);
+  const { sidebarOpen, setSidebarOpen, toggleSidebar } = useSidebar();
+  const isMobile = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
 
   useEffect(() => {
-    setSbOpen(false);
-    setSbHover(false);
+    if (isMobile) setSidebarOpen(false);
   }, [location.pathname, location.search]);
 
   return (
-    <div className={"gd-app" + (sbOpen ? " sb-open" : "") + (sbHover ? " sb-hover" : "")}>
-      <div className="gd-sb-trigger" onMouseEnter={() => setSbHover(true)} />
+    <div className="gd-app">
       <Sidebar
-        onNavigate={() => { setSbOpen(false); setSbHover(false); }}
-        onMouseLeave={() => setSbHover(false)}
+        isOpen={sidebarOpen}
+        onNavigate={() => { if (isMobile) setSidebarOpen(false); }}
       />
-      <div className="gd-overlay" onClick={() => setSbOpen(false)} />
-      <main className="gd-main">
+      <SidebarToggle isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
+      {sidebarOpen && isMobile && (
+        <div className="gd-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <motion.main
+        className="gd-main"
+        animate={{ marginLeft: sidebarOpen && !isMobile ? 260 : 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+      >
         <MintCascades />
         <div className="gd-main-content">
-          <Outlet context={{ onMenu: () => setSbOpen(true) }} />
+          <Outlet context={{ onMenu: () => setSidebarOpen(true) }} />
         </div>
-      </main>
+      </motion.main>
     </div>
   );
 }

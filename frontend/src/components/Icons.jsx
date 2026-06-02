@@ -108,6 +108,16 @@ export const IconChevronRight = (p) => (
   <svg {...base} {...p}><polyline points="9 18 15 12 9 6" /></svg>
 );
 
+export const IconGlobe = (p) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="3.6" y1="9" x2="20.4" y2="9" />
+    <line x1="3.6" y1="15" x2="20.4" y2="15" />
+    <path d="M12 3a14.5 14.5 0 0 1 0 18" />
+    <path d="M12 3a14.5 14.5 0 0 0 0 18" />
+  </svg>
+);
+
 export const IconBookOpen = (p) => (
   <svg {...base} {...p}>
     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />

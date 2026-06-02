@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
@@ -40,7 +41,9 @@ function SettingsModal({ onClose }) {
   );
 }
 
-export default function Sidebar({ onNavigate, onMouseLeave }) {
+const EASE = [0.4, 0, 0.2, 1];
+
+export default function Sidebar({ isOpen, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
@@ -84,7 +87,12 @@ export default function Sidebar({ onNavigate, onMouseLeave }) {
       : location.pathname === path;
 
   return (
-    <aside className="gd-sidebar" onMouseLeave={onMouseLeave}>
+    <motion.aside
+      className="gd-sidebar"
+      animate={{ width: isOpen ? 260 : 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+    >
+      <div style={{ width: 260, minWidth: 260, height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* 브랜드 그라디언트 스트립 */}
       <div className="gd-sb-brand-strip" />
 
@@ -164,6 +172,7 @@ export default function Sidebar({ onNavigate, onMouseLeave }) {
       </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
-    </aside>
+      </div>
+    </motion.aside>
   );
 }
