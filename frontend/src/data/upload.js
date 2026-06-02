@@ -68,6 +68,16 @@ export const savePending = (ids) => {
   window.dispatchEvent(new Event("gamedocs:pending"));
 };
 
+// ── 승인 거절 localStorage 유틸 ─────────────────────────────
+export const loadRejected = () => {
+  try { return JSON.parse(localStorage.getItem("gamedocs_rejected") || "[]"); }
+  catch { return []; }
+};
+export const saveRejected = (ids) => {
+  localStorage.setItem("gamedocs_rejected", JSON.stringify(ids));
+  window.dispatchEvent(new Event("gamedocs:rejected"));
+};
+
 // ── 더미 문서 데이터 ────────────────────────────────────────
 export const MOCK_DOCS = [
   // ── 개인 문서 (PRIVATE) ──

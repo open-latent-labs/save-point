@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
-import { IconTrash, IconGlobe, IconStar, IconPin } from "../components/Icons.jsx";
+import { IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
-  loadPending, savePending, loadFavs, loadPins,
+  loadPending, savePending, loadRejected, saveRejected,
   MOCK_DOCS, CATEGORY_OPTIONS, formatSize,
 } from "../data/upload.js";
 
@@ -16,8 +16,7 @@ const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]
 export default function Approval() {
   const { onMenu } = useOutletContext();
   const [pendingIds, setPendingIds] = useState(() => loadPending());
-  const favIds = loadFavs();
-  const pinIds = loadPins();
+  const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
 
   const pendingDocs = MOCK_DOCS.filter((d) => pendingIds.includes(d.id));
 
@@ -25,6 +24,15 @@ export default function Approval() {
     const next = pendingIds.filter((p) => p !== id);
     setPendingIds(next);
     savePending(next);
+  };
+
+  const rejectDoc = (id) => {
+    const nextPending = pendingIds.filter((p) => p !== id);
+    const nextRejected = [...new Set([...rejectedIds, id])];
+    setPendingIds(nextPending);
+    setRejectedIds(nextRejected);
+    savePending(nextPending);
+    saveRejected(nextRejected);
   };
 
   return (
@@ -82,6 +90,13 @@ export default function Approval() {
                     </div>
 
                     <div className="gd-docitem-actions">
+                      <button
+                        className="gd-approval-reject-btn"
+                        onClick={() => rejectDoc(doc.id)}
+                        title="거절"
+                      >
+                        거절
+                      </button>
                       <button
                         className="gd-docitem-del"
                         onClick={() => cancelPending(doc.id)}

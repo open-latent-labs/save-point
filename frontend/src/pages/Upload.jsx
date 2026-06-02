@@ -5,7 +5,9 @@ import UploadItem from "../components/UploadItem.jsx";
 import { IconUpload, IconSpark, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
-  loadFavs, saveFavs, loadPins, savePins, loadPending, savePending, MOCK_DOCS, CATEGORY_OPTIONS,
+  loadFavs, saveFavs, loadPins, savePins,
+  loadPending, loadRejected,
+  MOCK_DOCS, CATEGORY_OPTIONS,
 } from "../data/upload.js";
 
 let _uid = 0;
@@ -24,7 +26,7 @@ const extColors = {
   doc: "#5BC8FF",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPublish }) {
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish }) {
   return (
     <div className={"gd-docitem" + (isPin ? " pinned" : "")}>
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
@@ -55,11 +57,17 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPubli
               </span>
             </>
           )}
+          {isRejected && (
+            <>
+              <span className="gd-meta-sep">·</span>
+              <span className="gd-rejected-badge">승인 거절됨</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="gd-docitem-actions">
-        {!isPending && (
+        {!isPending && !isRejected && (
           <button
             className="gd-docitem-pub"
             onClick={() => onPublish(doc.id)}
@@ -116,8 +124,21 @@ export default function Upload() {
   const [pinIds, setPinIds] = useState(() => loadPins());
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
-  const [visFilter, setVisFilter] = useState("all"); // all | fav | pending | public | private
+  const [visFilter, setVisFilter] = useState("all");
   const [pendingIds, setPendingIds] = useState(() => loadPending());
+  const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
+
+  // 승인 문서함에서 변경 시 동기화
+  useEffect(() => {
+    const syncPending  = () => setPendingIds(loadPending());
+    const syncRejected = () => setRejectedIds(loadRejected());
+    window.addEventListener("gamedocs:pending",  syncPending);
+    window.addEventListener("gamedocs:rejected", syncRejected);
+    return () => {
+      window.removeEventListener("gamedocs:pending",  syncPending);
+      window.removeEventListener("gamedocs:rejected", syncRejected);
+    };
+  }, []);
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = (id) => {
@@ -353,6 +374,7 @@ export default function Upload() {
                     onPin={togglePin}
                     onDelete={deleteDoc}
                     isPending={pendingIds.includes(doc.id)}
+                    isRejected={rejectedIds.includes(doc.id)}
                     onPublish={requestPublic}
                   />
                 ))}
