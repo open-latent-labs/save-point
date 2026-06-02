@@ -11,6 +11,8 @@ import {
 let _uid = 0;
 const uid = () => `f${++_uid}_${Date.now()}`;
 
+const PAGE_SIZE = 4;
+
 // 카테고리 색상 맵
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
 const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
@@ -118,6 +120,10 @@ export default function Upload() {
   const [sortBy, setSortBy] = useState("date");
   const [visFilter, setVisFilter] = useState("all"); // all | fav | pending | public | private
   const [pendingIds, setPendingIds] = useState(["d3", "d7"]); // 더미 승인 대기 중
+  const [page, setPage] = useState(1);
+
+  // 필터/정렬 변경 시 페이지 초기화
+  useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter]);
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = (id) => {
@@ -143,9 +149,9 @@ export default function Upload() {
   const filteredDocs = myDocs
     .filter((d) => catFilter === "all" || d.category === catFilter)
     .filter((d) => {
-      if (visFilter === "fav")     return favIds.includes(d.id);
+      if (visFilter === "fav") return favIds.includes(d.id);
       if (visFilter === "pending") return pendingIds.includes(d.id);
-      if (visFilter === "public")  return d.isPublic;
+      if (visFilter === "public") return d.isPublic;
       if (visFilter === "private") return !d.isPublic;
       return true;
     })
@@ -229,7 +235,7 @@ export default function Upload() {
     <div className="gd-page">
       <Topbar onMenu={onMenu} />
       <div className="gd-page-scroll">
-        <div className="gd-up-wrap">
+        <div className="gd-up-wrap" style={{ paddingTop: "0px" }}>
 
           {/* ── 새 문서 업로드 ── */}
           <div className="gd-up-head">
@@ -316,10 +322,10 @@ export default function Upload() {
 
             <div className="gd-vis-filterbar">
               {[
-                { key: "all",     label: "전체" },
-                { key: "fav",     label: "즐겨찾기" },
+                { key: "all", label: "전체" },
+                { key: "fav", label: "즐겨찾기" },
                 { key: "pending", label: "승인 대기중" },
-                { key: "public",  label: "PUBLIC" },
+                { key: "public", label: "PUBLIC" },
                 { key: "private", label: "PRIVATE" },
               ].map(({ key, label }) => (
                 <button
@@ -332,28 +338,65 @@ export default function Upload() {
               ))}
             </div>
 
-            {/* 문서 리스트 */}
-            {filteredDocs.length === 0 ? (
-              <div className="gd-mydocs-empty">
-                {{ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다."}
-              </div>
-            ) : (
-              <div className="gd-doclist">
-                {filteredDocs.map((doc) => (
-                  <DocItem
-                    key={doc.id}
-                    doc={doc}
-                    isFav={favIds.includes(doc.id)}
-                    onFav={toggleFav}
-                    isPin={pinIds.includes(doc.id)}
-                    onPin={togglePin}
-                    onDelete={deleteDoc}
-                    isPending={pendingIds.includes(doc.id)}
-                    onPublish={requestPublic}
-                  />
-                ))}
-              </div>
-            )}
+            {/* 문서 리스트 + 페이지네이션 */}
+            {(() => {
+              const totalPages = Math.ceil(filteredDocs.length / PAGE_SIZE);
+              const pagedDocs = filteredDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+              const btn = (label, onClick, active = false, disabled = false) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={onClick}
+                  disabled={disabled}
+                  style={{
+                    minWidth: 32, height: 32, padding: "0 8px", borderRadius: 8,
+                    fontSize: 13, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    border: "none", cursor: disabled ? "default" : "pointer", transition: "all .15s",
+                    background: active ? "#22c55e" : "transparent",
+                    color: active ? "#06210f" : disabled ? "var(--faint)" : "var(--dim)",
+                    fontWeight: active ? 700 : 400,
+                  }}
+                  onMouseEnter={(e) => { if (!active && !disabled) { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "var(--text)"; } }}
+                  onMouseLeave={(e) => { if (!active && !disabled) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = disabled ? "var(--faint)" : "var(--dim)"; } }}
+                >
+                  {label}
+                </button>
+              );
+
+              return filteredDocs.length === 0 ? (
+                <div className="gd-mydocs-empty">
+                  {{ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다."}
+                </div>
+              ) : (
+                <>
+                  <div className="gd-doclist">
+                    {pagedDocs.map((doc) => (
+                      <DocItem
+                        key={doc.id}
+                        doc={doc}
+                        isFav={favIds.includes(doc.id)}
+                        onFav={toggleFav}
+                        isPin={pinIds.includes(doc.id)}
+                        onPin={togglePin}
+                        onDelete={deleteDoc}
+                        isPending={pendingIds.includes(doc.id)}
+                        onPublish={requestPublic}
+                      />
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 16 }}>
+                      {btn("‹", () => setPage((p) => Math.max(1, p - 1)), false, page === 1)}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) =>
+                        btn(p, () => setPage(p), p === page)
+                      )}
+                      {btn("›", () => setPage((p) => Math.min(totalPages, p + 1)), false, page === totalPages)}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
         </div>
