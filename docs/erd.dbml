@@ -1,0 +1,150 @@
+// db 스키마 시각화 목적
+// https://dbdiagram.io/home 에 구문을 붙여넣으세요
+
+Enum UserRole {
+  USER
+  ADMIN
+}
+
+Enum UserStatus {
+  ACTIVE
+  DEACTIVE
+}
+
+Enum DocumentStaus {
+  INITIAL
+  PROCESSING
+  PENDING
+  DONE
+  APPROVED
+  REJECTED
+}
+
+Enum DocumentAccess {
+  PUBLIC
+  PRIVATE
+}
+
+
+Enum DOC_MAIN_TYPE {
+  ENGINE_REFERENCE
+  POSTMORTEM
+  BUG_ANALYSIS
+  ARCHITECTURE
+  TUTORIAL
+  OTHER
+}
+
+Enum DOC_SUB_TYPE {
+  UNITY
+  UNREAL
+  GODOT
+  CUSTOM
+  AUTOMATION
+}
+
+Enum OCR_STATUS {
+  PENDING
+  DONE
+  FAILD
+}
+
+Enum OCR_ENGINE {
+  PADDLE
+  EASYOCR
+  TESSERACT
+}
+
+Enum JOB_TYPE {
+  OCR
+  CLASSIFY_SUMMARIZE
+  EMBED
+}
+
+Enum APPROVAL_ACTION {
+  SUBMITTED
+  APPROVED
+  REJECTED  
+}
+
+Table users {
+  id VARCHAR(26) [pk]
+  password varchar [not null]
+  role UserRole [not null, default: 'USER', note : '회원 역할(권한 구분)'] 
+  email varchar(255) [not null, unique]
+  nickname varchar(255) [not null, unique]
+  upload_file_count int [not null, default: 0, note : '업로드한 문서 갯수']
+  ask_count int [not null, default: 0, note : '챗봇 질문 수']
+  img_url varchar [default: 'user_image.png']
+  ip varchar
+  created_at datetime [default: `CURRENT_TIME`]
+  updated_at datetime [default: `CURRENT_TIME`]
+}
+
+Table user_role_log {
+  id bigint [pk]
+  target_user_id varchar
+  changed_by_user_id varchar
+  before_role UserRole [not null]
+  after_role UserRole [not null]
+  reason text
+  created_at datetime
+}
+
+Table documents {
+  id varchar(26) [pk] // ULID
+  title varchar(500) // title이 꼭 따로 있어야할까?
+  filename varchar(255)
+  extension varchar(255)
+  file_size bigint
+  status DocumentStaus [not null, default: 'INITIAL']
+  access_type DocumentAccess [not null, default: 'PRIVATE']
+  uploaded_by_id varchar(26)
+  approved_by_id varchar(26)
+  approved_at datetime 
+  created_at datetime [not null, default: 'CURRENT_TIME']
+  updated_at datetime [not null, default: 'CURRENT']
+}
+
+Table ocr_results {
+  id varchar(26) [pk] // ULID
+  document_id varchar(26) [not null, unique]
+  raw_text text
+  total_pages int
+  confidence_score float [note: '0.0 ~ 1.0'] // 어떻게 추가가 가능한지 확인전..
+  ocr_engine OCR_ENGINE [not null, default: 'PADDLE']
+  status OCR_STATUS [not null, default: 'PENDING']
+  error_message text
+  proccessted_at datetime [not null, default: 'CURRENT_TIME']
+}
+
+Ref: ocr_results.document_id > documents.id
+
+Table llm_results {
+  id varchar(26) [pk]
+  document_id varchar(26) [not null, unique] // ULID
+  doc_main_type DOC_MAIN_TYPE [note: '카테고리 1차분류']
+  doc_sub_type DOC_SUB_TYPE [note: '카테고리 2차분류']
+}
+
+Enum JOB_STATUS {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  RETRYING
+}
+
+Table processing_jobs {
+  id bigint [pk]
+  document_id varchar(26) [not null]
+  job_type JOB_TYPE [not null]
+  job_status JOB_STATUS [not null, default: 'queued']
+
+  attempt_count int
+  error_message text
+
+  queued_at datetime [not null, default: 'CURRENT_TIME']
+  started_at datetime
+  finished_at datetime
+}
