@@ -7,6 +7,7 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Upload from "./pages/Upload.jsx";
 import Docs from "./pages/Docs.jsx";
+import SuperAdmin from "./pages/superAdmin/Dashbroad.jsx";
 
 
 
@@ -18,6 +19,7 @@ export default function App() {
 
       {/* 사이드바가 있는 페이지 */}
       <Route element={<Shell />}>
+        <Route path="/superAdmin" element={<SuperAdmin />} />
         <Route path="/home" element={<Landing />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/upload" element={<Upload />} />
