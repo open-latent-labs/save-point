@@ -18,6 +18,7 @@ export default function Landing() {
   return (
     <>
       <Topbar onMenu={onMenu} />
+      <div className="gd-landing-body">
       <div className="gd-blob" />
 
       <header className="gd-hero">
@@ -47,6 +48,7 @@ export default function Landing() {
           </div>
         </div>
       </header>
+      </div>
     </>
   );
 }

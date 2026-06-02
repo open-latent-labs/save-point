@@ -393,13 +393,24 @@ a { color: inherit; }
 .gd-login:hover { background: var(--mint-strong); border-color: var(--mint-strong); color: var(--mint-deep); }
 
 /* ============ Landing / Hero ============ */
+.gd-landing-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  position: relative;
+  min-height: 0;
+  padding-bottom: 20vh;
+}
+
 .gd-hero {
   position: relative;
   z-index: 2;
   max-width: 920px;
   width: 100%;
   margin: 0 auto;
-  padding: clamp(40px, 8vh, 110px) 22px 70px;
+  padding: 0 22px clamp(40px, 6vh, 80px);
   text-align: center;
 }
 .gd-blob {
@@ -532,6 +543,41 @@ a { color: inherit; }
   flex-direction: column;
   min-height: 0;
 }
+
+.gd-chat-top {
+  padding: 20px 22px 0;
+  text-align: center;
+}
+
+.gd-chat-top--empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 22px 20vh;
+}
+
+.gd-chat-top-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gd-chat-empty-hint {
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.gd-chat-empty-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
 .gd-chat-scroll {
   flex: 1;
   min-height: 0;

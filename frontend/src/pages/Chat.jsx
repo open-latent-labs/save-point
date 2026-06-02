@@ -3,7 +3,7 @@ import { useSearchParams, useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
-import { getMockAnswer } from "../data/mock.js";
+import { getMockAnswer, SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 
 let _id = 0;
@@ -92,33 +92,43 @@ export default function Chat() {
     <div className="gd-chat">
       <Topbar onMenu={onMenu} />
 
-      <div className="gd-chat-scroll" ref={scrollRef}>
-        <div className="gd-chat-inner">
-          {messages.length === 0 ? (
-            <div style={{ textAlign: "center", color: "var(--dim)", padding: "60px 0" }}>
+      <div className={`gd-chat-top${messages.length === 0 ? " gd-chat-top--empty" : ""}`}>
+        <div className="gd-chat-top-inner">
+          {messages.length === 0 && (
+            <p className="gd-chat-empty-hint">
               무엇이든 물어보세요. 엔진 문서·사례를 분석해 답해 드립니다.
-            </div>
-          ) : (
-            messages.map((m) => <ChatMessage key={m.id} message={m} />)
+            </p>
           )}
-        </div>
-      </div>
-
-      <div className="gd-composer">
-        <div className="gd-composer-inner">
           <SearchBar
             value={input}
             onChange={setInput}
             onSubmit={onSubmit}
-            placeholder="추가 질문을 입력하세요"
+            placeholder="질문을 입력하세요"
             variant="send"
             disabled={busy}
           />
+          {messages.length === 0 && (
+            <div className="gd-chat-empty-suggest">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="gd-chip" onClick={() => { sendMessage(s); }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="gd-composer-hint">
             <kbd>Enter</kbd> 전송 · GameDocs.AI 는 mock 데이터로 동작하는 데모입니다
           </div>
         </div>
       </div>
+
+      {messages.length > 0 && (
+        <div className="gd-chat-scroll" ref={scrollRef}>
+          <div className="gd-chat-inner">
+            {messages.map((m) => <ChatMessage key={m.id} message={m} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
