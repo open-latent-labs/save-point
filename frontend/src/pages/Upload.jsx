@@ -35,6 +35,9 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPubli
         <div className="gd-docitem-name" title={doc.name}>
           {isPin && <span className="gd-docitem-pin-badge" title="고정됨" />}
           {doc.name}
+          <span className={"gd-vis-badge" + (doc.isPublic ? " public" : " private")}>
+            {doc.isPublic ? "PUBLIC" : "PRIVATE"}
+          </span>
         </div>
         <div className="gd-docitem-meta">
           <span className="gd-cat-dot" style={{ background: catColor[doc.category] }} />
@@ -113,7 +116,7 @@ export default function Upload() {
   const [pinIds, setPinIds] = useState(() => loadPins());
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
-  const [favOnly, setFavOnly] = useState(false);
+  const [visFilter, setVisFilter] = useState("all"); // all | fav | pending | public | private
   const [pendingIds, setPendingIds] = useState(["d3", "d7"]); // 더미 승인 대기 중
 
   // ── 즐겨찾기 토글 ──
@@ -139,7 +142,13 @@ export default function Upload() {
   // ── 필터 + 정렬 ──
   const filteredDocs = myDocs
     .filter((d) => catFilter === "all" || d.category === catFilter)
-    .filter((d) => !favOnly || favIds.includes(d.id))
+    .filter((d) => {
+      if (visFilter === "fav")     return favIds.includes(d.id);
+      if (visFilter === "pending") return pendingIds.includes(d.id);
+      if (visFilter === "public")  return d.isPublic;
+      if (visFilter === "private") return !d.isPublic;
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === "date") return new Date(b.date) - new Date(a.date);
       if (sortBy === "name") return a.name.localeCompare(b.name);
@@ -216,8 +225,6 @@ export default function Upload() {
     navigate("/chat?q=" + encodeURIComponent(q));
   };
 
-  const favCount = myDocs.filter((d) => favIds.includes(d.id)).length;
-
   return (
     <div className="gd-page">
       <Topbar onMenu={onMenu} />
@@ -291,43 +298,44 @@ export default function Upload() {
               <span className="gd-mydocs-count">{filteredDocs.length}개</span>
             </div>
 
-            {/* 필터 바 */}
+            {/* 필터 바 — 콤보 + 상태 탭 한 줄 */}
             <div className="gd-docs-filterbar">
-              <select
-                className="gd-combo"
-                value={catFilter}
-                onChange={(e) => setCatFilter(e.target.value)}
-              >
+              <select className="gd-combo" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
                 <option value="all">전체 카테고리</option>
                 {CATEGORY_OPTIONS.map((c) => (
                   <option key={c.key} value={c.key}>{c.label}</option>
                 ))}
               </select>
-
-              <select
-                className="gd-combo"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
+              <select className="gd-combo" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="date">최신순</option>
                 <option value="name">이름순</option>
                 <option value="size">크기순</option>
                 <option value="category">카테고리순</option>
               </select>
+            </div>
 
-              <button
-                className={"gd-fav-toggle" + (favOnly ? " on" : "")}
-                onClick={() => setFavOnly(!favOnly)}
-              >
-                <IconStar filled={favOnly} width="13" height="13" />
-                즐겨찾기만 {favOnly && favCount > 0 ? `(${favCount})` : ""}
-              </button>
+            <div className="gd-vis-filterbar">
+              {[
+                { key: "all",     label: "전체" },
+                { key: "fav",     label: "즐겨찾기" },
+                { key: "pending", label: "승인 대기중" },
+                { key: "public",  label: "PUBLIC" },
+                { key: "private", label: "PRIVATE" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  className={`gd-vis-tab ${key}${visFilter === key ? " on" : ""}`}
+                  onClick={() => setVisFilter(key)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* 문서 리스트 */}
             {filteredDocs.length === 0 ? (
               <div className="gd-mydocs-empty">
-                {favOnly ? "즐겨찾기한 문서가 없습니다." : "조건에 맞는 문서가 없습니다."}
+                {{ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다."}
               </div>
             ) : (
               <div className="gd-doclist">
