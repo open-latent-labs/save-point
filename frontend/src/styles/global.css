@@ -88,29 +88,14 @@ a { color: inherit; }
   top: 0;
   left: 0;
   bottom: 0;
-  width: var(--sidebar-w);
   z-index: 40;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(14, 17, 19, .97), rgba(7, 9, 10, .99));
   border-right: 1px solid var(--border);
   backdrop-filter: blur(8px);
   box-shadow: 4px 0 40px rgba(0, 0, 0, .5);
-  transform: translateX(-100%);
-  transition: transform .28s cubic-bezier(.2, .7, .2, 1);
-}
-
-.gd-sb-trigger {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 16px;
-  z-index: 41;
-}
-
-.gd-app.sb-hover .gd-sidebar {
-  transform: translateX(0);
 }
 
 /* 브랜드 그라디언트 스트립 (Kimi_Agent 스타일) */
@@ -393,13 +378,24 @@ a { color: inherit; }
 .gd-login:hover { background: var(--mint-strong); border-color: var(--mint-strong); color: var(--mint-deep); }
 
 /* ============ Landing / Hero ============ */
+.gd-landing-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  position: relative;
+  min-height: 0;
+  padding-bottom: 20vh;
+}
+
 .gd-hero {
   position: relative;
   z-index: 2;
   max-width: 920px;
   width: 100%;
   margin: 0 auto;
-  padding: clamp(40px, 8vh, 110px) 22px 70px;
+  padding: 0 22px clamp(40px, 6vh, 80px);
   text-align: center;
 }
 .gd-blob {
@@ -532,6 +528,41 @@ a { color: inherit; }
   flex-direction: column;
   min-height: 0;
 }
+
+.gd-chat-top {
+  padding: 20px 22px 0;
+  text-align: center;
+}
+
+.gd-chat-top--empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 22px 20vh;
+}
+
+.gd-chat-top-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gd-chat-empty-hint {
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.gd-chat-empty-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
 .gd-chat-scroll {
   flex: 1;
   min-height: 0;
@@ -1128,6 +1159,34 @@ a { color: inherit; }
 }
 .gd-docitem-del:hover { color: #E08A8A; background: rgba(224,138,138,.10); }
 
+.gd-docitem-pub {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.gd-docitem-pub:hover { color: #8A93FF; background: rgba(138,147,255,.10); }
+
+.gd-public-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: #FFB454;
+  background: rgba(255, 180, 84, .10);
+  border: 1px solid rgba(255, 180, 84, .25);
+}
+
 .gd-mydocs-empty {
   padding: 40px 0;
   text-align: center;
@@ -1145,9 +1204,6 @@ a { color: inherit; }
 /* ============ Responsive ============ */
 @media (max-width: 860px) {
   :root { --sidebar-w: 280px; }
-  .gd-sb-trigger { display: none; }
-  .gd-app.sb-open .gd-sidebar { transform: translateX(0); }
-  .gd-app.sb-open .gd-overlay { display: block; }
   .gd-sb-close { display: inline-flex; }
   .gd-hamburger { display: inline-flex; }
   .gd-hero { padding-top: 40px; }

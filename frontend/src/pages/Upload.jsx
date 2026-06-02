@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
-import { IconUpload, IconSpark, IconStar, IconPin, IconTrash } from "../components/Icons.jsx";
+import { IconUpload, IconSpark, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
   loadFavs, saveFavs, loadPins, savePins, MOCK_DOCS, CATEGORY_OPTIONS,
@@ -24,7 +24,7 @@ const extColors = {
   doc: "#5BC8FF",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete }) {
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPublish }) {
   return (
     <div className={"gd-docitem" + (isPin ? " pinned" : "")}>
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
@@ -43,10 +43,29 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete }) {
           <span>{formatSize(doc.size)}</span>
           <span className="gd-meta-sep">·</span>
           <span>{doc.date}</span>
+          {isPending && (
+            <>
+              <span className="gd-meta-sep">·</span>
+              <span className="gd-public-badge">
+                <IconGlobe width="10" height="10" />
+                승인 대기중
+              </span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="gd-docitem-actions">
+        {!isPending && (
+          <button
+            className="gd-docitem-pub"
+            onClick={() => onPublish(doc.id)}
+            aria-label="공용 문서로 등록 신청"
+            title="공용 문서로 등록 신청"
+          >
+            <IconGlobe width="14" height="14" />
+          </button>
+        )}
         <button
           className={"gd-docitem-pin" + (isPin ? " on" : "")}
           onClick={() => onPin(doc.id)}
@@ -95,6 +114,7 @@ export default function Upload() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [favOnly, setFavOnly] = useState(false);
+  const [pendingIds, setPendingIds] = useState(["d3", "d7"]); // 더미 승인 대기 중
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = (id) => {
@@ -112,6 +132,9 @@ export default function Upload() {
 
   // ── 문서 삭제 (더미) ──
   const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
+
+  // ── 공용 문서 등록 신청 (더미) ──
+  const requestPublic = (id) => setPendingIds((prev) => [...prev, id]);
 
   // ── 필터 + 정렬 ──
   const filteredDocs = myDocs
@@ -317,6 +340,8 @@ export default function Upload() {
                     isPin={pinIds.includes(doc.id)}
                     onPin={togglePin}
                     onDelete={deleteDoc}
+                    isPending={pendingIds.includes(doc.id)}
+                    onPublish={requestPublic}
                   />
                 ))}
               </div>
