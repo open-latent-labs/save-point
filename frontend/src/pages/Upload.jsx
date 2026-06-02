@@ -5,7 +5,7 @@ import UploadItem from "../components/UploadItem.jsx";
 import { IconUpload, IconSpark, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
-  loadFavs, saveFavs, loadPins, savePins, MOCK_DOCS, CATEGORY_OPTIONS,
+  loadFavs, saveFavs, loadPins, savePins, loadPending, savePending, MOCK_DOCS, CATEGORY_OPTIONS,
 } from "../data/upload.js";
 
 let _uid = 0;
@@ -117,7 +117,7 @@ export default function Upload() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [visFilter, setVisFilter] = useState("all"); // all | fav | pending | public | private
-  const [pendingIds, setPendingIds] = useState(["d3", "d7"]); // 더미 승인 대기 중
+  const [pendingIds, setPendingIds] = useState(() => loadPending());
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = (id) => {
@@ -136,8 +136,12 @@ export default function Upload() {
   // ── 문서 삭제 (더미) ──
   const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
 
-  // ── 공용 문서 등록 신청 (더미) ──
-  const requestPublic = (id) => setPendingIds((prev) => [...prev, id]);
+  // ── 공용 문서 등록 신청 ──
+  const requestPublic = (id) => {
+    const next = [...pendingIds, id];
+    setPendingIds(next);
+    savePending(next);
+  };
 
   // ── 필터 + 정렬 ──
   const filteredDocs = myDocs
