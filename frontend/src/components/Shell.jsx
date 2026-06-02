@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
+import MintCascades from "./MintCascades.jsx";
 
 export default function Shell() {
   const [sbOpen, setSbOpen] = useState(false);
@@ -21,7 +22,10 @@ export default function Shell() {
       />
       <div className="gd-overlay" onClick={() => setSbOpen(false)} />
       <main className="gd-main">
-        <Outlet context={{ onMenu: () => setSbOpen(true) }} />
+        <MintCascades />
+        <div className="gd-main-content">
+          <Outlet context={{ onMenu: () => setSbOpen(true) }} />
+        </div>
       </main>
     </div>
   );
