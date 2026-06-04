@@ -153,7 +153,9 @@ Table summary_llm_results {
 
 Ref: summary_llm_results.document_id > documents.id
 
-Table document_chunks { // 임베딩 전 청킹에 해당, 파일 크기 제약을 두어 요약분류llm 요청시엔 청킹x
+// 임베딩 전 청킹에 해당, 파일 크기 제약을 두어 요약분류llm 요청시엔 청킹x
+// index 관련 자료외에는 vector db에서도 관리 예정. 작업해보고 테이블 지우거나 더블체크용으로 유지할지 결정
+Table document_chunks { 
   id bigint [pk] // serial
   document_id varchar(26) [not null]
   chunk_index int [not null]
@@ -194,7 +196,7 @@ Table chat_sessions {
 Ref: chat_sessions.user_id > users.id
 
 Table chat_message {
-  id varchare(26) [pk] // ULID
+  id varchar(26) [pk] // ULID
   session_id varchar(26) [not null]
   role CHAT_ROLE [not null]
   content_ko text [not null, note: '한국어 (사용자 질문 or AI 답변)']
