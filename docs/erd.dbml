@@ -145,6 +145,10 @@ Table summary_llm_results {
   document_id varchar(26) [not null, unique] // ULID
   doc_main_type DOC_MAIN_TYPE [note: '카테고리 1차분류']
   doc_sub_type DOC_SUB_TYPE [note: '카테고리 2차분류']
+  summary_ko text
+  model_name varchar(100)
+  model_version varchar(50)
+  processed_at datetime
 }
 
 Ref: summary_llm_results.document_id > documents.id
