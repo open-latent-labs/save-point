@@ -1296,8 +1296,8 @@ a {
 
 /* ============ 내 문서 목록 ============ */
 .gd-mydocs {
-  margin-top: 40px;
-  padding-top: 32px;
+  margin-top: 30px;
+  padding-top: 22px;
   border-top: 1px solid var(--border);
 }
 
@@ -1624,8 +1624,18 @@ a {
   vertical-align: middle;
   flex-shrink: 0;
 }
-.gd-vis-badge.public  { color: var(--mint); background: rgba(54,224,161,.10); border: 1px solid rgba(54,224,161,.22); }
-.gd-vis-badge.private { color: var(--faint); background: rgba(255,255,255,.04); border: 1px solid var(--border); }
+
+.gd-vis-badge.public {
+  color: var(--mint);
+  background: rgba(54, 224, 161, .10);
+  border: 1px solid rgba(54, 224, 161, .22);
+}
+
+.gd-vis-badge.private {
+  color: var(--faint);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--border);
+}
 
 /* 상태 필터 탭 — gd-fav-toggle 동일 스타일 */
 .gd-vis-filterbar {
@@ -1635,6 +1645,7 @@ a {
   gap: 8px;
   margin-bottom: 16px;
 }
+
 .gd-vis-tab {
   display: inline-flex;
   align-items: center;
@@ -1650,12 +1661,41 @@ a {
   white-space: nowrap;
   transition: color .15s, background .15s, border-color .15s;
 }
-.gd-vis-tab:hover { color: var(--text); border-color: var(--border-strong); }
-.gd-vis-tab.on         { color: var(--text); background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.20); }
-.gd-vis-tab.on.public  { color: var(--mint); background: rgba(54,224,161,.08); border-color: rgba(54,224,161,.30); }
-.gd-vis-tab.on.private { color: var(--dim);  background: rgba(255,255,255,.06); border-color: var(--border-strong); }
-.gd-vis-tab.on.pending { color: #FFB454;     background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.30); }
-.gd-vis-tab.on.fav     { color: #FFB454;     background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.30); }
+
+.gd-vis-tab:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.gd-vis-tab.on {
+  color: var(--text);
+  background: rgba(255, 255, 255, .06);
+  border-color: rgba(255, 255, 255, .20);
+}
+
+.gd-vis-tab.on.public {
+  color: var(--mint);
+  background: rgba(54, 224, 161, .08);
+  border-color: rgba(54, 224, 161, .30);
+}
+
+.gd-vis-tab.on.private {
+  color: var(--dim);
+  background: rgba(255, 255, 255, .06);
+  border-color: var(--border-strong);
+}
+
+.gd-vis-tab.on.pending {
+  color: #FFB454;
+  background: rgba(255, 180, 84, .08);
+  border-color: rgba(255, 180, 84, .30);
+}
+
+.gd-vis-tab.on.fav {
+  color: #FFB454;
+  background: rgba(255, 180, 84, .08);
+  border-color: rgba(255, 180, 84, .30);
+}
 
 .gd-mydocs-empty {
   padding: 40px 0;
