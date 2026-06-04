@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar.jsx";
 import { IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   loadPending, savePending, loadRejected, saveRejected,
+  loadApproved, saveApproved,
   MOCK_DOCS, CATEGORY_OPTIONS, formatSize,
 } from "../data/upload.js";
 
@@ -17,6 +18,7 @@ export default function Approval() {
   const { onMenu } = useOutletContext();
   const [pendingIds, setPendingIds] = useState(() => loadPending());
   const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
+  const [approvedIds, setApprovedIds] = useState(() => loadApproved());
 
   const pendingDocs = MOCK_DOCS.filter((d) => pendingIds.includes(d.id));
 
@@ -33,6 +35,15 @@ export default function Approval() {
     setRejectedIds(nextRejected);
     savePending(nextPending);
     saveRejected(nextRejected);
+  };
+
+  const approveDoc = (id) => {
+    const nextPending = pendingIds.filter((p) => p !== id);
+    const nextApproved = [...new Set([...approvedIds, id])];
+    setPendingIds(nextPending);
+    setApprovedIds(nextApproved);
+    savePending(nextPending);
+    saveApproved(nextApproved);
   };
 
   return (
@@ -91,11 +102,18 @@ export default function Approval() {
 
                     <div className="gd-docitem-actions">
                       <button
+                        className="gd-approval-approve-btn"
+                        onClick={() => approveDoc(doc.id)}
+                        title="승인"
+                      >
+                        승인
+                      </button>
+                      <button
                         className="gd-approval-reject-btn"
                         onClick={() => rejectDoc(doc.id)}
-                        title="거절"
+                        title="반려"
                       >
-                        거절
+                        반려
                       </button>
                       <button
                         className="gd-docitem-del"

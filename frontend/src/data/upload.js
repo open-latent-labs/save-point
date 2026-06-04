@@ -78,6 +78,16 @@ export const saveRejected = (ids) => {
   window.dispatchEvent(new Event("gamedocs:rejected"));
 };
 
+// ── 승인 완료 localStorage 유틸 ─────────────────────────────
+export const loadApproved = () => {
+  try { return JSON.parse(localStorage.getItem("gamedocs_approved") || "[]"); }
+  catch { return []; }
+};
+export const saveApproved = (ids) => {
+  localStorage.setItem("gamedocs_approved", JSON.stringify(ids));
+  window.dispatchEvent(new Event("gamedocs:approved"));
+};
+
 // ── 더미 문서 데이터 ────────────────────────────────────────
 export const MOCK_DOCS = [
   // ── 개인 문서 (PRIVATE) ──
