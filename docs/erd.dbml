@@ -181,6 +181,8 @@ Table processing_jobs {
   finished_at datetime
 }
 
+Ref: processing_jobs.document_id > documents.id
+
 Table chat_sessions {
   id varchar(26) [pk] // ULID
   user_id varchar(26) [not null]
@@ -188,6 +190,8 @@ Table chat_sessions {
   last_active_at datetime [not null, default: 'CURRENT_TIME']
   created_at datetime [not null, default: 'CURRENT_TIME']
 }
+
+Ref: chat_sessions.user_id > users.id
 
 Table chat_message {
   id varchare(26) [pk] // ULID
