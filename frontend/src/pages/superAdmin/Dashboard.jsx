@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import Topbar from "../../components/Topbar.jsx";
-import UserDetailSidebar from "../../components/MyInformationSide.jsx";
+import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx";
+import { useUserRole } from "../../context/UserRoleContext.jsx";
+
 
 const SAMPLE_USERS = [
     { id: 1, name: "김개발", handle: "@kimdev", email: "kimdev@gmail.com", role: "USER", questions: 124, docs: 7, favorites: 23, bookmarks: 15, lastSeen: "5분 전", lastSeenAt: "2026-06-02 09:55:00", lastSeenAgo: "5분 전", joinedAt: "2024-05-12" },
@@ -81,13 +83,7 @@ const ROLE_STYLES = {
     USER: "bg-white/5 text-[#8a949c] border border-white/10",
     ADMIN: "bg-[#a78bfa]/[0.15] text-[#a78bfa] border border-[#a78bfa]/25",
 };
-const STATUS_STYLES = {
-    "승인": "bg-[#22c55e]/[0.13] text-[#34d399]",
-    "반려": "bg-[#f87171]/[0.13] text-[#f87171]",
-};
-
 const RoleBadge = ({ role }) => <span className={`${BADGE_BASE} ${ROLE_STYLES[role]}`}>{role}</span>;
-const StatusBadge = ({ status }) => <span className={`${BADGE_BASE} gap-1.5 ${STATUS_STYLES[status]}`}>{status}</span>;
 
 /* ---------- 셀렉트(필터) ---------- */
 const FilterSelect = ({ label, className = "" }) => (
@@ -103,27 +99,29 @@ export default function UserManagement({
     total = 1248,
     onInvite = () => { },
 }) {
-    const { onMenu, sbVisible } = useOutletContext();
-    const [userList, setUserList] = useState(users);
+    const ctx = useOutletContext();
+    const onMenu = ctx?.onMenu ?? (() => { });
+    const sbVisible = ctx?.sbVisible ?? false;
     const [query, setQuery] = useState("");
     const [selected, setSelected] = useState(() => new Set());
     const [detailUser, setDetailUser] = useState(null);
     const [page, setPage] = useState(1);
+    const { getRole, updateRole } = useUserRole();
 
-    const handleStatusChange = (id, newStatus) =>
-        setUserList((prev) => prev.map((u) => u.id === id ? { ...u, status: newStatus } : u));
-
-    // 승인/반려 버튼 핸들러
-    const handleApprove = (e, id) => { e.stopPropagation(); handleStatusChange(id, "승인"); };
-    const handleReject = (e, id) => { e.stopPropagation(); handleStatusChange(id, "반려"); };
+    const toggleRole = (e, user) => {
+        e.stopPropagation();
+        const current = getRole(user);
+        const next = current === "ADMIN" ? "USER" : "ADMIN";
+        updateRole(user.id, next);
+    };
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return userList;
-        return userList.filter(
+        if (!q) return users;
+        return users.filter(
             (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.handle.toLowerCase().includes(q)
         );
-    }, [userList, query]);
+    }, [users, query]);
 
     const allChecked = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
 
@@ -227,12 +225,11 @@ export default function UserManagement({
                                     </th>
                                     <th>사용자</th>
                                     <th>이메일</th>
-                                    <th>역할</th>
+                                    <th>권한</th>
                                     <th>질문 수</th>
                                     <th>업로드 문서 수</th>
                                     <th>최근 접속</th>
-                                    <th>상태</th>
-                                    <th className="!w-14 !text-center">관리</th>
+                                    <th className="!w-14 !text-center">권한 변경</th>
                                 </tr>
                             </thead>
                             <tbody className="[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:border-b [&>tr>td]:border-white/[0.07] [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0">
@@ -255,7 +252,7 @@ export default function UserManagement({
                                             </div>
                                         </td>
                                         <td className="text-[#8a949c]">{u.email}</td>
-                                        <td><RoleBadge role={u.role} /></td>
+                                        <td><RoleBadge role={getRole(u)} /></td>
                                         <td className="font-semibold text-[#e7ecef]">{u.questions.toLocaleString()}</td>
                                         <td className="font-semibold text-[#e7ecef]">{u.docs.toLocaleString()}</td>
                                         <td>
@@ -264,29 +261,24 @@ export default function UserManagement({
                                                 {u.lastSeen}
                                             </span>
                                         </td>
-                                        <td>
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                {u.status && <StatusBadge status={u.status} />}
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleApprove(e, u.id)}
-                                                    className="inline-flex items-center text-[11.5px] font-semibold px-2 py-0.5 rounded-md bg-[#22c55e]/[0.13] text-[#34d399] border border-[#22c55e]/25 hover:bg-[#22c55e]/[0.28] transition-colors"
-                                                >
-                                                    승인
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleReject(e, u.id)}
-                                                    className="inline-flex items-center text-[11.5px] font-semibold px-2 py-0.5 rounded-md bg-[#f87171]/[0.13] text-[#f87171] border border-[#f87171]/30 hover:bg-[#f87171]/[0.28] transition-colors"
-                                                >
-                                                    반려
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td className="text-center">
-                                            <button type="button" aria-label="더보기" onClick={() => setDetailUser(u)} className="bg-transparent border-none text-[#5b656d] cursor-pointer p-1.5 rounded-lg hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors">
-                                                <Icon name="dots" size={18} />
-                                            </button>
+                                        <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const current = getRole(u);
+                                                const isAdmin = current === "ADMIN";
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        aria-label={isAdmin ? "강등" : "승급"}
+                                                        onClick={(e) => toggleRole(e, u)}
+                                                        className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border cursor-pointer transition-colors ${isAdmin
+                                                            ? "bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 hover:bg-[#f87171]/[0.22]"
+                                                            : "bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 hover:bg-[#a78bfa]/[0.22]"
+                                                            }`}
+                                                    >
+                                                        {isAdmin ? "강등" : "승급"}
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                     </tr>
                                 ))}

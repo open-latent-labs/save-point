@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useUserRole } from "../../context/UserRoleContext.jsx";
 
 /**
  * UserDetailSidebar (Tailwind CSS 버전)
@@ -33,7 +34,8 @@ const SAMPLE_USER = {
 };
 
 const TABS = ["기본 정보", "활동 통계", "권한 및 설정"];
-const STATUS_OPTIONS = ["승인", "반려"];
+const ROLE_OPTIONS = ["ADMIN", "USER"];
+// const STATUS_OPTIONS = ["승인", "반려"];
 
 /* ---------- 아이콘 (의존성 없는 인라인 SVG) ---------- */
 const Icon = ({ name, size = 20, className = "" }) => {
@@ -135,10 +137,26 @@ export default function UserDetailSidebar({
     onDelete = () => { },
 }) {
     const [tab, setTab] = useState("기본 정보");
-    const [role, setRole] = useState(user?.role ?? "USER");
-    const [status, setStatus] = useState(user?.status ?? "선택");
+    const { getRole, updateRole } = useUserRole();
 
-    if (!user) return null;
+    // open=false 로 닫힐 때도 슬라이드 아웃 애니메이션이 재생되도록
+    // user가 null이 되어도 마지막 데이터를 유지
+    const lastUserRef = useRef(user);
+    if (user) lastUserRef.current = user;
+    const displayUser = lastUserRef.current;
+
+    const role = getRole(displayUser);
+
+    const handleRoleChange = (newRole) => {
+        if (displayUser) updateRole(displayUser.id, newRole);
+    };
+
+    // 새 user로 바뀔 때 탭 초기화
+    useEffect(() => {
+        if (user) setTab("기본 정보");
+    }, [user?.id]);
+
+    if (!displayUser) return null;
 
     return (
         <>
@@ -172,15 +190,15 @@ export default function UserDetailSidebar({
                     </div>
 
                     <div className="flex items-center gap-4 mt-1">
-                        <Avatar name={user.name} />
+                        <Avatar name={displayUser.name} />
                         <div className="min-w-0">
                             <div className="flex items-center gap-2.5 flex-wrap">
-                                <span className="text-xl font-extrabold tracking-[-0.3px]">{user.name}</span>
+                                <span className="text-xl font-extrabold tracking-[-0.3px]">{displayUser.name}</span>
                                 <span className="inline-flex items-center text-[11.5px] font-semibold px-2.5 py-0.5 rounded-md bg-[#22c55e]/[0.13] text-[#34d399]">
-                                    {user.role}
+                                    {role}
                                 </span>
                             </div>
-                            <div className="text-[13px] text-[#8a949c] mt-0.5">{user.handle}</div>
+                            <div className="text-[13px] text-[#8a949c] mt-0.5">{displayUser.handle}</div>
                         </div>
                     </div>
                 </div>
@@ -212,12 +230,12 @@ export default function UserDetailSidebar({
                             {/* 기본 정보 카드 */}
                             <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
                                 <dl className="space-y-3.5">
-                                    <Row label="이메일"><span className="text-[#e7ecef]">{user.email}</span></Row>
-                                    <Row label="가입일"><span className="text-[#e7ecef]">{user.joinedAt}</span></Row>
-                                    <Row label="상태"><Select value={status} options={STATUS_OPTIONS} onChange={setStatus} /></Row>
+                                    <Row label="이메일"><span className="text-[#e7ecef]">{displayUser.email}</span></Row>
+                                    <Row label="가입일"><span className="text-[#e7ecef]">{displayUser.joinedAt}</span></Row>
+                                    <Row label="상태"><Select value={role} options={ROLE_OPTIONS} onChange={handleRoleChange} /></Row>
                                     <Row label="최근 접속" align="start">
                                         <div>
-                                            <div className="text-[#34d399] text-[12.5px] mt-0.5">({user.lastSeenAgo})</div>
+                                            <div className="text-[#34d399] text-[12.5px] mt-0.5">({displayUser.lastSeenAgo})</div>
                                         </div>
                                     </Row>
                                 </dl>
@@ -227,8 +245,8 @@ export default function UserDetailSidebar({
                             <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
                                 <h3 className="text-[13.5px] font-semibold text-[#c3ccd2] mb-4">사용자 통계</h3>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                                    <StatItem icon="message" label="질문 수" value={user.questions} />
-                                    <StatItem icon="file" label="업로드 문서 수" value={user.docs} />
+                                    <StatItem icon="message" label="질문 수" value={displayUser.questions} />
+                                    <StatItem icon="file" label="업로드 문서 수" value={displayUser.docs} />
                                 </div>
                             </section>
 
@@ -236,8 +254,8 @@ export default function UserDetailSidebar({
                             <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
                                 <h3 className="text-[13.5px] font-semibold text-[#c3ccd2] mb-4">관리 기능</h3>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(user)} variant="warning" />
-                                    <ActionButton icon="trash" label="사용자 삭제" onClick={() => onDelete(user)} variant="danger" />
+                                    <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(displayUser)} variant="warning" />
+                                    <ActionButton icon="trash" label="사용자 삭제" onClick={() => onDelete(displayUser)} variant="danger" />
                                 </div>
                             </section>
                         </>

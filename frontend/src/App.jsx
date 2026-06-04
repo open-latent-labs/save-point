@@ -8,19 +8,20 @@ import Signup from "./pages/Signup.jsx";
 import Upload from "./pages/Upload.jsx";
 import Approval from "./pages/Approval.jsx";
 import Docs from "./pages/Docs.jsx";
-import SuperAdmin from "./pages/superAdmin/Dashbroad.jsx";
+import SuperAdmin from "./pages/superAdmin/Dashboard.jsx";
+import { UserRoleProvider } from "./context/UserRoleContext.jsx";
 
 
 
 export default function App() {
   return (
+    <UserRoleProvider>
     <Routes>
       {/* 첫 페이지: 로그인으로 리다이렉트 */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
       {/* 사이드바가 있는 페이지 */}
       <Route element={<Shell />}>
-        <Route path="/superAdmin" element={<SuperAdmin />} />
         <Route path="/home" element={<Landing />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/upload" element={<Upload />} />
@@ -31,8 +32,10 @@ export default function App() {
       </Route>
 
       {/* 사이드바 없는 단독 페이지 */}
+      <Route path="/superAdmin" element={<SuperAdmin />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
     </Routes>
+    </UserRoleProvider>
   );
 }
