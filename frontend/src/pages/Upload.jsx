@@ -5,7 +5,9 @@ import UploadItem from "../components/UploadItem.jsx";
 import { IconUpload, IconSpark, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
-  loadFavs, saveFavs, loadPins, savePins, MOCK_DOCS, CATEGORY_OPTIONS,
+  loadFavs, saveFavs, loadPins, savePins,
+  loadPending, savePending, loadRejected,
+  MOCK_DOCS, CATEGORY_OPTIONS,
 } from "../data/upload.js";
 
 let _uid = 0;
@@ -26,7 +28,7 @@ const extColors = {
   doc: "#5BC8FF",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPublish }) {
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish }) {
   return (
     <div className={"gd-docitem" + (isPin ? " pinned" : "")}>
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
@@ -57,11 +59,17 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, onPubli
               </span>
             </>
           )}
+          {isRejected && (
+            <>
+              <span className="gd-meta-sep">·</span>
+              <span className="gd-rejected-badge">승인 거절됨</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="gd-docitem-actions">
-        {!isPending && (
+        {!isPending && !isRejected && (
           <button
             className="gd-docitem-pub"
             onClick={() => onPublish(doc.id)}
@@ -118,9 +126,22 @@ export default function Upload() {
   const [pinIds, setPinIds] = useState(() => loadPins());
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
-  const [visFilter, setVisFilter] = useState("all"); // all | fav | pending | public | private
-  const [pendingIds, setPendingIds] = useState(["d3", "d7"]); // 더미 승인 대기 중
+  const [visFilter, setVisFilter] = useState("all");
+  const [pendingIds, setPendingIds] = useState(() => loadPending());
+  const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
   const [page, setPage] = useState(1);
+
+  // 승인 문서함에서 변경 시 동기화
+  useEffect(() => {
+    const syncPending = () => setPendingIds(loadPending());
+    const syncRejected = () => setRejectedIds(loadRejected());
+    window.addEventListener("gamedocs:pending", syncPending);
+    window.addEventListener("gamedocs:rejected", syncRejected);
+    return () => {
+      window.removeEventListener("gamedocs:pending", syncPending);
+      window.removeEventListener("gamedocs:rejected", syncRejected);
+    };
+  }, []);
 
   // 필터/정렬 변경 시 페이지 초기화
   useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter]);
@@ -142,8 +163,12 @@ export default function Upload() {
   // ── 문서 삭제 (더미) ──
   const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
 
-  // ── 공용 문서 등록 신청 (더미) ──
-  const requestPublic = (id) => setPendingIds((prev) => [...prev, id]);
+  // ── 공용 문서 등록 신청 ──
+  const requestPublic = (id) => {
+    const next = [...pendingIds, id];
+    setPendingIds(next);
+    savePending(next);
+  };
 
   // ── 필터 + 정렬 ──
   const filteredDocs = myDocs
@@ -342,6 +367,7 @@ export default function Upload() {
             {(() => {
               const totalPages = Math.ceil(filteredDocs.length / PAGE_SIZE);
               const pagedDocs = filteredDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
               const btn = (label, onClick, active = false, disabled = false) => (
                 <button
                   key={label}
@@ -380,6 +406,7 @@ export default function Upload() {
                         onPin={togglePin}
                         onDelete={deleteDoc}
                         isPending={pendingIds.includes(doc.id)}
+                        isRejected={rejectedIds.includes(doc.id)}
                         onPublish={requestPublic}
                       />
                     ))}

@@ -6,6 +6,7 @@ import Chat from "./pages/Chat.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Upload from "./pages/Upload.jsx";
+import Approval from "./pages/Approval.jsx";
 import Docs from "./pages/Docs.jsx";
 import SuperAdmin from "./pages/superAdmin/Dashbroad.jsx";
 
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/home" element={<Landing />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/approval" element={<Approval />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:docId" element={<Docs />} />
         <Route path="*" element={<Navigate to="/home" replace />} />

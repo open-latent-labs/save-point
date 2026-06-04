@@ -55,6 +55,29 @@ export const savePins = (ids) => {
   window.dispatchEvent(new Event("gamedocs:pins"));
 };
 
+// ── 승인 대기 localStorage 유틸 ─────────────────────────────
+const PENDING_DEFAULT = ["d3", "d7"];
+export const loadPending = () => {
+  try {
+    const raw = localStorage.getItem("gamedocs_pending");
+    return raw ? JSON.parse(raw) : PENDING_DEFAULT;
+  } catch { return PENDING_DEFAULT; }
+};
+export const savePending = (ids) => {
+  localStorage.setItem("gamedocs_pending", JSON.stringify(ids));
+  window.dispatchEvent(new Event("gamedocs:pending"));
+};
+
+// ── 승인 거절 localStorage 유틸 ─────────────────────────────
+export const loadRejected = () => {
+  try { return JSON.parse(localStorage.getItem("gamedocs_rejected") || "[]"); }
+  catch { return []; }
+};
+export const saveRejected = (ids) => {
+  localStorage.setItem("gamedocs_rejected", JSON.stringify(ids));
+  window.dispatchEvent(new Event("gamedocs:rejected"));
+};
+
 // ── 더미 문서 데이터 ────────────────────────────────────────
 export const MOCK_DOCS = [
   // ── 개인 문서 (PRIVATE) ──

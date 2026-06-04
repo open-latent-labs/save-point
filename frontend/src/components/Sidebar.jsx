@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
-import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile } from "./Icons.jsx";
+import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
-import { loadPins, MOCK_DOCS } from "../data/upload.js";
+import { loadPins, loadPending, MOCK_DOCS } from "../data/upload.js";
 
 function SettingsModal({ onClose }) {
   const [streaming, setStreaming] = useState(true);
@@ -49,12 +49,17 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
   const [showSettings, setShowSettings] = useState(false);
   const [pinIds, setPinIds] = useState(() => loadPins());
+  const [pendingIds, setPendingIds] = useState(() => loadPending());
 
-  // Upload 페이지에서 핀 변경 시 동기화
   React.useEffect(() => {
-    const sync = () => setPinIds(loadPins());
-    window.addEventListener("gamedocs:pins", sync);
-    return () => window.removeEventListener("gamedocs:pins", sync);
+    const syncPins    = () => setPinIds(loadPins());
+    const syncPending = () => setPendingIds(loadPending());
+    window.addEventListener("gamedocs:pins",    syncPins);
+    window.addEventListener("gamedocs:pending", syncPending);
+    return () => {
+      window.removeEventListener("gamedocs:pins",    syncPins);
+      window.removeEventListener("gamedocs:pending", syncPending);
+    };
   }, []);
 
   const pinnedDocs = MOCK_DOCS.filter((d) => pinIds.includes(d.id));
@@ -116,6 +121,17 @@ export default function Sidebar({ isOpen, onNavigate }) {
         </button>
         <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")}>
           내 문서
+        </button>
+        <button
+          className={"gd-sb-navitem" + (isActive("/approval") ? " active" : "")}
+          onClick={() => go("/approval")}
+          style={{ display: "flex", alignItems: "center", gap: 7 }}
+        >
+          <IconGlobe width="13" height="13" />
+          승인 문서함
+          {pendingIds.length > 0 && (
+            <span className="gd-sb-pending-count">{pendingIds.length}</span>
+          )}
         </button>
       </nav>
 
