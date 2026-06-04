@@ -1,5 +1,6 @@
 // db 스키마 시각화 목적
 // https://dbdiagram.io/home 에 구문을 붙여넣으세요
+// pk가 ULID 인 경우엔 생성 주체가 DB가 아닌 백엔드입니다
 
 Enum UserRole {
   USER
@@ -12,11 +13,11 @@ Enum UserStatus {
 }
 
 Enum DocumentStaus {
-  INITIAL
-  PROCESSING
-  PENDING
-  DONE
-  APPROVED
+  INITIAL // 업로드, 처리대기
+  PROCESSING // OCR + 요약분류LLM 처리중
+  DONE // 처리완료
+  PENDING // 처리 완료된 문서 승인신청, 승인 대기(관리자는 이 단계 없음)
+  APPROVED 
   REJECTED
 }
 
@@ -41,6 +42,7 @@ Enum DOC_SUB_TYPE {
   GODOT
   CUSTOM
   AUTOMATION
+  OTHER
 }
 
 Enum OCR_STATUS {
@@ -61,10 +63,23 @@ Enum JOB_TYPE {
   EMBED
 }
 
+Enum JOB_STATUS {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  RETRYING
+}
+
 Enum APPROVAL_ACTION {
-  SUBMITTED
   APPROVED
   REJECTED  
+}
+
+
+Enum CHAT_ROLE {
+  USER
+  ASSISTANT
 }
 
 Table users {
@@ -76,7 +91,7 @@ Table users {
   upload_file_count int [not null, default: 0, note : '업로드한 문서 갯수']
   ask_count int [not null, default: 0, note : '챗봇 질문 수']
   img_url varchar [default: 'user_image.png']
-  ip varchar
+  ip varchar // 많은 시간 소요된다면 제외, 추가한다면 로그 관리 테이블들에 추가
   created_at datetime [default: `CURRENT_TIME`]
   updated_at datetime [default: `CURRENT_TIME`]
 }
@@ -84,30 +99,35 @@ Table users {
 Table user_role_log {
   id bigint [pk]
   target_user_id varchar
-  changed_by_user_id varchar
+  changed_by_user_id varchar [not null]
   before_role UserRole [not null]
   after_role UserRole [not null]
-  reason text
+  reason text // 프론트 이유 작성 팝업창 추가시
   created_at datetime
 }
 
+Ref: user_role_log.target_user_id > users.id
+Ref: user_role_log.changed_by_user_id > users.id
+
 Table documents {
   id varchar(26) [pk] // ULID
-  title varchar(500) // title이 꼭 따로 있어야할까?
   filename varchar(255)
   extension varchar(255)
   file_size bigint
   status DocumentStaus [not null, default: 'INITIAL']
   access_type DocumentAccess [not null, default: 'PRIVATE']
-  uploaded_by_id varchar(26)
+  uploaded_by_id varchar(26) [not null] // 사용자가 넣기전 별도로 문서 대량으로 추가해둘 경우 not null 조건 제외할지 고민중..
   approved_by_id varchar(26)
   approved_at datetime 
   created_at datetime [not null, default: 'CURRENT_TIME']
-  updated_at datetime [not null, default: 'CURRENT']
+  updated_at datetime [not null, default: 'CURRENT_TIME', note: '업로드, 마지막으로 문서 수정한 시간']
 }
 
+Ref: documents.uploaded_by_id > users.id
+Ref: documents.approved_by_id > users.id
+
 Table ocr_results {
-  id varchar(26) [pk] // ULID
+  id bigint [pk] // serial
   document_id varchar(26) [not null, unique]
   raw_text text
   total_pages int
@@ -120,31 +140,73 @@ Table ocr_results {
 
 Ref: ocr_results.document_id > documents.id
 
-Table llm_results {
-  id varchar(26) [pk]
+Table summary_llm_results {
+  id bigint [pk] // serial
   document_id varchar(26) [not null, unique] // ULID
   doc_main_type DOC_MAIN_TYPE [note: '카테고리 1차분류']
   doc_sub_type DOC_SUB_TYPE [note: '카테고리 2차분류']
 }
 
-Enum JOB_STATUS {
-  QUEUED
-  RUNNING
-  DONE
-  FAILED
-  RETRYING
+Ref: summary_llm_results.document_id > documents.id
+
+Table document_chunks { // 임베딩 전 청킹에 해당, 파일 크기 제약을 두어 요약분류llm 요청시엔 청킹x
+  id bigint [pk] // serial
+  document_id varchar(26) [not null]
+  chunk_index int [not null]
+  chunk_text_en text [not null, note: '청크 원문(영어)']
+  token_count int [note: '토큰 수 (임베딩 모델 기준)']
+  page_number int [note: '출처 페이지 번호']
+  vector_point_id varchar(36) [unique]
+  is_indexed boolean [not null, default: false]
+  indexed_at datetime
 }
 
+Ref: document_chunks.document_id > documents.id
+
 Table processing_jobs {
-  id bigint [pk]
+  id bigint [pk] // serial
   document_id varchar(26) [not null]
   job_type JOB_TYPE [not null]
   job_status JOB_STATUS [not null, default: 'queued']
 
-  attempt_count int
-  error_message text
+  attempt_count int [not null, default: 0] 
+  error_message text // 마지막 실패 원인
 
   queued_at datetime [not null, default: 'CURRENT_TIME']
   started_at datetime
   finished_at datetime
 }
+
+Table chat_sessions {
+  id varchar(26) [pk] // ULID
+  user_id varchar(26) [not null]
+  session_name varchar(200)
+  last_active_at datetime [not null, default: 'CURRENT_TIME']
+  created_at datetime [not null, default: 'CURRENT_TIME']
+}
+
+Table chat_message {
+  id varchare(26) [pk] // ULID
+  session_id varchar(26) [not null]
+  role CHAT_ROLE [not null]
+  content_ko text [not null, note: '한국어 (사용자 질문 or AI 답변)']
+  query_en text [note: '검색에 사용된 영어 번역 쿼리']
+  retrieved_chunk_ids json
+  model_name varchar(100)
+  latency_ms int
+  created_at datetime [not null, default: 'CURRENT_TIME']
+}
+
+Ref: chat_message.session_id > chat_sessions.id
+
+Table approval_logs {
+  id bigint [pk] // serial
+  document_id varchar(26)
+  actor_id varchar(26)
+  action APPROVAL_ACTION [not null]
+  reason text
+  created_at datetime [not null, default: 'CURRENT_TIME']
+}
+
+Ref: approval_logs.document_id > documents.id
+Ref: approval_logs.actor_id > users.id
