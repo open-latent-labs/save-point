@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
-import { IconUpload, IconSpark, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
+// import UploadCompleteModal from "../components/UploadCompleteModal.jsx";
+import { IconUpload, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
   loadFavs, saveFavs, loadPins, savePins,
@@ -29,8 +30,13 @@ const extColors = {
 };
 
 function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish }) {
+  const navigate = useNavigate();
   return (
-    <div className={"gd-docitem" + (isPin ? " pinned" : "")}>
+    <div
+      className={"gd-docitem" + (isPin ? " pinned" : "")}
+      onClick={() => navigate(`/docs/${encodeURIComponent(doc.name)}`)}
+      style={{ cursor: "pointer" }}
+    >
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
         {doc.ext.toUpperCase()}
       </div>
@@ -68,7 +74,7 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
         </div>
       </div>
 
-      <div className="gd-docitem-actions">
+      <div className="gd-docitem-actions" onClick={(e) => e.stopPropagation()}>
         {!isPending && !isRejected && (
           <button
             className="gd-docitem-pub"
@@ -110,15 +116,41 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
   );
 }
 
+// 로고를 정사각형 캔버스 중앙에 배치해 크롭 방지
+function makeSquareIcon(src, size = 192) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const scale = Math.min(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
 export default function Upload() {
   const { onMenu } = useOutletContext();
-  const navigate = useNavigate();
 
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
   const [dragging, setDragging] = useState(false);
+  // const [showModal, setShowModal] = useState(false);
+  // const [modalStats, setModalStats] = useState([
+  //   { value: 1, label: "처리 문서", iconType: "document" },
+  //   { value: "6,842", label: "요약 토큰", iconType: "lines" },
+  //   { value: "게임 프로그래밍", label: "분류 카테고리", iconType: "tag" },
+  // ]);
   const inputRef = useRef(null);
   const timersRef = useRef({});
+  const prevUploadingRef = useRef(false);
 
   // ── 내 문서 state ──
   const [myDocs, setMyDocs] = useState(MOCK_DOCS);
@@ -198,9 +230,27 @@ export default function Upload() {
       if (next < 100) {
         timersRef.current[id] = setTimeout(tick, 180 + Math.random() * 160);
       } else {
-        setItems((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
-        );
+        setItems((prev) => {
+          const finished = prev.find((it) => it.id === id);
+          if (finished) {
+            setMyDocs((docs) => {
+              if (docs.some((d) => d.id === finished.id)) return docs;
+              return [
+                {
+                  id: finished.id,
+                  name: finished.name,
+                  size: finished.size,
+                  ext: finished.ext,
+                  category: finished.category,
+                  date: new Date().toISOString().slice(0, 10),
+                  isPublic: false,
+                },
+                ...docs,
+              ];
+            });
+          }
+          return prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it));
+        });
         delete timersRef.current[id];
       }
     };
@@ -247,18 +297,47 @@ export default function Upload() {
   useEffect(() => () => { Object.values(timersRef.current).forEach(clearTimeout); }, []);
 
   const doneCount = items.filter((i) => i.status === "done").length;
+  const errorItems = items.filter((i) => i.status === "error");
   const uploading = items.some((i) => i.status === "uploading");
-  const canIndex = doneCount > 0 && !uploading;
+  const overallProgress = items.length > 0
+    ? Math.round(items.reduce((sum, i) => sum + i.progress, 0) / items.length)
+    : 0;
+  // 업로드 완료 → 요약 완료 알림 (Notification API)
+  useEffect(() => {
+    if (prevUploadingRef.current && !uploading && doneCount > 0) {
+      const doneItems = items.filter((i) => i.status === "done");
+      const catCounts = doneItems.reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + 1; return acc; }, {});
+      const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "기타";
+      const docNames = doneItems.map((i) => i.name).join(", ");
 
-  const onIndex = () => {
-    const first = items.find((i) => i.status === "done");
-    const q = first ? `${first.name} 문서 요약해줘` : "업로드한 문서 요약해줘";
-    navigate("/chat?q=" + encodeURIComponent(q));
-  };
+      // const [모달 비활성]
+      // setModalStats([...]);
+      // setTimeout(() => setShowModal(true), 400);
+
+      const showNotification = async () => {
+        const icon = await makeSquareIcon("/logo.png");
+        new Notification("문서 요약 완료", {
+          body: `${docNames} · ${catLabel[topCat] || topCat}`,
+          icon,
+        });
+      };
+
+      if (Notification.permission === "granted") {
+        setTimeout(showNotification, 400);
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((p) => {
+          if (p === "granted") setTimeout(showNotification, 400);
+        });
+      }
+    }
+    prevUploadingRef.current = uploading;
+  }, [uploading, doneCount, items]);
 
   return (
     <div className="gd-page">
       <Topbar onMenu={onMenu} />
+
+      {/* <UploadCompleteModal isOpen={showModal} onClose={() => setShowModal(false)} stats={modalStats} /> */}
       <div className="gd-page-scroll">
         <div className="gd-up-wrap" style={{ paddingTop: "0px" }}>
 
@@ -286,6 +365,22 @@ export default function Upload() {
               파일을 여기로 끌어다 놓거나 <span className="mint">클릭해서 선택</span>하세요
             </div>
             <div className="gd-drop-sub">PDF · MD · TXT · DOCX · 최대 20MB</div>
+
+            {uploading && (
+              <div style={{ width: "100%", marginTop: 14, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+                  <div style={{
+                    width: `${overallProgress}%`, height: "100%", borderRadius: 3,
+                    background: "#22c55e",
+                    transition: "width 0.18s ease",
+                  }} />
+                </div>
+                <span style={{ fontSize: 12, color: "var(--dim)" }}>
+                  {overallProgress}% 업로드 중 · {doneCount} / {items.length} 완료
+                </span>
+              </div>
+            )}
+
             <input
               ref={inputRef}
               type="file"
@@ -296,10 +391,10 @@ export default function Upload() {
             />
           </div>
 
-          {items.length > 0 && (
+          {errorItems.length > 0 && (
             <div className="gd-up-list">
               <div className="gd-up-listhead">
-                <span>{items.length}개 파일 · 완료 {doneCount}</span>
+                <span>오류 {errorItems.length}개</span>
                 <button
                   className="gd-up-clear"
                   onClick={() => { items.forEach((i) => clearTimeout(timersRef.current[i.id])); timersRef.current = {}; setItems([]); }}
@@ -307,20 +402,12 @@ export default function Upload() {
                   전체 비우기
                 </button>
               </div>
-              {items.map((it) => (
+              {errorItems.map((it) => (
                 <UploadItem key={it.id} item={it} onRemove={removeItem} onCategory={setCategory} />
               ))}
             </div>
           )}
 
-          {items.length > 0 && (
-            <div className="gd-up-actions">
-              <button className="gd-auth-btn" style={{ width: "auto", padding: "13px 26px" }} onClick={onIndex} disabled={!canIndex}>
-                <IconSpark width="15" height="15" />
-                {uploading ? "업로드 중…" : "색인하고 질문하기"}
-              </button>
-            </div>
-          )}
 
           {/* ── 내 문서 목록 ── */}
           <div className="gd-mydocs">
