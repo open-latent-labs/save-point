@@ -1596,6 +1596,22 @@ a {
   background: rgba(224, 138, 138, .10);
   border-color: rgba(224, 138, 138, .55);
 }
+.gd-approval-approve-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(54, 224, 161, .35);
+  background: transparent;
+  color: #36E0A1;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.gd-approval-approve-btn:hover {
+  background: rgba(54, 224, 161, .10);
+  border-color: rgba(54, 224, 161, .55);
+}
 
 .gd-public-badge {
   display: inline-flex;

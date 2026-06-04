@@ -7,7 +7,7 @@ import { IconUpload, IconStar, IconPin, IconTrash, IconGlobe } from "../componen
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
   loadFavs, saveFavs, loadPins, savePins,
-  loadPending, savePending, loadRejected,
+  loadPending, savePending, loadRejected, loadApproved,
   MOCK_DOCS, CATEGORY_OPTIONS,
 } from "../data/upload.js";
 
@@ -167,11 +167,17 @@ export default function Upload() {
   useEffect(() => {
     const syncPending = () => setPendingIds(loadPending());
     const syncRejected = () => setRejectedIds(loadRejected());
+    const syncApproved = () => {
+      const ids = loadApproved();
+      setMyDocs((prev) => prev.map((d) => ids.includes(d.id) ? { ...d, isPublic: true } : d));
+    };
     window.addEventListener("gamedocs:pending", syncPending);
     window.addEventListener("gamedocs:rejected", syncRejected);
+    window.addEventListener("gamedocs:approved", syncApproved);
     return () => {
       window.removeEventListener("gamedocs:pending", syncPending);
       window.removeEventListener("gamedocs:rejected", syncRejected);
+      window.removeEventListener("gamedocs:approved", syncApproved);
     };
   }, []);
 
