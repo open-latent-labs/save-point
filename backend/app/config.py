@@ -27,16 +27,25 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    # Qdrant
+    # ===============================================
+    # Chat
+    # ===============================================
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
     qdrant_collection_name: str = "game_docs"
+
+    embed_model: str = "bge-m3"
+    embed_dim: int = 1024
+
+    chunk_size: int = 300
+    chunk_overlap: int = 50
+
+
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
     summary_model: str = "gemma2:9b"
     chat_model: str = "gemma2:9b"
-    embed_model: str = "nomic-embed-text"
 
     # OCR
     tesseract_cmd: str = "/usr/bin/tesseract"
