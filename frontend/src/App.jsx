@@ -22,6 +22,7 @@ export default function App() {
 
   return (
     <UserRoleProvider>
+<<<<<<< HEAD
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={animKey}
@@ -50,6 +51,29 @@ export default function App() {
           </Routes>
         </motion.div>
       </AnimatePresence>
+=======
+      <Routes>
+        {/* 첫 페이지: 로그인으로 리다이렉트 */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* 사이드바가 있는 페이지 */}
+        <Route element={<Shell />}>
+          <Route path="/home" element={<Landing />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/approval" element={<Approval />} />
+          <Route path="/docs" element={<Docs />} />
+          <Route path="/docs/:docId" element={<Docs />} />
+          <Route path="/docs/:docId/original" element={<Docs />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+
+        {/* 사이드바 없는 단독 페이지 */}
+        <Route path="/superAdmin" element={<SuperAdmin />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
+>>>>>>> origin/develop
     </UserRoleProvider>
   );
 }
