@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.rdb import init_db
 from app.db.vector_db import init_collection
+from app.api.document import router as document_router
 
 
 @asynccontextmanager
@@ -20,7 +21,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +29,7 @@ app.add_middleware(
 
 # 라우터 완성되면 아래에 등록
 # from app.api import document, chat, search, admin
-# app.include_router(document.router, prefix="/api/v1")
+app.include_router(document_router)
 
 
 @app.get("/")
