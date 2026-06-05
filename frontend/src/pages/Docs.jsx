@@ -266,6 +266,10 @@ function EditableCell({ value, onSave, onDelete }) {
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
+<<<<<<< HEAD
+  const { onMenu, onProfile } = useOutletContext();
+  const doc = getDocContent(docId);
+=======
   const { onMenu } = useOutletContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -349,10 +353,11 @@ export default function Docs() {
     setDocData(updated);
     localStorage.setItem(`gamedocs_edited_${docId}`, JSON.stringify(updated));
   };
+>>>>>>> origin/develop
 
   return (
     <div className="gd-page">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
       <div className="gd-page-scroll">
         <div className="gd-doc-wrap">
           <div className="gd-doc-card">

@@ -1,24 +1,42 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
-import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe } from "./Icons.jsx";
+import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
 import { loadPins, loadPending, MOCK_DOCS } from "../data/upload.js";
+import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
+
+function AnimSegment({ value, onChange }) {
+  const opts = [{ v: "0", label: "끄기" }, { v: "1", label: "1" }, { v: "2", label: "2" }];
+  return (
+    <div className="gd-anim-segment">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          className={"gd-anim-seg-btn" + (value === o.v ? " active" : "")}
+          onClick={() => onChange(o.v)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function SettingsModal({ onClose }) {
   const [streaming, setStreaming] = useState(true);
   const [korean, setKorean] = useState(true);
   const [sources, setSources] = useState(true);
-  const [cascades, setCascades] = useState(
-    () => localStorage.getItem("gamedocs_cascades") !== "false"
+  const [animType, setAnimTypeState] = useState(
+    () => localStorage.getItem("gamedocs_anim") ?? "1"
   );
 
-  const toggleCascades = (val) => {
-    setCascades(val);
-    localStorage.setItem("gamedocs_cascades", val);
-    window.dispatchEvent(new Event("gamedocs:cascades"));
+  const setAnimType = (val) => {
+    setAnimTypeState(val);
+    localStorage.setItem("gamedocs_anim", val);
+    window.dispatchEvent(new Event("gamedocs:anim"));
   };
 
   const Row = ({ label, desc, on, set }) => (
@@ -44,7 +62,10 @@ function SettingsModal({ onClose }) {
         <Row label="스트리밍 응답" desc="AI 답변을 타이핑 애니메이션으로 표시" on={streaming} set={setStreaming} />
         <Row label="한국어 우선" desc="답변을 한국어로 우선 생성" on={korean} set={setKorean} />
         <Row label="출처 표시" desc="답변 하단에 참고 문서 링크 노출" on={sources} set={setSources} />
-        <Row label="글자 비 애니메이션" desc="배경에 떨어지는 민트 글자 효과" on={cascades} set={toggleCascades} />
+        <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+          <div className="lbl">애니메이션</div>
+          <AnimSegment value={animType} onChange={setAnimType} />
+        </div>
         <button className="gd-modal-close" onClick={onClose}>닫기</button>
       </div>
     </div>
@@ -60,15 +81,20 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const [showSettings, setShowSettings] = useState(false);
   const [pinIds, setPinIds] = useState(() => loadPins());
   const [pendingIds, setPendingIds] = useState(() => loadPending());
+  const [rooms, setRooms] = useState(() => loadRooms());
+  const [chatOpen, setChatOpen] = useState(() => location.pathname.startsWith("/chat"));
 
   React.useEffect(() => {
     const syncPins    = () => setPinIds(loadPins());
     const syncPending = () => setPendingIds(loadPending());
+    const syncRooms   = () => setRooms(loadRooms());
     window.addEventListener("gamedocs:pins",    syncPins);
     window.addEventListener("gamedocs:pending", syncPending);
+    window.addEventListener("gamedocs:rooms",   syncRooms);
     return () => {
       window.removeEventListener("gamedocs:pins",    syncPins);
       window.removeEventListener("gamedocs:pending", syncPending);
+      window.removeEventListener("gamedocs:rooms",   syncRooms);
     };
   }, []);
 
@@ -96,6 +122,10 @@ export default function Sidebar({ isOpen, onNavigate }) {
     });
   };
 
+  useEffect(() => {
+    if (location.pathname.startsWith("/chat")) setChatOpen(true);
+  }, [location.pathname]);
+
   const isActive = (path) =>
     path === "/chat"
       ? location.pathname.startsWith("/chat")
@@ -121,14 +151,82 @@ export default function Sidebar({ isOpen, onNavigate }) {
         </button>
       </div>
 
+      {/* 새 채팅 버튼 */}
+      <button
+        className="gd-newchat"
+        onClick={() => {
+          const room = createRoom();
+          go(`/chat?room=${room.id}`);
+        }}
+      >
+        <IconPlus />
+        새 채팅
+      </button>
+
       {/* 상단 네비게이션 */}
       <nav className="gd-sb-nav-section">
         <button className={"gd-sb-navitem" + (isActive("/home") ? " active" : "")} onClick={() => go("/home")}>
           홈
         </button>
-        <button className={"gd-sb-navitem" + (isActive("/chat") ? " active" : "")} onClick={() => go("/chat")}>
+        {/* AI 채팅 — 클릭 시 목록 토글 */}
+        <button
+          className={"gd-sb-navitem gd-sb-navitem--chat" + (isActive("/chat") ? " active" : "")}
+          onClick={() => { go("/chat"); setChatOpen((v) => !v); }}
+        >
           AI 채팅
+          <motion.svg
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+            width={13} height={13}
+            style={{ marginLeft: "auto", flexShrink: 0 }}
+            animate={{ rotate: chatOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </motion.svg>
         </button>
+
+        <AnimatePresence initial={false}>
+          {chatOpen && (
+            <motion.div
+              key="chat-rooms"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="gd-sb-rooms-list">
+                {rooms.map((room) => {
+                  const active = location.search.includes(`room=${room.id}`);
+                  return (
+                    <div key={room.id} className={"gd-sb-room-item" + (active ? " active" : "")}>
+                      <button
+                        className="gd-sb-room-btn"
+                        onClick={() => go(`/chat?room=${room.id}`)}
+                        title={room.title}
+                      >
+                        <span className="gd-sb-room-title">{room.title}</span>
+                        <span className="gd-sb-room-date">{room.date?.slice(5)}</span>
+                      </button>
+                      <button
+                        className="gd-sb-room-del"
+                        onClick={(e) => { e.stopPropagation(); deleteRoom(room.id); }}
+                        aria-label="삭제"
+                      >
+                        <IconClose width="11" height="11" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {rooms.length === 0 && (
+                  <div className="gd-sb-pinned-empty" style={{ paddingLeft: 12 }}>채팅 기록이 없습니다</div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")}>
           내 문서
         </button>

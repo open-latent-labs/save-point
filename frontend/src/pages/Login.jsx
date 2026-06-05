@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout.jsx";
 import AuthField from "../components/AuthField.jsx";
 import { IconGoogle, IconCheck } from "../components/Icons.jsx";
@@ -10,6 +10,25 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [countdown, setCountdown] = useState(1);
+  const navigate = useNavigate();
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!done) return;
+    const interval = setInterval(() => {
+      setCountdown((n) => {
+        if (n <= 1) {
+          clearInterval(interval);
+          navigate("/home");
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    timerRef.current = interval;
+    return () => clearInterval(interval);
+  }, [done, navigate]);
 
   const set = (key) => (val) => {
     setForm((f) => ({ ...f, [key]: val }));
@@ -38,7 +57,12 @@ export default function Login() {
         <div className="gd-auth-success">
           <span className="ok"><IconCheck width="22" height="22" /></span>
           <p>데모 로그인에 성공했습니다.</p>
-          <Link to="/home" className="gd-auth-btn as-link">홈으로 이동</Link>
+          <p style={{ fontSize: 13, color: "var(--faint)", marginTop: 8 }}>
+            {countdown}초 후 홈으로 이동합니다…
+          </p>
+          <Link to="/home" className="gd-auth-btn as-link" onClick={() => clearInterval(timerRef.current)}>
+            지금 이동
+          </Link>
         </div>
       </AuthLayout>
     );

@@ -6,7 +6,7 @@ import { IconGoogle, IconCheck } from "../components/Icons.jsx";
 import { validateSignup } from "../data/validate.js";
 
 export default function Signup() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ name: "", nickname: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -54,6 +54,15 @@ export default function Signup() {
           placeholder="홍길동"
           error={errors.name}
           autoComplete="name"
+        />
+        <AuthField
+          id="su-nickname"
+          label="닉네임"
+          value={form.nickname}
+          onChange={set("nickname")}
+          placeholder="게임 개발자"
+          error={errors.nickname}
+          autoComplete="username"
         />
         <AuthField
           id="su-email"
