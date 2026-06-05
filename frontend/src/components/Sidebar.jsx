@@ -11,6 +11,15 @@ function SettingsModal({ onClose }) {
   const [streaming, setStreaming] = useState(true);
   const [korean, setKorean] = useState(true);
   const [sources, setSources] = useState(true);
+  const [cascades, setCascades] = useState(
+    () => localStorage.getItem("gamedocs_cascades") !== "false"
+  );
+
+  const toggleCascades = (val) => {
+    setCascades(val);
+    localStorage.setItem("gamedocs_cascades", val);
+    window.dispatchEvent(new Event("gamedocs:cascades"));
+  };
 
   const Row = ({ label, desc, on, set }) => (
     <div className="gd-setting-row">
@@ -35,6 +44,7 @@ function SettingsModal({ onClose }) {
         <Row label="스트리밍 응답" desc="AI 답변을 타이핑 애니메이션으로 표시" on={streaming} set={setStreaming} />
         <Row label="한국어 우선" desc="답변을 한국어로 우선 생성" on={korean} set={setKorean} />
         <Row label="출처 표시" desc="답변 하단에 참고 문서 링크 노출" on={sources} set={setSources} />
+        <Row label="글자 비 애니메이션" desc="배경에 떨어지는 민트 글자 효과" on={cascades} set={toggleCascades} />
         <button className="gd-modal-close" onClick={onClose}>닫기</button>
       </div>
     </div>

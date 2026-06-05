@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
@@ -13,6 +13,15 @@ export default function Shell() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useSidebar();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
+  const [cascades, setCascades] = useState(
+    () => localStorage.getItem("gamedocs_cascades") !== "false"
+  );
+
+  useEffect(() => {
+    const sync = () => setCascades(localStorage.getItem("gamedocs_cascades") !== "false");
+    window.addEventListener("gamedocs:cascades", sync);
+    return () => window.removeEventListener("gamedocs:cascades", sync);
+  }, []);
 
   useEffect(() => {
     if (isMobile) setSidebarOpen(false);
@@ -35,7 +44,7 @@ export default function Shell() {
         animate={{ marginLeft: sidebarOpen && !isMobile ? 260 : 0 }}
         transition={{ duration: 0.3, ease: EASE }}
       >
-        <MintCascades />
+        {cascades && <MintCascades />}
         <div className="gd-main-content">
           <Outlet context={{ onMenu: () => setSidebarOpen(true) }} />
         </div>
