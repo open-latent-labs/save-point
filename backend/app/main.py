@@ -2,14 +2,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.rdb import init_db
-from app.db.vector_db import init_collection
-
+from app.db.vector_db import init_qdrant_collection, close_qdrant_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    await init_collection()
+    await init_qdrant_collection()
     yield
+    await close_qdrant_client()
 
 
 app = FastAPI(
