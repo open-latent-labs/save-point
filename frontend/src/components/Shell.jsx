@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
 import SidebarToggle from "./SidebarToggle.jsx";
 import MintCascades from "./MintCascades.jsx";
+import MatrixWarpTransition from "./MatrixWarpTransition.jsx";
+import MyPageDrawer from "./MyPageDrawer.jsx";
 import { useSidebar } from "../hooks/useSidebar.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
 
@@ -13,14 +15,15 @@ export default function Shell() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useSidebar();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
-  const [cascades, setCascades] = useState(
-    () => localStorage.getItem("gamedocs_cascades") !== "false"
+  const [animType, setAnimType] = useState(
+    () => localStorage.getItem("gamedocs_anim") ?? "1"
   );
+  const [myPageOpen, setMyPageOpen] = useState(false);
 
   useEffect(() => {
-    const sync = () => setCascades(localStorage.getItem("gamedocs_cascades") !== "false");
-    window.addEventListener("gamedocs:cascades", sync);
-    return () => window.removeEventListener("gamedocs:cascades", sync);
+    const sync = () => setAnimType(localStorage.getItem("gamedocs_anim") ?? "1");
+    window.addEventListener("gamedocs:anim", sync);
+    return () => window.removeEventListener("gamedocs:anim", sync);
   }, []);
 
   useEffect(() => {
@@ -44,10 +47,21 @@ export default function Shell() {
         animate={{ marginLeft: sidebarOpen && !isMobile ? 260 : 0 }}
         transition={{ duration: 0.3, ease: EASE }}
       >
-        {cascades && <MintCascades />}
-        <div className="gd-main-content">
-          <Outlet context={{ onMenu: () => setSidebarOpen(true) }} />
-        </div>
+        {animType === "1" && <MintCascades />}
+        {animType === "2" && <MatrixWarpTransition />}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            className="gd-main-content"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <Outlet context={{ onMenu: () => setSidebarOpen(true), onProfile: () => setMyPageOpen(true) }} />
+          </motion.div>
+        </AnimatePresence>
+        <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />
       </motion.main>
     </div>
   );

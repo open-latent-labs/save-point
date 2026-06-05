@@ -137,7 +137,7 @@ function makeSquareIcon(src, size = 192) {
 }
 
 export default function Upload() {
-  const { onMenu } = useOutletContext();
+  const { onMenu, onProfile } = useOutletContext();
 
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
@@ -341,7 +341,7 @@ export default function Upload() {
 
   return (
     <div className="gd-page">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
 
       {/* <UploadCompleteModal isOpen={showModal} onClose={() => setShowModal(false)} stats={modalStats} /> */}
       <div className="gd-page-scroll">

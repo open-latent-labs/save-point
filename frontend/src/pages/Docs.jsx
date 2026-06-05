@@ -5,12 +5,12 @@ import { getDocContent } from "../data/docsData.js";
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
-  const { onMenu } = useOutletContext();
+  const { onMenu, onProfile } = useOutletContext();
   const doc = getDocContent(docId);
 
   return (
     <div className="gd-page">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
       <div className="gd-page-scroll">
         <div className="gd-doc-wrap">
           <div className="gd-doc-card">
