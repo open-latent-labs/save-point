@@ -101,7 +101,7 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
         >
           <IconStar filled={isFav} width="15" height="15" />
         </button>
-        {onDelete && (
+        {onDelete && !isPending && !doc.isPublic && (
           <button
             className="gd-docitem-del"
             onClick={() => onDelete(doc.id)}

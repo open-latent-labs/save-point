@@ -9,23 +9,8 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # App
-    app_env: str = "development"
+    # ── JWT ──────────────────────────────────────────────────────────────────
     secret_key: str
-
-    # PostgreSQL
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
-    postgres_db: str
-    postgres_user: str
-    postgres_password: str
-
-    @property
-    def database_url(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
 
     # ===============================================
     # Chat
@@ -40,21 +25,33 @@ class Settings(BaseSettings):
     chunk_size: int = 300
     chunk_overlap: int = 50
 
-
-
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
     summary_model: str = "gemma2:9b"
     chat_model: str = "gemma2:9b"
 
-    # OCR
-    tesseract_cmd: str = "/usr/bin/tesseract"
+    algorithm: str
+    access_token_expire_minutes: int
+    refresh_token_expire_days: int
 
-    # File Upload
-    upload_dir: str = "./uploads"
-    max_file_size_mb: int = 50
+    # ── App ──────────────────────────────────────────────────────────────────
+    app_name: str
+    app_version: str
+    debug: bool
+ 
+    # ── Database ─────────────────────────────────────────────────────────────
+    database_url: str
+ 
+    # ── MinIO ─────────────────────────────────────────────────────────────────
+    minio_endpoint: str
+    minio_root_user: str
+    minio_root_password: str
+    minio_use_ssl: bool
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+settings = get_settings()

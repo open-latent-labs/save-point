@@ -33,7 +33,7 @@ const SAMPLE_USER = {
     docs: 7,
 };
 
-const TABS = ["기본 정보", "활동 통계", "권한 및 설정"];
+const TABS = ["기본 정보", "활동 통계"];
 const ROLE_OPTIONS = ["ADMIN", "USER"];
 // const STATUS_OPTIONS = ["승인", "반려"];
 
@@ -263,9 +263,6 @@ export default function UserDetailSidebar({
 
                     {tab === "활동 통계" && (
                         <div className="text-[#5b656d] text-sm text-center py-16">활동 통계 내용이 여기에 표시됩니다.</div>
-                    )}
-                    {tab === "권한 및 설정" && (
-                        <div className="text-[#5b656d] text-sm text-center py-16">권한 및 설정 내용이 여기에 표시됩니다.</div>
                     )}
                 </div>
             </aside>
