@@ -139,7 +139,7 @@ export function getDocContent(id) {
     breadcrumb: ['페이지'],
     title: node ? node.label : id,
     meta: '',
-    desc: '이 페이지의 내용은 아직 작성 중입니다.',
+    desc: '요약 내용이 비어 있습니다.',
     sections: [],
   };
 }
