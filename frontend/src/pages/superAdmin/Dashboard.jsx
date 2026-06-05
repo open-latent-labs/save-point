@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import Topbar from "../../components/Topbar.jsx";
 import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx";
@@ -86,12 +86,45 @@ const ROLE_STYLES = {
 const RoleBadge = ({ role }) => <span className={`${BADGE_BASE} ${ROLE_STYLES[role]}`}>{role}</span>;
 
 /* ---------- 셀렉트(필터) ---------- */
-const FilterSelect = ({ label, className = "" }) => (
-    <button type="button" className={`inline-flex items-center justify-between gap-2 bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#8a949c] border border-white/[0.08] rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2] transition-all duration-150 ${className}`}>
-        <span>{label}</span>
-        <Icon name="chevron-down" size={14} className="opacity-50 shrink-0" />
-    </button>
-);
+const FilterSelect = ({ label, options = [], value, onChange, className = "" }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        if (open) document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [open]);
+
+    const displayLabel = (options.find((o) => o.value === value)?.label) ?? label;
+
+    return (
+        <div ref={ref} className={`relative ${className}`}>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="inline-flex items-center justify-between gap-2 bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#8a949c] border border-white/[0.08] rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2] transition-all duration-150 w-full"
+            >
+                <span className={value ? "text-[#c3ccd2]" : ""}>{displayLabel}</span>
+                <Icon name="chevron-down" size={14} className={`opacity-50 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && options.length > 0 && (
+                <div className="absolute top-full mt-1.5 right-0 min-w-full bg-[#151b20] border border-white/[0.1] rounded-[10px] shadow-xl z-50 overflow-hidden py-1">
+                    {options.map((opt) => (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => { onChange(opt.value); setOpen(false); }}
+                            className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors whitespace-nowrap ${value === opt.value ? "text-[#22c55e] bg-[#22c55e]/[0.08]" : "text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.04]"}`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function UserManagement({
     users = SAMPLE_USERS,
@@ -103,7 +136,10 @@ export default function UserManagement({
     const onMenu = ctx?.onMenu ?? (() => { });
     const sbVisible = ctx?.sbVisible ?? false;
     const [query, setQuery] = useState("");
+    const [roleFilter, setRoleFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
     const [selected, setSelected] = useState(() => new Set());
+    const [suspendedUsers, setSuspendedUsers] = useState(() => new Set());
     const [detailUser, setDetailUser] = useState(null);
     const [page, setPage] = useState(1);
     const { getRole, updateRole } = useUserRole();
@@ -115,13 +151,24 @@ export default function UserManagement({
         updateRole(user.id, next);
     };
 
+    const toggleSuspend = (e, user) => {
+        e.stopPropagation();
+        setSuspendedUsers((prev) => {
+            const next = new Set(prev);
+            next.has(user.id) ? next.delete(user.id) : next.add(user.id);
+            return next;
+        });
+    };
+
     const filtered = useMemo(() => {
+        let result = users;
         const q = query.trim().toLowerCase();
-        if (!q) return users;
-        return users.filter(
-            (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.handle.toLowerCase().includes(q)
-        );
-    }, [users, query]);
+        if (q) result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.handle.toLowerCase().includes(q));
+        if (roleFilter) result = result.filter((u) => getRole(u) === roleFilter);
+        if (statusFilter === "online") result = result.filter((u) => u.online);
+        if (statusFilter === "offline") result = result.filter((u) => !u.online);
+        return result;
+    }, [users, query, roleFilter, statusFilter, getRole]);
 
     const allChecked = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
 
@@ -200,13 +247,30 @@ export default function UserManagement({
                                 className="flex-1 bg-transparent border-none outline-none text-[#e7ecef] text-[13.5px] placeholder:text-[#5b656d]"
                             />
                         </div>
-                        <div className="flex gap-2.5 flex-wrap">
-                            <FilterSelect label="전체 역할" />
-                            <FilterSelect label="전체 플랜" />
-                            <FilterSelect label="전체 상태" />
+                        <div className="flex gap-2 flex-wrap">
+                            <FilterSelect
+                                label="권한"
+                                options={[
+                                    { value: "", label: "전체" },
+                                    { value: "USER", label: "USER" },
+                                    { value: "ADMIN", label: "ADMIN" },
+                                ]}
+                                value={roleFilter}
+                                onChange={setRoleFilter}
+                            />
+                            <FilterSelect
+                                label="상태"
+                                options={[
+                                    { value: "", label: "전체" },
+                                    { value: "online", label: "접속 중" },
+                                    { value: "offline", label: "오프라인" },
+                                ]}
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                            />
                             <button
                                 type="button"
-                                onClick={() => setQuery("")}
+                                onClick={() => { setQuery(""); setRoleFilter(""); setStatusFilter(""); }}
                                 className="inline-flex items-center gap-[7px] bg-transparent text-[#8a949c] border border-white/[0.07] rounded-[10px] px-3.5 py-2.5 text-[13px] cursor-pointer hover:border-white/[0.12] hover:text-[#e7ecef] transition-colors"
                             >
                                 <Icon name="refresh" size={16} />
@@ -217,7 +281,7 @@ export default function UserManagement({
 
                     {/* 테이블 */}
                     <div className="overflow-x-auto">
-                        <table className="w-full border-collapse min-w-[880px]">
+                        <table className="w-full border-collapse min-w-[1020px]">
                             <thead>
                                 <tr className="[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:text-[#5b656d] [&>th]:px-3.5 [&>th]:py-3 [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.07] [&>th]:bg-white/[0.012] [&>th]:whitespace-nowrap">
                                     <th className="!w-11">
@@ -228,6 +292,7 @@ export default function UserManagement({
                                     <th>권한</th>
                                     <th>질문 수</th>
                                     <th>업로드 문서 수</th>
+                                    <th>활동 상태</th>
                                     <th>최근 접속</th>
                                     <th className="!w-14 !text-center">권한 변경</th>
                                 </tr>
@@ -255,28 +320,71 @@ export default function UserManagement({
                                         <td><RoleBadge role={getRole(u)} /></td>
                                         <td className="font-semibold text-[#e7ecef]">{u.questions.toLocaleString()}</td>
                                         <td className="font-semibold text-[#e7ecef]">{u.docs.toLocaleString()}</td>
-                                        <td>
-                                            <span className="inline-flex items-center gap-2 text-[#8a949c]">
-                                                <span className={`w-[7px] h-[7px] rounded-full shrink-0 ${u.online ? "bg-[#22c55e] shadow-[0_0_0_3px_rgba(34,197,94,0.18)]" : "bg-[#5b656d]"}`} />
-                                                {u.lastSeen}
-                                            </span>
+                                        <td onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const isSuspended = suspendedUsers.has(u.id);
+                                                return (
+                                                    <div className="inline-flex gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="활동 정지"
+                                                            onClick={(e) => { if (!isSuspended) toggleSuspend(e, u); }}
+                                                            disabled={isSuspended}
+                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isSuspended
+                                                                ? "bg-[#fb923c]/[0.12] text-[#fb923c] border-[#fb923c]/25 cursor-pointer hover:bg-[#fb923c]/[0.22]"
+                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                            }`}
+                                                        >
+                                                            활동 정지
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="활동 재개"
+                                                            onClick={(e) => { if (isSuspended) toggleSuspend(e, u); }}
+                                                            disabled={!isSuspended}
+                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isSuspended
+                                                                ? "bg-[#22c55e]/[0.12] text-[#22c55e] border-[#22c55e]/25 cursor-pointer hover:bg-[#22c55e]/[0.22]"
+                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                            }`}
+                                                        >
+                                                            활동 재개
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
+                                        <td className="text-[#8a949c]">{u.lastSeen}</td>
                                         <td className="text-center" onClick={(e) => e.stopPropagation()}>
                                             {(() => {
                                                 const current = getRole(u);
                                                 const isAdmin = current === "ADMIN";
                                                 return (
-                                                    <button
-                                                        type="button"
-                                                        aria-label={isAdmin ? "강등" : "승급"}
-                                                        onClick={(e) => toggleRole(e, u)}
-                                                        className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border cursor-pointer transition-colors ${isAdmin
-                                                            ? "bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 hover:bg-[#f87171]/[0.22]"
-                                                            : "bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 hover:bg-[#a78bfa]/[0.22]"
-                                                            }`}
-                                                    >
-                                                        {isAdmin ? "강등" : "승급"}
-                                                    </button>
+                                                    <div className="inline-flex gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="승급"
+                                                            onClick={(e) => { if (isAdmin) toggleRole(e, u); }}
+                                                            disabled={!isAdmin}
+                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isAdmin
+                                                                ? "bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]"
+                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                                }`}
+                                                        >
+                                                            승급
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="강등"
+                                                            onClick={(e) => { if (!isAdmin) toggleRole(e, u); }}
+                                                            disabled={isAdmin}
+                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isAdmin
+                                                                ? "bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]"
+                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                                }`}
+                                                        >
+                                                            강등
+                                                        </button>
+                                                    </div>
                                                 );
                                             })()}
                                         </td>
