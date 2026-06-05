@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.rdb import init_db
 from app.db.vector_db import init_qdrant_collection, close_qdrant_client
 from app.api.document import router as document_router
+import app.models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
