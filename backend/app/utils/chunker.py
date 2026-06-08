@@ -17,6 +17,12 @@ class ChunkInput(BaseModel):
     raw_text: str
     metadata: ChunkMetadata
 
+class ChunkResult(BaseModel):
+    vector_point_id: str
+    chunk_index: int
+    chunk_text: str
+    page_number: int
+
 # (이거 받아서) -> 이거 반환해요 :: 미리 반환값 표시해주는 문법
 def chunk_text(raw_text: str) -> list[str]:
     words = raw_text.split()

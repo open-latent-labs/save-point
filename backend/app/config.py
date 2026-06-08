@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     embed_dim: int
 
     chunk_size: int
-    chunk_overlap: int = 50
+    chunk_overlap: int
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
