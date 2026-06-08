@@ -15,15 +15,15 @@ class Settings(BaseSettings):
     # ===============================================
     # Chat
     # ===============================================
-    qdrant_host: str = "localhost"
-    qdrant_port: int = 6333
-    qdrant_collection_name: str = "game_docs"
+    qdrant_host: str
+    qdrant_port: int
+    qdrant_collection_name: str
 
-    embed_model: str = "bge-m3"
-    embed_dim: int = 1024
+    embed_model: str
+    embed_dim: int
 
-    chunk_size: int = 300
-    chunk_overlap: int = 50
+    chunk_size: int
+    chunk_overlap: int
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
