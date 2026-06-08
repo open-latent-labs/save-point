@@ -137,7 +137,7 @@ function makeSquareIcon(src, size = 192) {
 }
 
 export default function Upload() {
-  const { onMenu } = useOutletContext();
+  const { onMenu, onProfile } = useOutletContext();
 
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
@@ -149,7 +149,7 @@ export default function Upload() {
   //   { value: "게임 프로그래밍", label: "분류 카테고리", iconType: "tag" },
   // ]);
   const inputRef = useRef(null);
-  const timersRef = useRef({});
+  const xhrRef = useRef({});
   const prevUploadingRef = useRef(false);
 
   // ── 내 문서 state ──
@@ -226,16 +226,20 @@ export default function Upload() {
       return 0;
     });
 
-  // ── mock 업로드 ──
-  const startUpload = useCallback((id) => {
-    let p = 0;
-    const tick = () => {
-      p += Math.random() * 18 + 7;
-      const next = Math.min(100, Math.round(p));
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, progress: next } : it)));
-      if (next < 100) {
-        timersRef.current[id] = setTimeout(tick, 180 + Math.random() * 160);
-      } else {
+  // ── 실제 업로드 ──
+  const startUpload = useCallback((id, file) => {
+    const xhr = new XMLHttpRequest();
+    xhrRef.current[id] = xhr;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, progress: pct } : it)));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
         setItems((prev) => {
           const finished = prev.find((it) => it.id === id);
           if (finished) {
@@ -257,10 +261,23 @@ export default function Upload() {
           }
           return prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it));
         });
-        delete timersRef.current[id];
+      } else {
+        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "error", error: `서버 오류 (${xhr.status})` } : it)));
       }
+      delete xhrRef.current[id];
     };
-    timersRef.current[id] = setTimeout(tick, 250);
+
+    xhr.onerror = () => {
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "error", error: "네트워크 오류" } : it)));
+      delete xhrRef.current[id];
+    };
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", file.name.replace(/\.[^.]+$/, ""));
+
+    xhr.open("POST", "/api/documents/upload");
+    xhr.send(formData);
   }, []);
 
   const addFiles = useCallback(
@@ -278,11 +295,12 @@ export default function Upload() {
           status: error ? "error" : "uploading",
           progress: 0,
           error,
+          file: f,
         };
       });
       setItems((prev) => [...prev, ...created]);
       created.forEach((it) => {
-        if (it.status === "uploading") startUpload(it.id);
+        if (it.status === "uploading") startUpload(it.id, it.file);
       });
     },
     [startUpload]
@@ -293,14 +311,14 @@ export default function Upload() {
   const onDragLeave = (e) => { e.preventDefault(); if (e.currentTarget.contains(e.relatedTarget)) return; setDragging(false); };
 
   const removeItem = (id) => {
-    clearTimeout(timersRef.current[id]);
-    delete timersRef.current[id];
+    xhrRef.current[id]?.abort();
+    delete xhrRef.current[id];
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
   const setCategory = (id, category) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, category } : it)));
 
-  useEffect(() => () => { Object.values(timersRef.current).forEach(clearTimeout); }, []);
+  useEffect(() => () => { Object.values(xhrRef.current).forEach((xhr) => xhr.abort()); }, []);
 
   const doneCount = items.filter((i) => i.status === "done").length;
   const errorItems = items.filter((i) => i.status === "error");
@@ -341,7 +359,7 @@ export default function Upload() {
 
   return (
     <div className="gd-page">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
 
       {/* <UploadCompleteModal isOpen={showModal} onClose={() => setShowModal(false)} stats={modalStats} /> */}
       <div className="gd-page-scroll">

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import Topbar from "../../components/Topbar.jsx";
 import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx";
+import MyPageDrawer from "../../components/MyPageDrawer.jsx";
 import { useUserRole } from "../../context/UserRoleContext.jsx";
 
 
@@ -135,6 +136,7 @@ export default function UserManagement({
     const ctx = useOutletContext();
     const onMenu = ctx?.onMenu ?? (() => { });
     const sbVisible = ctx?.sbVisible ?? false;
+    const [myPageOpen, setMyPageOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
@@ -196,7 +198,7 @@ export default function UserManagement({
 
     return (
         <div className="w-full min-h-full bg-[#0a0d0c] text-[#e7ecef] font-sans [font-feature-settings:'tnum']">
-            <Topbar onMenu={onMenu} />
+            <Topbar onMenu={onMenu} onProfile={() => setMyPageOpen(true)} />
             <div className={`transition-[padding-left] duration-[280ms] [transition-timing-function:cubic-bezier(0.2,0.7,0.2,1)] pl-4 pr-4 sm:pr-8 py-[18px] sm:pt-7 sm:pb-10 ${sbVisible ? 'min-[861px]:pl-[264px]' : ''}`}>
                 {/* 헤더 */}
                 <header className="flex flex-col sm:flex-row sm:justify-between items-start gap-6 mb-6">
@@ -442,6 +444,7 @@ export default function UserManagement({
                 onSuspend={() => { }}
                 onDelete={() => { }}
             />
+            <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />
         </div>
     );
 }

@@ -4,7 +4,7 @@
 -- 참고: ULID PK는 백엔드에서 생성, BIGINT PK는 GENERATED ALWAYS AS IDENTITY
 -- =============================================================
 
-CREATE TYPE user_role        AS ENUM ('USER', 'ADMIN');
+CREATE TYPE user_role        AS ENUM ('USER', 'ADMIN','SUPER_ADMIN');
 CREATE TYPE user_status      AS ENUM ('ACTIVE', 'DEACTIVE');
 CREATE TYPE document_status  AS ENUM ('INITIAL', 'PROCESSING', 'DONE', 'PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE document_access  AS ENUM ('PUBLIC', 'PRIVATE');
