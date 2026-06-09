@@ -21,8 +21,7 @@ async def embed_query(query: str) -> list[float]:
 
 
 # 질문 받아서 벡터 db에서 관련 문서 검색
-async def search_vectors(query: str, user_id: str, limit: int = 5) -> list[dict]:
-    query_vector = await embed_query(query)
+async def search_vectors(query_vector: list[float], user_id: str, limit: int = 5) -> list[dict]:
     client = get_qdrant_client()
 
     results = await client.query_points(

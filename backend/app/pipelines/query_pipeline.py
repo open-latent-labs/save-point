@@ -1,10 +1,10 @@
-from app.services.rag_service import search_vectors
+from app.services.rag_service import search_vectors, embed_query
 from app.llm.chat_prompt import build_prompt
-from app.llm.ollama_client import generate
 
 async def query(question: str, user_id: str) -> dict:
     # 질문 -> 질문 임베딩 -> 벡터 검색 -> 검색 결과
-    search_results = await search_vectors(question, user_id)
+    query_vector = await embed_query(question)
+    search_results = await search_vectors(query_vector, user_id)
     
     if not search_results:
         return {"prompt": None, "sources": []}
