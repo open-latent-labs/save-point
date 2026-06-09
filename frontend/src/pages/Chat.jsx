@@ -3,8 +3,9 @@ import { useSearchParams, useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
-import { getMockAnswer, SUGGESTIONS } from "../data/mock.js";
+import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
+import { streamChat } from "../api/chat.js";
 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
@@ -20,35 +21,11 @@ export default function Chat() {
   const timerRef = useRef(null);
   const seededRef = useRef("");
 
-  // ── AI 응답 스트리밍 (mock) ──────────────────────────────
-  const streamAnswer = useCallback((id, full, sources) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, thinking: false, streaming: true } : m))
-    );
-    let i = 0;
-    const chunk = Math.max(2, Math.round(full.length / 120));
-    const tick = () => {
-      i += chunk;
-      const slice = full.slice(0, i);
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: slice } : m)));
-      if (i < full.length) {
-        timerRef.current = setTimeout(tick, 18);
-      } else {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, text: full, streaming: false, sources } : m))
-        );
-        setBusy(false);
-      }
-    };
-    tick();
-  }, []);
-
   // ── 메시지 전송 ──────────────────────────────────────────
   const sendMessage = useCallback(
     (text) => {
       const q = (text || "").trim();
       if (!q || busy) return;
-      clearTimeout(timerRef.current); // 진행 중인 타이머 정리
       setBusy(true);
       pushHistory(q);
 
@@ -59,11 +36,39 @@ export default function Chat() {
         { id: aiId, role: "ai", text: "", sources: [], streaming: false, thinking: true },
       ]);
 
-      const { text: full, sources } = getMockAnswer(q);
-      // 응답 생성 지연을 흉내내고 스트리밍 시작
-      timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
+      // SSE 시작
+      const abort = streamChat(
+        q,
+        "user-id-here", // 나중에 실제 유저 ID로 교체
+        // 토큰 받을 때마다
+        (token) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiId
+                ? { ...m, thinking: false, streaming: true, text: m.text + token }
+                : m
+            )
+          );
+        },
+        // 출처 받았을 때
+        (sources) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiId ? { ...m, sources } : m))
+          );
+        },
+        // 완료
+        () => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiId ? { ...m, streaming: false } : m))
+          );
+          setBusy(false);
+        }
+      );
+
+      // abort 함수 저장 (중지 버튼용)
+      timerRef.current = abort;
     },
-    [busy, streamAnswer]
+    [busy]
   );
 
   // ── URL ?q= 를 첫 메시지로 자동 전송 ─────────────────────

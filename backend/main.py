@@ -5,6 +5,8 @@ from app.db.rdb import init_db
 from app.db.vector_db import init_qdrant_collection, close_qdrant_client
 from app.api.document import router as document_router
 
+from app.api.chat import router as chat_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -31,6 +33,7 @@ app.add_middleware(
 # 라우터 완성되면 아래에 등록
 # from app.api import document, chat, search, admin
 app.include_router(document_router)
+app.include_router(chat_router)
 
 @app.get("/")
 async def root():
