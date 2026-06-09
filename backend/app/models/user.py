@@ -43,7 +43,12 @@ class User(Base):
         nullable=False,
     )
 
-    username: Mapped[str] = mapped_column(
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
