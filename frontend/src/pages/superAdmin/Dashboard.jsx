@@ -203,14 +203,14 @@ export default function UserManagement() {
         const isSuspended = suspendedUsers.has(user.id);
         try {
             if (isSuspended) {
-                await unbanUser({ id: user.id, status: "ACTIVE" });
+                await unbanUser({ id: user.id, ban: "UNBAN" });
                 setSuspendedUsers((prev) => {
                     const next = new Set(prev);
                     next.delete(user.id);
                     return next;
                 });
             } else {
-                await banUser({ id: user.id, status: "DEACTIVE" });
+                await banUser({ id: user.id, ban: "BAN" });
                 setSuspendedUsers((prev) => {
                     const next = new Set(prev);
                     next.add(user.id);
