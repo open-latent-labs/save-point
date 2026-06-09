@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import Topbar from "../../components/Topbar.jsx";
 import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx";
+import MyPageDrawer from "../../components/MyPageDrawer.jsx";
 import { useUserRole } from "../../context/UserRoleContext.jsx";
 
 
@@ -135,6 +136,7 @@ export default function UserManagement({
     const ctx = useOutletContext();
     const onMenu = ctx?.onMenu ?? (() => { });
     const sbVisible = ctx?.sbVisible ?? false;
+    const [myPageOpen, setMyPageOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
@@ -196,7 +198,7 @@ export default function UserManagement({
 
     return (
         <div className="w-full min-h-full bg-[#0a0d0c] text-[#e7ecef] font-sans [font-feature-settings:'tnum']">
-            <Topbar onMenu={onMenu} />
+            <Topbar onMenu={onMenu} onProfile={() => setMyPageOpen(true)} />
             <div className={`transition-[padding-left] duration-[280ms] [transition-timing-function:cubic-bezier(0.2,0.7,0.2,1)] pl-4 pr-4 sm:pr-8 py-[18px] sm:pt-7 sm:pb-10 ${sbVisible ? 'min-[861px]:pl-[264px]' : ''}`}>
                 {/* 헤더 */}
                 <header className="flex flex-col sm:flex-row sm:justify-between items-start gap-6 mb-6">
@@ -333,7 +335,7 @@ export default function UserManagement({
                                                             className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isSuspended
                                                                 ? "bg-[#fb923c]/[0.12] text-[#fb923c] border-[#fb923c]/25 cursor-pointer hover:bg-[#fb923c]/[0.22]"
                                                                 : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             활동 정지
                                                         </button>
@@ -345,7 +347,7 @@ export default function UserManagement({
                                                             className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isSuspended
                                                                 ? "bg-[#22c55e]/[0.12] text-[#22c55e] border-[#22c55e]/25 cursor-pointer hover:bg-[#22c55e]/[0.22]"
                                                                 : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             활동 재개
                                                         </button>
@@ -355,38 +357,25 @@ export default function UserManagement({
                                         </td>
                                         <td className="text-[#8a949c]">{u.lastSeen}</td>
                                         <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                                            {(() => {
-                                                const current = getRole(u);
-                                                const isAdmin = current === "ADMIN";
-                                                return (
-                                                    <div className="inline-flex gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            aria-label="승급"
-                                                            onClick={(e) => { if (isAdmin) toggleRole(e, u); }}
-                                                            disabled={!isAdmin}
-                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isAdmin
-                                                                ? "bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]"
-                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                                }`}
-                                                        >
-                                                            승급
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            aria-label="강등"
-                                                            onClick={(e) => { if (!isAdmin) toggleRole(e, u); }}
-                                                            disabled={isAdmin}
-                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isAdmin
-                                                                ? "bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]"
-                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                                }`}
-                                                        >
-                                                            강등
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })()}
+                                            {getRole(u) !== "ADMIN" ? (
+                                                <button
+                                                    type="button"
+                                                    aria-label="승급"
+                                                    onClick={(e) => toggleRole(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]"
+                                                >
+                                                    승급
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    aria-label="강등"
+                                                    onClick={(e) => toggleRole(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]"
+                                                >
+                                                    강등
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -442,6 +431,7 @@ export default function UserManagement({
                 onSuspend={() => { }}
                 onDelete={() => { }}
             />
+            <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />
         </div>
     );
 }

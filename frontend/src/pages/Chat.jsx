@@ -1,33 +1,95 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useOutletContext } from "react-router-dom";
+import { useSearchParams, useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
 import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
+import { loadRooms, createRoom, updateRoom } from "../data/chatRooms.js";
 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
 
 export default function Chat() {
-  const [searchParams] = useSearchParams();
-  const { onMenu } = useOutletContext();
-  const [messages, setMessages] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { onMenu, onProfile } = useOutletContext();
+  const navigate = useNavigate();
+
+  const roomId = searchParams.get("room");
+
+  const [messages, setMessages] = useState(() => {
+    if (!roomId) return [];
+    const room = loadRooms().find((r) => r.id === roomId);
+    return room?.messages ?? [];
+  });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [currentRoomId, setCurrentRoomId] = useState(roomId);
 
   const scrollRef = useRef(null);
   const timerRef = useRef(null);
   const seededRef = useRef("");
 
-  // ── 메시지 전송 ──────────────────────────────────────────
+  // 방이 바뀌면 메시지 교체
+  useEffect(() => {
+    const id = searchParams.get("room");
+    setCurrentRoomId(id);
+    if (!id) {
+      setMessages([]);
+      return;
+    }
+    const room = loadRooms().find((r) => r.id === id);
+    setMessages(room?.messages ?? []);
+    seededRef.current = "";
+  }, [searchParams]);
+
+  // 메시지 변경 시 방에 저장
+  useEffect(() => {
+    if (!currentRoomId || messages.length === 0) return;
+    const finalMessages = messages.filter((m) => !m.thinking);
+    if (finalMessages.length > 0) updateRoom(currentRoomId, finalMessages);
+  }, [messages, currentRoomId]);
+
+  const streamAnswer = useCallback((id, full, sources) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, thinking: false, streaming: true } : m))
+    );
+    let i = 0;
+    const chunk = Math.max(2, Math.round(full.length / 120));
+    const tick = () => {
+      i += chunk;
+      const slice = full.slice(0, i);
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: slice } : m)));
+      if (i < full.length) {
+        timerRef.current = setTimeout(tick, 18);
+      } else {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, text: full, streaming: false, sources } : m))
+        );
+        setBusy(false);
+      }
+    };
+    tick();
+  }, []);
+
   const sendMessage = useCallback(
     (text) => {
       const q = (text || "").trim();
       if (!q || busy) return;
+
+      clearTimeout(timerRef.current);
       setBusy(true);
       pushHistory(q);
+
+      // 방이 없으면 새로 생성
+      let roomToUse = currentRoomId;
+      if (!roomToUse) {
+        const room = createRoom();
+        roomToUse = room.id;
+        setCurrentRoomId(room.id);
+        setSearchParams({ room: room.id }, { replace: true });
+      }
 
       const aiId = uid();
       setMessages((prev) => [
@@ -67,22 +129,20 @@ export default function Chat() {
 
       // abort 함수 저장 (중지 버튼용)
       timerRef.current = abort;
+      # timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
     },
-    [busy]
+    [busy, currentRoomId, setSearchParams]
   );
 
-  // ── URL ?q= 를 첫 메시지로 자동 전송 ─────────────────────
-  // seededRef 가드로 중복 전송을 막습니다. (StrictMode 이중 호출에도 안전)
+  // URL ?q= 첫 메시지 자동 전송
   useEffect(() => {
     const q = searchParams.get("q");
     if (q && q !== seededRef.current) {
       seededRef.current = q;
       sendMessage(q);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // ── 메시지 변경 시 자동 스크롤 ───────────────────────────
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -95,7 +155,7 @@ export default function Chat() {
 
   return (
     <div className="gd-chat">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
 
       <div className={`gd-chat-top${messages.length === 0 ? " gd-chat-top--empty" : ""}`}>
         <div className="gd-chat-top-inner">

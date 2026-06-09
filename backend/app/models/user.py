@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Integer
@@ -41,7 +43,7 @@ class User(Base):
         nullable=False,
     )
 
-    nickname: Mapped[str] = mapped_column(
+    username: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
@@ -92,3 +94,8 @@ class User(Base):
         foreign_keys="Document.approved_by_id",
         back_populates="approved_by",
     )
+
+    chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    pinned_documents = relationship("PinnedDocument", back_populates="user", cascade="all, delete-orphan")
+    bookmarked_documents = relationship("BookmarkedDocument", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")

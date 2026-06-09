@@ -15,7 +15,7 @@ const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]
 const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
 
 export default function Approval() {
-  const { onMenu } = useOutletContext();
+  const { onMenu, onProfile } = useOutletContext();
   const [pendingIds, setPendingIds] = useState(() => loadPending());
   const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
   const [approvedIds, setApprovedIds] = useState(() => loadApproved());
@@ -48,7 +48,7 @@ export default function Approval() {
 
   return (
     <div className="gd-page">
-      <Topbar onMenu={onMenu} />
+      <Topbar onMenu={onMenu} onProfile={onProfile} />
       <div className="gd-page-scroll">
         <div className="gd-up-wrap">
 

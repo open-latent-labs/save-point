@@ -104,3 +104,11 @@ class Document(Base):
         foreign_keys=[approved_by_id],
         back_populates="approved_documents",
     )
+
+    ocr_result = relationship("OcrResult", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    summary_llm_result = relationship("SummaryLlmResult", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    processing_jobs = relationship("ProcessingJob", back_populates="document", cascade="all, delete-orphan")
+    approval_logs = relationship("ApprovalLog", back_populates="document")
+    pinned_by = relationship("PinnedDocument", back_populates="document", cascade="all, delete-orphan")
+    bookmarked_by = relationship("BookmarkedDocument", back_populates="document", cascade="all, delete-orphan")
