@@ -11,12 +11,12 @@
 # ):
 #     pass
 
-from app.utils.chunker import chunk_text, ChunkMetadata, ChunkResult
+from app.utils.chunker import split_into_chunks, ChunkMetadata, ChunkResult
 from app.services.embed_service import embed_chunks, store_vectors
 
 async def ingest(raw_text: str, metadata: ChunkMetadata) -> list[ChunkResult]:
     # 추출본 -> 청크
-    chunks = chunk_text(raw_text)
+    chunks = split_into_chunks(raw_text)
 
     # 청크 -> 임베딩
     vectors = await embed_chunks(chunks)

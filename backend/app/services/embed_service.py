@@ -21,15 +21,15 @@ async def embed_chunks(chunks: list[str]) -> list[list[float]]:
             response = await client.post(
                 # Ollama가 로컬에서 HTTP 서버로 떠있음.
                 # 임베딩 요청(POST)은 해당 경로로 보내야 함.
-                f"{settings.ollama_base_url}/api/embeddings",
+                f"{settings.ollama_base_url}/api/embed",
                 json={
                     "model": settings.embed_model,
-                    "prompt": chunk,
+                    "input": chunk,
                 },
             )
 
             data = response.json()
-            vectors.append(data["embedding"])
+            vectors.append(data["embeddings"][0])
 
     return vectors #나중에 여기에 값이 제대로 있는지 테스트 후 아래 저장 함수 호출
 
