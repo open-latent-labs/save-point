@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useOutletContext, useNavigate } from "react-router-dom";
+import { useSearchParams, useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
@@ -14,7 +14,6 @@ const uid = () => `m${++_id}_${Date.now()}`;
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { onMenu, onProfile } = useOutletContext();
-  const navigate = useNavigate();
 
   const roomId = searchParams.get("room");
 
@@ -50,28 +49,6 @@ export default function Chat() {
     const finalMessages = messages.filter((m) => !m.thinking);
     if (finalMessages.length > 0) updateRoom(currentRoomId, finalMessages);
   }, [messages, currentRoomId]);
-
-  const streamAnswer = useCallback((id, full, sources) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, thinking: false, streaming: true } : m))
-    );
-    let i = 0;
-    const chunk = Math.max(2, Math.round(full.length / 120));
-    const tick = () => {
-      i += chunk;
-      const slice = full.slice(0, i);
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: slice } : m)));
-      if (i < full.length) {
-        timerRef.current = setTimeout(tick, 18);
-      } else {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, text: full, streaming: false, sources } : m))
-        );
-        setBusy(false);
-      }
-    };
-    tick();
-  }, []);
 
   const sendMessage = useCallback(
     (text) => {
@@ -129,7 +106,6 @@ export default function Chat() {
 
       // abort 함수 저장 (중지 버튼용)
       timerRef.current = abort;
-      // timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
     },
     [busy, currentRoomId, setSearchParams]
   );
