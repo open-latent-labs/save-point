@@ -51,9 +51,9 @@ class OcrStatus(str, enum.Enum):
 
 
 class OcrEngine(str, enum.Enum):
+    NATIVE = "NATIVE"
     PADDLE = "PADDLE"
-    EASYOCR = "EASYOCR"
-    TESSERACT = "TESSERACT"
+    SURYA = "SURYA"
 
 
 class JobType(str, enum.Enum):
