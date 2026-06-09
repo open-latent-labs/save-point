@@ -9,7 +9,7 @@ async def generate_stream(prompt: str):
     # 비동기 HTTP 클라이언트 열기
     # AsyncClient -> requests의 비동기 버전 -> Ollama 서버에 HTTP 요청 보낼 때 사용
     # timeout=60 -> 응답 없으면 오류 처리
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=180) as client:
         async with client.stream(
             "POST",
             f"{settings.ollama_base_url}/api/generate",
