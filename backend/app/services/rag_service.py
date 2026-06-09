@@ -19,7 +19,7 @@ settings = get_settings()
 
 # 질문 받아서 임베딩 처리
 async def embed_query(query: str) -> list[float]:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
             f"{settings.ollama_base_url}/api/embed",
             json={

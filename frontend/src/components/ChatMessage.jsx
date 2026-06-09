@@ -29,9 +29,9 @@ export default function ChatMessage({ message }) {
           <div className="gd-msg-sources">
             <div className="gd-sources-label">출처</div>
             {sources.map((s, i) => (
-              <a key={i} className="gd-source" href={s.url} target="_blank" rel="noreferrer">
+              <a key={i} className="gd-source" href={`/docs/${s.document_id}`} target="_blank" rel="noreferrer">
                 <span className="num">{String(i + 1).padStart(2, "0")}</span>
-                {s.title}
+                {s.filename} {s.page_number}p
               </a>
             ))}
           </div>
