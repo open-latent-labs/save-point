@@ -1,5 +1,5 @@
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, VectorParams,SparseVectorParams, SparseIndexParams
 from app.config import get_settings
 from qdrant_client.models import Filter, FieldCondition, MatchValue, FilterSelector
 
@@ -27,10 +27,17 @@ async def init_qdrant_collection() -> None:
     if not existing:
         await client.create_collection(
             collection_name=settings.qdrant_collection_name,
-            vectors_config=VectorParams(
-                size=settings.embed_dim,
-                distance=Distance.COSINE,
-            ),
+            vectors_config={
+                "dense": VectorParams(
+                    size=settings.embed_dim,
+                    distance=Distance.COSINE,
+                )
+            },
+            sparse_vectors_config={
+                "sparse": SparseVectorParams(
+                    index=SparseIndexParams(on_disk=False)
+                )
+            },
         )
 
 # 종료시 연결 닫기(세션 느낌)
