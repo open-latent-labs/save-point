@@ -5,7 +5,7 @@
 -- =============================================================
 
 CREATE TYPE user_role        AS ENUM ('USER', 'ADMIN','SUPER_ADMIN');
-CREATE TYPE user_status      AS ENUM ('ACTIVE', 'DEACTIVE');
+CREATE TYPE user_ban         AS ENUM ('BAN', 'UNBAN');
 CREATE TYPE document_status  AS ENUM ('INITIAL', 'PROCESSING', 'DONE', 'PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE document_access  AS ENUM ('PUBLIC', 'PRIVATE');
 CREATE TYPE doc_main_type    AS ENUM ('ENGINE_REFERENCE', 'POSTMORTEM', 'BUG_ANALYSIS', 'ARCHITECTURE', 'TUTORIAL', 'OTHER');
@@ -22,7 +22,11 @@ CREATE TABLE users (
     password          VARCHAR(255) NOT NULL,
     role              user_role    NOT NULL DEFAULT 'USER',        -- 회원 역할(권한 구분)
     email             VARCHAR(255) NOT NULL,
-    nickname          VARCHAR(255) NOT NULL,
+    name              VARCHAR(255) NOT NULL,
+    user_id           VARCHAR(255) NOT NULL,
+    ban               user_ban     NOT NULL DEFAULT 'UNBAN',       -- 회원 계정 상태
+    is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
+    last_active_at    TIMESTAMPTZ,
     upload_file_count INT          NOT NULL DEFAULT 0,             -- 업로드한 문서 갯수
     ask_count         INT          NOT NULL DEFAULT 0,             -- 챗봇 질문 수
     img_url           VARCHAR(512)          DEFAULT 'user_image.png',
@@ -32,7 +36,7 @@ CREATE TABLE users (
 
     CONSTRAINT pk_users          PRIMARY KEY (id),
     CONSTRAINT uq_users_email    UNIQUE (email),
-    CONSTRAINT uq_users_nickname UNIQUE (nickname)
+    CONSTRAINT uq_users_user_id UNIQUE (user_id)
 );
 
 COMMENT ON COLUMN users.role              IS '회원 역할(권한 구분)';
