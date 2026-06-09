@@ -4,9 +4,10 @@ import AuthLayout from "../components/AuthLayout.jsx";
 import AuthField from "../components/AuthField.jsx";
 import { IconGoogle, IconCheck } from "../components/Icons.jsx";
 import { validateSignup } from "../data/validate.js";
+import { signup as apiSignup } from "../api/auth.js";
 
 export default function Signup() {
-  const [form, setForm] = useState({ name: "", nickname: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ name: "", username: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -16,15 +17,21 @@ export default function Signup() {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     const e = validateSignup(form);
     setErrors(e);
     if (Object.keys(e).length) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await apiSignup(form);
+      console.log("[회원가입 성공]", res);
       setDone(true);
-    }, 900);
+    } catch (err) {
+      console.error("[회원가입 실패]", err.message);
+      setErrors({ email: err.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onKey = (ev) => {
@@ -56,12 +63,12 @@ export default function Signup() {
           autoComplete="name"
         />
         <AuthField
-          id="su-nickname"
-          label="닉네임"
-          value={form.nickname}
-          onChange={set("nickname")}
-          placeholder="게임 개발자"
-          error={errors.nickname}
+          id="su-username"
+          label="아이디"
+          value={form.username}
+          onChange={set("username")}
+          placeholder="영문, 숫자 조합"
+          error={errors.username}
           autoComplete="username"
         />
         <AuthField
