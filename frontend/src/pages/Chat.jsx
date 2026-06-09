@@ -129,7 +129,7 @@ export default function Chat() {
 
       // abort 함수 저장 (중지 버튼용)
       timerRef.current = abort;
-      # timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
+      // timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
     },
     [busy, currentRoomId, setSearchParams]
   );
