@@ -4,26 +4,15 @@ import Topbar from "../../components/Topbar.jsx";
 import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx";
 import MyPageDrawer from "../../components/MyPageDrawer.jsx";
 import { useUserRole } from "../../context/UserRoleContext.jsx";
+import { allUserList, banUser, unbanUser, changeRole, dashboardNum } from "../../api/superAdmin.js";
 
 
-const SAMPLE_USERS = [
-    { id: 1, name: "김개발", handle: "@kimdev", email: "kimdev@gmail.com", role: "USER", questions: 124, docs: 7, favorites: 23, bookmarks: 15, lastSeen: "5분 전", lastSeenAt: "2026-06-02 09:55:00", lastSeenAgo: "5분 전", joinedAt: "2024-05-12" },
-    { id: 2, name: "이유니티", handle: "@unitylee", email: "unitylee@gmail.com", role: "USER", questions: 892, docs: 23, favorites: 61, bookmarks: 44, lastSeen: "12분 전", lastSeenAt: "2026-06-02 09:48:00", lastSeenAgo: "12분 전", joinedAt: "2023-11-03" },
-    { id: 3, name: "박엔진", handle: "@enginepark", email: "enginepark@gmail.com", role: "USER", questions: 56, docs: 3, favorites: 9, bookmarks: 5, lastSeen: "1시간 전", lastSeenAt: "2026-06-02 09:00:00", lastSeenAgo: "1시간 전", joinedAt: "2024-08-21" },
-    { id: 4, name: "관리자", handle: "@admin", email: "admin@gamedocs.ai", role: "ADMIN", questions: 0, docs: 156, favorites: 0, bookmarks: 0, lastSeen: "현재 접속", lastSeenAt: "2026-06-02 10:00:00", lastSeenAgo: "현재 접속", joinedAt: "2023-01-01", online: true },
-    { id: 5, name: "최그래픽", handle: "@graphicchoi", email: "graphicchoi@gmail.com", role: "USER", questions: 421, docs: 18, favorites: 37, bookmarks: 29, lastSeen: "3시간 전", lastSeenAt: "2026-06-02 07:00:00", lastSeenAgo: "3시간 전", joinedAt: "2024-02-14" },
-    { id: 6, name: "정쉐이더", handle: "@shaderjung", email: "shaderjung@gmail.com", role: "USER", questions: 73, docs: 5, favorites: 12, bookmarks: 8, lastSeen: "1일 전", lastSeenAt: "2026-06-01 10:30:00", lastSeenAgo: "1일 전", joinedAt: "2024-06-30" },
-    { id: 7, name: "한시", handle: "@aihan", email: "aihan@gmail.com", role: "USER", questions: 611, docs: 31, favorites: 55, bookmarks: 40, lastSeen: "2일 전", lastSeenAt: "2026-05-31 14:00:00", lastSeenAgo: "2일 전", joinedAt: "2023-09-05" },
-    { id: 8, name: "오렌더링", handle: "@renderoh", email: "renderoh@gmail.com", role: "USER", questions: 39, docs: 2, favorites: 4, bookmarks: 2, lastSeen: "3일 전", lastSeenAt: "2026-05-30 18:00:00", lastSeenAgo: "3일 전", joinedAt: "2025-01-17" },
-    { id: 9, name: "강게임", handle: "@gamekang", email: "gamekang@gmail.com", role: "USER", questions: 11, docs: 1, favorites: 1, bookmarks: 0, lastSeen: "5일 전", lastSeenAt: "2026-05-28 20:00:00", lastSeenAgo: "5일 전", joinedAt: "2025-03-08" },
-    { id: 10, name: "정지유저", handle: "@blocked", email: "blocked@gmail.com", role: "USER", questions: 3, docs: 0, favorites: 0, bookmarks: 0, lastSeen: "14일 전", lastSeenAt: "2026-05-19 12:00:00", lastSeenAgo: "14일 전", joinedAt: "2024-12-01" },
-];
 
-const SAMPLE_STATS = [
-    { key: "total", label: "전체 사용자", value: "1,248", sub: "전체 가입 사용자", icon: "users", tone: "green" },
-    { key: "active", label: "활성 사용자", value: "837", sub: "최근 30일 접속", icon: "activity", tone: "teal" },
-    { key: "admin", label: "관리자", value: "4", sub: "전체 관리자 계정", icon: "shield", tone: "violet" },
-    { key: "blocked", label: "정지 사용자", value: "18", sub: "접근이 제한된 계정", icon: "ban", tone: "red" },
+const STATS_TEMPLATE = [
+    { key: "total", label: "전체 사용자", sub: "전체 가입 사용자", icon: "users", tone: "green" },
+    { key: "active", label: "활성 사용자", sub: "최근 30일 접속", icon: "activity", tone: "teal" },
+    { key: "admin", label: "관리자", sub: "전체 관리자 계정", icon: "shield", tone: "violet" },
+    { key: "blocked", label: "정지 사용자", sub: "접근이 제한된 계정", icon: "ban", tone: "red" },
 ];
 
 const STAT_TONES = {
@@ -127,12 +116,25 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "" }) 
     );
 };
 
-export default function UserManagement({
-    users = SAMPLE_USERS,
-    stats = SAMPLE_STATS,
-    total = 1248,
-    onInvite = () => { },
-}) {
+const mapUser = (u) => ({
+    id: u.id,
+    name: u.name,
+    user_id: u.user_id,
+    handle: "@" + u.user_id,
+    email: u.email,
+    role: u.role,
+    questions: u.ask_count ?? 0,
+    docs: u.upload_file_count ?? 0,
+    favorites: 0,
+    bookmarks: 0,
+    lastSeen: "-",
+    lastSeenAt: "-",
+    lastSeenAgo: "-",
+    joinedAt: u.created_at ? u.created_at.slice(0, 10) : "-",
+    online: false,
+});
+
+export default function UserManagement() {
     const ctx = useOutletContext();
     const onMenu = ctx?.onMenu ?? (() => { });
     const sbVisible = ctx?.sbVisible ?? false;
@@ -144,33 +146,91 @@ export default function UserManagement({
     const [suspendedUsers, setSuspendedUsers] = useState(() => new Set());
     const [detailUser, setDetailUser] = useState(null);
     const [page, setPage] = useState(1);
+    const [apiUsers, setApiUsers] = useState([]);
+    const [apiTotal, setApiTotal] = useState(0);
+    const [apiTotalPages, setApiTotalPages] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [statsData, setStatsData] = useState(STATS_TEMPLATE.map((s) => ({ ...s, value: "-" })));
     const { getRole, updateRole } = useUserRole();
 
-    const toggleRole = (e, user) => {
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            try {
+                const data = await dashboardNum();
+                setStatsData(STATS_TEMPLATE.map((s) => ({ ...s, value: data[s.key] ?? "-" })));
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchDashboard();
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const fetchUsers = async () => {
+            setLoading(true);
+            try {
+                const data = await allUserList(page, 8, { role: roleFilter, is_active: statusFilter });
+                if (!cancelled) {
+                    setApiUsers(data.users.map(mapUser));
+                    setApiTotal(data.total);
+                    setApiTotalPages(data.total_pages);
+                }
+            } catch (e) {
+                if (!cancelled) console.error(e);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        fetchUsers();
+        return () => { cancelled = true; };
+    }, [page, roleFilter, statusFilter]);
+
+    const toggleRole = async (e, user) => {
         e.stopPropagation();
         const current = getRole(user);
         const next = current === "ADMIN" ? "USER" : "ADMIN";
-        updateRole(user.id, next);
+        try {
+            await changeRole({ id: user.id, role: current });
+            updateRole(user.id, next);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
-    const toggleSuspend = (e, user) => {
+    const toggleSuspend = async (e, user) => {
         e.stopPropagation();
-        setSuspendedUsers((prev) => {
-            const next = new Set(prev);
-            next.has(user.id) ? next.delete(user.id) : next.add(user.id);
-            return next;
-        });
+        const isSuspended = suspendedUsers.has(user.id);
+        try {
+            if (isSuspended) {
+                await unbanUser({ id: user.id, status: "ACTIVE" });
+                setSuspendedUsers((prev) => {
+                    const next = new Set(prev);
+                    next.delete(user.id);
+                    return next;
+                });
+            } else {
+                await banUser({ id: user.id, status: "DEACTIVE" });
+                setSuspendedUsers((prev) => {
+                    const next = new Set(prev);
+                    next.add(user.id);
+                    return next;
+                });
+            }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const filtered = useMemo(() => {
-        let result = users;
         const q = query.trim().toLowerCase();
-        if (q) result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.handle.toLowerCase().includes(q));
-        if (roleFilter) result = result.filter((u) => getRole(u) === roleFilter);
-        if (statusFilter === "online") result = result.filter((u) => u.online);
-        if (statusFilter === "offline") result = result.filter((u) => !u.online);
-        return result;
-    }, [users, query, roleFilter, statusFilter, getRole]);
+        if (!q) return apiUsers;
+        return apiUsers.filter((u) =>
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            u.handle.toLowerCase().includes(q)
+        );
+    }, [apiUsers, query]);
 
     const allChecked = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
 
@@ -194,7 +254,12 @@ export default function UserManagement({
         "checked:bg-[#22c55e] checked:border-[#22c55e] " +
         "after:content-[''] after:absolute after:hidden checked:after:block after:left-[4.5px] after:top-[1.5px] after:w-1 after:h-2 after:border-[#06210f] after:border-solid after:border-r-2 after:border-b-2 after:rotate-45";
 
-    const pages = [1, 2, 3, 4, 5];
+    const visiblePages = useMemo(() => {
+        const delta = 2;
+        const left = Math.max(1, page - delta);
+        const right = Math.min(apiTotalPages, page + delta);
+        return Array.from({ length: right - left + 1 }, (_, i) => left + i);
+    }, [page, apiTotalPages]);
 
     return (
         <div className="w-full min-h-full bg-[#0a0d0c] text-[#e7ecef] font-sans [font-feature-settings:'tnum']">
@@ -218,7 +283,7 @@ export default function UserManagement({
 
                 {/* 통계 카드 */}
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-[22px]">
-                    {stats.map((s) => (
+                    {statsData.map((s) => (
                         <div
                             key={s.key}
                             className="flex items-center gap-4 bg-gradient-to-b from-[#151b20] to-[#11161a] border border-white/[0.07] rounded-2xl px-[22px] py-5 hover:border-white/[0.12] hover:-translate-y-0.5 transition-[border-color,transform]"
@@ -258,26 +323,18 @@ export default function UserManagement({
                                     { value: "ADMIN", label: "ADMIN" },
                                 ]}
                                 value={roleFilter}
-                                onChange={setRoleFilter}
+                                onChange={(v) => { setRoleFilter(v); setPage(1); }}
                             />
                             <FilterSelect
                                 label="상태"
                                 options={[
                                     { value: "", label: "전체" },
-                                    { value: "online", label: "접속 중" },
-                                    { value: "offline", label: "오프라인" },
+                                    { value: "true", label: "접속 중" },
+                                    { value: "false", label: "오프라인" },
                                 ]}
                                 value={statusFilter}
-                                onChange={setStatusFilter}
+                                onChange={(v) => { setStatusFilter(v); setPage(1); }}
                             />
-                            <button
-                                type="button"
-                                onClick={() => { setQuery(""); setRoleFilter(""); setStatusFilter(""); }}
-                                className="inline-flex items-center gap-[7px] bg-transparent text-[#8a949c] border border-white/[0.07] rounded-[10px] px-3.5 py-2.5 text-[13px] cursor-pointer hover:border-white/[0.12] hover:text-[#e7ecef] transition-colors"
-                            >
-                                <Icon name="refresh" size={16} />
-                                <span>필터 초기화</span>
-                            </button>
                         </div>
                     </div>
 
@@ -314,7 +371,7 @@ export default function UserManagement({
                                                 <Avatar name={u.name} status={u.status} />
                                                 <div className="flex flex-col gap-px">
                                                     <span className="font-semibold text-[13.5px]">{u.name}</span>
-                                                    <span className="text-xs text-[#5b656d]">{u.handle}</span>
+                                                    <span className="text-xs text-[#5b656d]">{u.user_id}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -379,7 +436,12 @@ export default function UserManagement({
                                         </td>
                                     </tr>
                                 ))}
-                                {filtered.length === 0 && (
+                                {loading && (
+                                    <tr>
+                                        <td colSpan={10} className="!text-center text-[#5b656d] !py-10">불러오는 중...</td>
+                                    </tr>
+                                )}
+                                {!loading && filtered.length === 0 && (
                                     <tr>
                                         <td colSpan={10} className="!text-center text-[#5b656d] !py-10">검색 결과가 없습니다.</td>
                                     </tr>
@@ -390,36 +452,31 @@ export default function UserManagement({
 
                     {/* 푸터 / 페이지네이션 */}
                     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-t border-white/[0.07]">
-                        <span className="text-[13px] text-[#8a949c]">전체 {total.toLocaleString()}명</span>
+                        <span className="text-[13px] text-[#8a949c]">전체 {apiTotal.toLocaleString()}명</span>
                         <div className="flex items-center gap-1.5">
-                            <button type="button" aria-label="이전" onClick={() => setPage((p) => Math.max(1, p - 1))} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors">
+                            <button type="button" aria-label="이전" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors disabled:opacity-30">
                                 <Icon name="chevron-left" size={16} />
                             </button>
-                            {pages.map((p) => (
-                                <button
-                                    key={p}
-                                    type="button"
-                                    onClick={() => setPage(p)}
-                                    className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"
-                                        }`}
-                                >
-                                    {p}
-                                </button>
+                            {visiblePages[0] > 1 && (
+                                <>
+                                    <button type="button" onClick={() => setPage(1)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 1 ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>1</button>
+                                    {visiblePages[0] > 2 && <span className="text-[#5b656d] px-1">…</span>}
+                                </>
+                            )}
+                            {visiblePages.map((p) => (
+                                <button key={p} type="button" onClick={() => setPage(p)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{p}</button>
                             ))}
-                            <span className="text-[#5b656d] px-1">…</span>
-                            <button
-                                type="button"
-                                onClick={() => setPage(125)}
-                                className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 125 ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"
-                                    }`}
-                            >
-                                125
-                            </button>
-                            <button type="button" aria-label="다음" onClick={() => setPage((p) => p + 1)} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors">
+                            {visiblePages[visiblePages.length - 1] < apiTotalPages && (
+                                <>
+                                    {visiblePages[visiblePages.length - 1] < apiTotalPages - 1 && <span className="text-[#5b656d] px-1">…</span>}
+                                    <button type="button" onClick={() => setPage(apiTotalPages)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === apiTotalPages ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{apiTotalPages}</button>
+                                </>
+                            )}
+                            <button type="button" aria-label="다음" onClick={() => setPage((p) => Math.min(apiTotalPages, p + 1))} disabled={page === apiTotalPages} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors disabled:opacity-30">
                                 <Icon name="chevron-right" size={16} />
                             </button>
                         </div>
-                        <FilterSelect label="10 / 페이지" className="!min-w-0" />
+                        <span className="text-[13px] text-[#5b656d]">{page} / {apiTotalPages} 페이지</span>
                     </div>
                 </section>
             </div>

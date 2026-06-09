@@ -113,6 +113,7 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
         logger.warning(f"로그인 실패 — 아이디: {body.user_id}")
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
 
+    await db.refresh(user)
     payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(payload), create_refresh_token(payload))
 
@@ -147,6 +148,7 @@ async def refresh(response: Response, sp_refresh: str = Cookie(None), db: AsyncS
         _clear_auth_cookies(response)
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
 
+    await db.refresh(user)
     new_payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(new_payload), create_refresh_token(new_payload))
 

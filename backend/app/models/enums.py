@@ -7,9 +7,9 @@ class UserRole(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
 
 
-class UserStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DEACTIVE = "DEACTIVE"
+class UserBan(str, enum.Enum):
+    BAN = "BAN"
+    UNBAN = "UNBAN"
 
 
 class DocumentStatus(str, enum.Enum):
