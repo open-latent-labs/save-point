@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useOutletContext, useNavigate } from "react-router-dom";
+import { useSearchParams, useOutletContext } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
@@ -14,33 +14,47 @@ const uid = () => `m${++_id}_${Date.now()}`;
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { onMenu, onProfile } = useOutletContext();
-  const navigate = useNavigate();
 
   const roomId = searchParams.get("room");
 
-  const [messages, setMessages] = useState(() => {
-    if (!roomId) return [];
+  const [messagesMap, setMessagesMap] = useState(() => {
+    if (!roomId) return {};
     const room = loadRooms().find((r) => r.id === roomId);
-    return room?.messages ?? [];
+    return room ? { [roomId]: room.messages ?? [] } : {};
   });
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busyRooms, setBusyRooms] = useState(new Set());
   const [currentRoomId, setCurrentRoomId] = useState(roomId);
 
   const scrollRef = useRef(null);
-  const timerRef = useRef(null);
+  const abortMapRef = useRef(new Map());
   const seededRef = useRef("");
+  const currentRoomIdRef = useRef(currentRoomId);
 
-  // 방이 바뀌면 메시지 교체
+  // 현재 방 메시지
+  const messages = messagesMap[currentRoomId] ?? [];
+  const busy = busyRooms.has(currentRoomId);
+
+  // currentRoomId 바뀔 때마다 ref 업데이트
+  useEffect(() => {
+    currentRoomIdRef.current = currentRoomId;
+  }, [currentRoomId]);
+
+  // 방이 바뀌면 해당 방 메시지 로드
   useEffect(() => {
     const id = searchParams.get("room");
     setCurrentRoomId(id);
-    if (!id) {
-      setMessages([]);
-      return;
-    }
-    const room = loadRooms().find((r) => r.id === id);
-    setMessages(room?.messages ?? []);
+    currentRoomIdRef.current = id;
+
+    if (!id) return;
+
+    // 이미 메모리에 있으면 스킵
+    setMessagesMap((prev) => {
+      if (prev[id]) return prev;
+      const room = loadRooms().find((r) => r.id === id);
+      return { ...prev, [id]: room?.messages ?? [] };
+    });
+
     seededRef.current = "";
   }, [searchParams]);
 
@@ -51,87 +65,81 @@ export default function Chat() {
     if (finalMessages.length > 0) updateRoom(currentRoomId, finalMessages);
   }, [messages, currentRoomId]);
 
-  const streamAnswer = useCallback((id, full, sources) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, thinking: false, streaming: true } : m))
-    );
-    let i = 0;
-    const chunk = Math.max(2, Math.round(full.length / 120));
-    const tick = () => {
-      i += chunk;
-      const slice = full.slice(0, i);
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: slice } : m)));
-      if (i < full.length) {
-        timerRef.current = setTimeout(tick, 18);
-      } else {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, text: full, streaming: false, sources } : m))
-        );
-        setBusy(false);
-      }
-    };
-    tick();
-  }, []);
-
   const sendMessage = useCallback(
     (text) => {
       const q = (text || "").trim();
-      if (!q || busy) return;
+      if (!q) return;
 
-      clearTimeout(timerRef.current);
-      setBusy(true);
-      pushHistory(q);
-
-      // 방이 없으면 새로 생성
       let roomToUse = currentRoomId;
       if (!roomToUse) {
         const room = createRoom();
         roomToUse = room.id;
         setCurrentRoomId(room.id);
+        currentRoomIdRef.current = room.id;
         setSearchParams({ room: room.id }, { replace: true });
       }
 
-      const aiId = uid();
-      setMessages((prev) => [
-        ...prev,
-        { id: uid(), role: "user", text: q },
-        { id: aiId, role: "ai", text: "", sources: [], streaming: false, thinking: true },
-      ]);
+      if (busyRooms.has(roomToUse)) return;
 
-      // SSE 시작
+      pushHistory(q);
+      setBusyRooms((prev) => new Set([...prev, roomToUse]));
+
+      const aiId = uid();
+      const capturedRoomId = roomToUse;
+
+      // 해당 방 메시지에 추가
+      setMessagesMap((prev) => ({
+        ...prev,
+        [capturedRoomId]: [
+          ...(prev[capturedRoomId] ?? []),
+          { id: uid(), role: "user", text: q },
+          { id: aiId, role: "ai", text: "", sources: [], streaming: false, thinking: true },
+        ],
+      }));
+
       const abort = streamChat(
         q,
-        "user-id-here", // 나중에 실제 유저 ID로 교체
+        "user-id-here",
         // 토큰 받을 때마다
         (token) => {
-          setMessages((prev) =>
-            prev.map((m) =>
+          setMessagesMap((prev) => ({
+            ...prev,
+            [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
               m.id === aiId
                 ? { ...m, thinking: false, streaming: true, text: m.text + token }
                 : m
-            )
-          );
+            ),
+          }));
         },
         // 출처 받았을 때
         (sources) => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiId ? { ...m, sources } : m))
-          );
+          setMessagesMap((prev) => ({
+            ...prev,
+            [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
+              m.id === aiId ? { ...m, sources } : m
+            ),
+          }));
         },
         // 완료
         () => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiId ? { ...m, streaming: false } : m))
-          );
-          setBusy(false);
+          setMessagesMap((prev) => ({
+            ...prev,
+            [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
+              m.id === aiId ? { ...m, streaming: false } : m
+            ),
+          }));
+          setBusyRooms((prev) => {
+            const next = new Set(prev);
+            next.delete(capturedRoomId);
+            return next;
+          });
+          abortMapRef.current.delete(capturedRoomId);
         }
       );
 
-      // abort 함수 저장 (중지 버튼용)
-      timerRef.current = abort;
-      # timerRef.current = setTimeout(() => streamAnswer(aiId, full, sources), 650);
+      abortMapRef.current.set(roomToUse, abort);
     },
-    [busy, currentRoomId, setSearchParams]
+    [busyRooms, currentRoomId, setSearchParams]
   );
 
   // URL ?q= 첫 메시지 자동 전송
