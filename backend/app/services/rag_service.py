@@ -52,6 +52,9 @@ async def search_vectors(query_vector: list[float], user_id: str, limit: int = 5
         limit=limit,
     )
 
+    # 찾은 문서 확인용
+    print([{"score": r.score, "filename": r.payload["filename"]} for r in results.points])
+
     return [
         {
             "score": r.score,
@@ -62,4 +65,5 @@ async def search_vectors(query_vector: list[float], user_id: str, limit: int = 5
             "chunk_index": r.payload["chunk_index"],
         }
         for r in results.points
+        if r.score >= 0.5
     ]
