@@ -26,7 +26,7 @@ class DocumentAccess(str, enum.Enum):
     PRIVATE = "PRIVATE"
 
 
-class DocMainType(str, enum.Enum):
+class Category(str, enum.Enum):
     ENGINE_REFERENCE = "ENGINE_REFERENCE"
     POSTMORTEM = "POSTMORTEM"
     BUG_ANALYSIS = "BUG_ANALYSIS"

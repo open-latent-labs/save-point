@@ -84,7 +84,7 @@ async def all_user_list(db: AsyncSession, body: UserListQuery):
     }
     
 
-async def dashboard_num_service(db: AsyncSession):
+async def dashboard_num(db: AsyncSession):
     total_result = await db.execute(select(func.count()).select_from(User))
     total = total_result.scalar()
 
