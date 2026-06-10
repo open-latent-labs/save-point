@@ -2,14 +2,22 @@
 import time
 import psutil
 import os
-from sentence_transformers import CrossEncoder
+
+try:
+    from sentence_transformers import CrossEncoder
+    _AVAILABLE = True
+except Exception:
+    CrossEncoder = None
+    _AVAILABLE = False
 
 _reranker = None
 
 RERANK_SCORE_THRESHOLD = 0.01  # 이 값 조정하면서 테스트
 
-def get_reranker() -> CrossEncoder:
+def get_reranker():
     global _reranker
+    if not _AVAILABLE:
+        raise RuntimeError("sentence_transformers를 로드할 수 없습니다. torch 환경을 확인하세요.")
     if _reranker is None:
         print("리랭커 모델 로드 중...")
         _reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")

@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String, Boolean, func
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.rdb import Base
-from app.models.enums import UserRole, UserBan
+from app.models.enums import UserBan, UserRole
 
 
 class User(Base):
@@ -93,6 +93,7 @@ class User(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+
     last_active_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

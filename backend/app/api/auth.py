@@ -1,8 +1,11 @@
 import re
 import secrets
 import string
+from urllib.parse import urlencode
 
+import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi.responses import RedirectResponse
 from loguru import logger
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -10,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import get_db
-from app.models.enums import UserRole
+from app.models.enums import UserBan, UserRole
 from app.models.user import User
 from app.schemas.user import LoginRequest, SignupRequest, SignupResponse, TokenResponse, UserInfo
 from app.utils.jwt import create_access_token, create_refresh_token, decode_token
@@ -185,3 +188,117 @@ async def me(sp_token: str = Cookie(None), db: AsyncSession = Depends(get_db)):
         user_id=user.user_id,
         role=user.role.value,
     )
+
+
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+
+def _make_google_user_id(email: str) -> str:
+    prefix = email.split("@")[0]
+    # 허용 문자만 남기고 (영문·숫자·_), 20자 제한
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", prefix)[:20]
+    # 4자 미만이면 뒤에 채움
+    return sanitized.ljust(4, "0")
+
+
+@router.get("/google/init")
+async def google_init():
+    if not settings.google_client_id:
+        raise HTTPException(status_code=503, detail="Google 로그인이 설정되지 않았습니다.")
+
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": settings.google_redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+    }
+    url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    return RedirectResponse(url)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str | None = None,
+    error: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    error_url = f"{settings.frontend_url}/login?error="
+
+    if error or not code:
+        reason = "google_cancelled" if error == "access_denied" else "google_failed"
+        logger.warning(f"Google OAuth 취소/오류: {error}")
+        return RedirectResponse(url=error_url + reason)
+
+    # code → access_token 교환
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "redirect_uri": settings.google_redirect_uri,
+                "grant_type": "authorization_code",
+            },
+        )
+
+    if token_res.status_code != 200:
+        logger.error(f"Google 토큰 교환 실패: {token_res.text}")
+        return RedirectResponse(url=error_url + "google_failed")
+
+    access_token = token_res.json().get("access_token")
+
+    # access_token → 사용자 정보 조회
+    async with httpx.AsyncClient() as client:
+        info_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    if info_res.status_code != 200:
+        logger.error(f"Google 사용자 정보 조회 실패: {info_res.text}")
+        return RedirectResponse(url=error_url + "google_failed")
+
+    google_user = info_res.json()
+    email: str = google_user.get("email", "")
+    name: str = google_user.get("name") or email.split("@")[0]
+    google_sub: str = google_user.get("id", "")
+
+    if not email:
+        return RedirectResponse(url=error_url + "google_failed")
+
+    # 기존 유저 조회
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # 신규 유저 생성 (user_id 중복 방지)
+        base_uid = _make_google_user_id(email)
+        uid = base_uid
+        for _ in range(5):
+            dup = await db.execute(select(User).where(User.user_id == uid))
+            if not dup.scalar_one_or_none():
+                break
+            uid = base_uid[:16] + "_" + secrets.token_hex(2)
+
+        user = User(
+            id=_generate_id(),
+            email=email,
+            name=name,
+            user_id=uid,
+            password=pwd_context.hash(secrets.token_hex(32)),  # 소셜 전용 계정은 비밀번호 로그인 불가
+            role=UserRole.USER,
+            ban=UserBan.UNBAN,
+            is_active=True,
+        )
+        db.add(user)
+        await db.flush()
+        logger.success(f"Google 신규 사용자 생성 — email={email}, user_id={user.user_id}")
+    else:
+        logger.info(f"Google 기존 사용자 로그인 — email={email}, user_id={user.user_id}")
+
+    token_payload = {"sub": user.id, "role": user.role.value}
+    redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
+    redirect = RedirectResponse(url=f"{settings.frontend_url}{redirect_path}", status_code=302)
+    _set_auth_cookies(redirect, create_access_token(token_payload), create_refresh_token(token_payload))
+    return redirect

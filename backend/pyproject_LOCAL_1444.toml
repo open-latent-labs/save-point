@@ -38,9 +38,6 @@ paddle = ["paddleocr>=2.8.0", "numpy>=1.24.0"]
 # pip install -e ".[surya]"    — layout-aware OCR (requires CUDA, ~6 GB VRAM)
 surya = ["surya-ocr>=0.6.0"]
 
-[tool.uv]
-torch-backend = "cpu"
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",

@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     minio_root_password: str
     minio_use_ssl: bool
 
+    # ── Google OAuth ──────────────────────────────────────────────────────────
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    frontend_url: str = "http://localhost:5173"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -132,3 +132,23 @@ export const IconBookOpen = (p) => (
     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
   </svg>
 );
+
+// 네이버 "N" 로고
+export const IconNaver = (p) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...p}>
+    <path fill="#03C75A" d="M4 4h4v6l8-6h4v16h-4v-6l-8 6H4z" />
+  </svg>
+);
+
+// 카카오 말풍선 로고
+export const IconKakao = (p) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...p}>
+    <path
+      fill="#3C1E1E"
+      d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.7 5.3 4.3 6.7l-1.1 3.8c-.1.3.3.6.5.4L10 19c.6.1 1.3.2 2 .2 5.5 0 10-3.6 10-8.2S17.5 3 12 3z"
+    />
+    <rect x="7.5" y="9.5" width="2" height="3.5" rx="1" fill="#FEE500" />
+    <rect x="11" y="9.5" width="2" height="3.5" rx="1" fill="#FEE500" />
+    <rect x="14.5" y="9.5" width="2" height="3.5" rx="1" fill="#FEE500" />
+  </svg>
+);

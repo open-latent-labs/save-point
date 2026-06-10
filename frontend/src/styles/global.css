@@ -2640,10 +2640,15 @@ a {
   transition: all .18s;
 }
 
-.gd-oauth-btn:hover {
+.gd-oauth-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, .07);
   border-color: var(--border-strong);
   transform: translateY(-1px);
+}
+
+.gd-oauth-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 .gd-auth-switch {
