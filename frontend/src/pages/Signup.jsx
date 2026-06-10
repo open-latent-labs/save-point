@@ -39,7 +39,10 @@ export default function Signup() {
       navigate("/home", { replace: true });
     } catch (err) {
       console.error("[회원가입 실패]", err.message);
-      setErrors({ email: err.message });
+      const msg = err.message;
+      if (msg.includes("아이디")) setErrors({ user_id: msg });
+      else if (msg.includes("이메일")) setErrors({ email: msg });
+      else setErrors({ email: msg });
     } finally {
       setSubmitting(false);
     }

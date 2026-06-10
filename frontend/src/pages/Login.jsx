@@ -25,6 +25,10 @@ export default function Login() {
     const msg = {
       google_cancelled: "Google 로그인이 취소되었습니다.",
       google_failed: "Google 로그인에 실패했습니다. 다시 시도해 주세요.",
+      kakao_cancelled: "카카오 로그인이 취소되었습니다.",
+      kakao_failed: "카카오 로그인에 실패했습니다. 다시 시도해 주세요.",
+      naver_cancelled: "네이버 로그인이 취소되었습니다.",
+      naver_failed: "네이버 로그인에 실패했습니다. 다시 시도해 주세요.",
     };
     setErrors({ oauth: msg[err] ?? "소셜 로그인 중 오류가 발생했습니다." });
   }, [searchParams]);
@@ -104,10 +108,16 @@ export default function Login() {
         >
           <IconGoogle /> Google로 계속하기
         </button>
-        <button className="gd-oauth-btn" disabled title="준비 중">
+        <button
+          className="gd-oauth-btn"
+          onClick={() => { window.location.href = `${API_BASE}/auth/naver/init`; }}
+        >
           <IconNaver /> Naver로 계속하기
         </button>
-        <button className="gd-oauth-btn" disabled title="준비 중">
+        <button
+          className="gd-oauth-btn"
+          onClick={() => { window.location.href = `${API_BASE}/auth/kakao/init`; }}
+        >
           <IconKakao /> Kakao로 계속하기
         </button>
         <p className="gd-auth-switch">

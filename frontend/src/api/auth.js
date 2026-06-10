@@ -34,3 +34,20 @@ export function signup({ name, user_id, email, password }) {
 export function loginApi({ user_id, password }) {
     return authFetch(`${BASE}/auth/login`, { user_id, password });
 }
+
+export async function getLinkedOAuth() {
+    const res = await fetch(`${BASE}/auth/me/oauth`, { credentials: "include" });
+    if (!res.ok) throw new Error("연결된 계정 조회 실패");
+    return res.json();
+}
+
+export async function unlinkOAuth(provider) {
+    const res = await fetch(`${BASE}/auth/unlink/${provider}`, {
+        method: "DELETE",
+        credentials: "include",
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(parseError(text));
+    }
+}

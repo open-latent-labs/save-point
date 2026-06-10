@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.user_oauth_account import UserOAuthAccount
 from app.models.document import Document
 from app.models.user_role_log import UserRoleLog
 from app.models.ocr_result import OcrResult
@@ -14,6 +15,7 @@ from app.models.notification import Notification
 
 __all__ = [
     "User",
+    "UserOAuthAccount",
     "Document",
     "UserRoleLog",
     "OcrResult",

@@ -32,6 +32,17 @@ class UserInfo(BaseModel):
     name: str
     user_id: str
     role: str
+    ask_count: int = 0
+    created_at: str = ""
 
 
 TokenResponse.model_rebuild()
+
+
+class OAuthAccountInfo(BaseModel):
+    provider: str
+    email: str | None
+
+
+class LinkedOAuthResponse(BaseModel):
+    accounts: list[OAuthAccountInfo]
