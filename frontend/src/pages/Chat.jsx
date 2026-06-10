@@ -8,6 +8,7 @@ import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
 import { loadRooms, createRoom, updateRoom } from "../data/chatRooms.js";
 
+// 메세지마다 고유 아이디 부여 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
 
@@ -16,6 +17,7 @@ export default function Chat() {
   const { onMenu, onProfile } = useOutletContext();
 
   const roomId = searchParams.get("room");
+
 
   const [messagesMap, setMessagesMap] = useState(() => {
     if (!roomId) return {};

@@ -1,5 +1,6 @@
 # rag_service.py
 import httpx
+import asyncio
 from qdrant_client.models import Filter, FieldCondition, MatchValue, SparseVector, FusionQuery, Fusion, Prefetch
 from app.config import get_settings
 from app.db.vector_db import get_qdrant_client
@@ -7,8 +8,8 @@ from app.services.flag_model import get_flag_model
 
 settings = get_settings()
 
-
-# 질문 받아서 임베딩 처리
+# DENSE :: 의미 기반 
+# 질문을 임베딩(숫자 리스트)로 변경
 async def embed_query_dense(query: str) -> list[float]:
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
@@ -17,26 +18,43 @@ async def embed_query_dense(query: str) -> list[float]:
         )
         return response.json()["embeddings"][0]
 
-
-def embed_query_sparse(query: str) -> dict:
+# SPARSE :: 키워드 기반 
+# 질문을 임베딩(숫자 리스트)로 변경
+def _run_sparse(query: str) -> dict:
+    # 같은 bge 모델을 사용하는데 왜 SPARSE 모드로 사용하겠다고 따로 모드를 불러와야하는가?
+    # 설정만 변경하면 되는게 아닌지?
+    # -> 올라마는 dense 벡터만 반환하기 때문에.
+    # sparse는 bge-m3의 lexical_weights를 직접 뽑아야 하는데, 이건 FlagEmbedding 라이브러리를 통해서만 접근 가능
+    # = 올라마가 쓰려는 모드를 지원 안해서 다른 루트로 모델 가져온다는 뜻
     model = get_flag_model()
+
+    # SPARSE를 사용하게 변경
     output = model.encode(
         [query],
         return_dense=False,
         return_sparse=True,
         return_colbert_vecs=False,
     )
+
     lexical_weights = output["lexical_weights"][0]
+
     return {
         "indices": [int(k) for k in lexical_weights.keys()],
         "values": [float(v) for v in lexical_weights.values()],
     }
 
+# 스파스 임베딩은 스레드 풀로 비동기 동작하게 하는 중.
+# 덴스 임베딩 -> 올라마에 HTTP 요청을 보내기 때문에 애당초 비동기.
+# 스파스 임베딩 -> cpu에서 직접 연산하기 때문에 블로깅 발생(동기)
+async def embed_query_sparse(query: str) -> dict:
+    return await asyncio.to_thread(_run_sparse, query)
 
-# 질문 받아서 벡터 db에서 관련 문서 검색
-async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id: str, limit: int = 5) -> list[dict]:
+
+# 질문을 덴스 임베딩, 스파스 임베딩 한걸 가져와서 벡터 db에 검색
+async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id: str, limit: int = 20) -> list[dict]:
     client = get_qdrant_client()
 
+    # DB 필터
     search_filter = Filter(
         # https://qdrant.tech/documentation/search/filtering/
         # 내 문서이거나 공용문서(인데 내꺼 아닌거) 탐색
@@ -60,8 +78,11 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
         ]
     )
 
+    # 위에서 필터된 문서에서
+    # 
     results = await client.query_points(
         collection_name=settings.qdrant_collection_name,
+        # 덴스, 스파스 모두 20개씩 뽑음 (총 40개: 중복되면 더 적을 수 있음)
         prefetch=[
             Prefetch(query=dense_vector, using="dense", limit=20),
             Prefetch(
@@ -73,12 +94,15 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
                 limit=20,
             ),
         ],
+
+        # 두 결과를 합쳐서 의미도 유사하고, 키워드 점수도 높은 문서만 골라내기
+        # 덴스 픽, 스파스 픽 둘 다 받은 애가 점수 높음
         query=FusionQuery(fusion=Fusion.RRF),  # RRF로 두 결과 합치기
         query_filter=search_filter,
         limit=limit,
     )
 
-    # 찾은 문서 확인용
+    # 찾은 문서 확인용 (터미널)
     print(f"\n[벡터 검색 결과]")
     for r in results.points:
         print(f"  score: {r.score:.4f} | {r.payload['filename']} p.{r.payload['page_number']} chunk_{r.payload['chunk_index']}")
@@ -94,5 +118,4 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
             "chunk_index": r.payload["chunk_index"],
         }
         for r in results.points
-        # if r.score >= 0.5
     ]
