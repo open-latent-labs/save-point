@@ -1,7 +1,7 @@
 # pipelines/query_pipeline.py
 from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
 from app.llm.chat_prompt import build_prompt
-from app.services.reranker import rerank
+# from app.services.reranker import rerank
 import time
 import psutil
 import os
@@ -46,14 +46,14 @@ async def query(question: str, user_id: str) -> dict:
         return {"prompt": None, "sources": []}
 
     # ── 리랭킹 ──
-    reranked_results = rerank(question, search_results, top_k=3)
-    print(f"{'='*60}")
+    # reranked_results = rerank(question, search_results, top_k=3)
+    # print(f"{'='*60}")
 
-    if not reranked_results:
-        return {"prompt": None, "sources": []}
+    # if not reranked_results:
+    #     return {"prompt": None, "sources": []}
 
     # ── 프롬프트 구성 ──
-    prompt = build_prompt(question, reranked_results)
+    prompt = build_prompt(question, search_results)
 
     # 찾은 문서 데이터(출처)
     sources = [
@@ -62,7 +62,7 @@ async def query(question: str, user_id: str) -> dict:
             "filename": r["filename"],
             "page_number": r["page_number"],
         }
-        for r in reranked_results
+        for r in search_results
     ]
 
     return {"prompt": prompt, "sources": sources}

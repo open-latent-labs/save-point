@@ -8,13 +8,12 @@ import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
   loadFavs, saveFavs, loadPins, savePins,
   loadPending, savePending, loadRejected, loadApproved,
-  MOCK_DOCS, CATEGORY_OPTIONS,
+  CATEGORY_OPTIONS,
 } from "../data/upload.js";
+import { document_list } from "../api/document.js";
 
 let _uid = 0;
 const uid = () => `f${++_uid}_${Date.now()}`;
-
-const PAGE_SIZE = 4;
 
 // 카테고리 색상 맵
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
@@ -153,7 +152,10 @@ export default function Upload() {
   const prevUploadingRef = useRef(false);
 
   // ── 내 문서 state ──
-  const [myDocs, setMyDocs] = useState(MOCK_DOCS);
+  const [myDocs, setMyDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [apiTotalPages, setApiTotalPages] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [favIds, setFavIds] = useState(() => loadFavs());
   const [pinIds, setPinIds] = useState(() => loadPins());
   const [catFilter, setCatFilter] = useState("all");
@@ -180,6 +182,42 @@ export default function Upload() {
       window.removeEventListener("gamedocs:approved", syncApproved);
     };
   }, []);
+
+  // 내 문서 목록 fetch
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDocs = async () => {
+      setLoading(true);
+      try {
+        const data = await document_list(page, {
+          sort: sortBy,
+          ...(catFilter !== "all" && { category: catFilter }),
+          ...(visFilter === "public"  && { access_type: "PUBLIC" }),
+          ...(visFilter === "private" && { access_type: "PRIVATE" }),
+        });
+        if (cancelled) return;
+        const docs = Array.isArray(data) ? data : (data?.documents ?? []);
+        setMyDocs(docs.map((d) => ({
+          id: d.id,
+          name: d.filename ?? "",
+          size: d.file_size ?? 0,
+          ext: (d.extension ?? "").toLowerCase().replace(/^\./, "") || "file",
+          category: d.category ?? "OTHER",
+          date: d.created_at ? d.created_at.slice(0, 10) : "-",
+          isPublic: d.access_type === "PUBLIC",
+        })));
+        setFavIds(docs.filter((d) => d.is_bookmarked).map((d) => d.id));
+        setPinIds(docs.filter((d) => d.is_pinned).map((d) => d.id));
+        if (data?.total_pages) setApiTotalPages(data.total_pages);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchDocs();
+    return () => { cancelled = true; };
+  }, [page, refreshKey, catFilter, sortBy, visFilter]);
 
   // 필터/정렬 변경 시 페이지 초기화
   useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter]);
@@ -208,23 +246,13 @@ export default function Upload() {
     savePending(next);
   };
 
-  // ── 필터 + 정렬 ──
-  const filteredDocs = myDocs
-    .filter((d) => catFilter === "all" || d.category === catFilter)
-    .filter((d) => {
-      if (visFilter === "fav") return favIds.includes(d.id);
-      if (visFilter === "pending") return pendingIds.includes(d.id);
-      if (visFilter === "public") return d.isPublic;
-      if (visFilter === "private") return !d.isPublic;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === "date") return new Date(b.date) - new Date(a.date);
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "size") return b.size - a.size;
-      if (sortBy === "category") return a.category.localeCompare(b.category);
-      return 0;
-    });
+  // category / sort / public / private 는 서버에서 처리
+  // fav / pending 은 로컬 상태 기반이므로 클라이언트에서만 필터링
+  const filteredDocs = myDocs.filter((d) => {
+    if (visFilter === "fav")     return favIds.includes(d.id);
+    if (visFilter === "pending") return pendingIds.includes(d.id);
+    return true;
+  });
 
   // ── 실제 업로드 ──
   const startUpload = useCallback((id, file) => {
@@ -240,27 +268,9 @@ export default function Upload() {
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        setItems((prev) => {
-          const finished = prev.find((it) => it.id === id);
-          if (finished) {
-            setMyDocs((docs) => {
-              if (docs.some((d) => d.id === finished.id)) return docs;
-              return [
-                {
-                  id: finished.id,
-                  name: finished.name,
-                  size: finished.size,
-                  ext: finished.ext,
-                  category: finished.category,
-                  date: new Date().toISOString().slice(0, 10),
-                  isPublic: false,
-                },
-                ...docs,
-              ];
-            });
-          }
-          return prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it));
-        });
+        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it)));
+        setPage(1);
+        setRefreshKey((k) => k + 1);
       } else {
         setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "error", error: `서버 오류 (${xhr.status})` } : it)));
       }
@@ -452,7 +462,6 @@ export default function Upload() {
                 <option value="date">최신순</option>
                 <option value="name">이름순</option>
                 <option value="size">크기순</option>
-                <option value="category">카테고리순</option>
               </select>
             </div>
 
@@ -476,8 +485,8 @@ export default function Upload() {
 
             {/* 문서 리스트 + 페이지네이션 */}
             {(() => {
-              const totalPages = Math.ceil(filteredDocs.length / PAGE_SIZE);
-              const pagedDocs = filteredDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+              const totalPages = apiTotalPages;
+              const pagedDocs = filteredDocs;
 
               const btn = (label, onClick, active = false, disabled = false) => (
                 <button
