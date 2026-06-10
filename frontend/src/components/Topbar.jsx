@@ -20,7 +20,6 @@ export default function Topbar({ onMenu, onProfile }) {
         <IconMenu />
       </button>
       <div className="gd-topbar-spacer" />
-      {!isSuperAdmin && <Link className="gd-toplink" to="/docs">문서 위키</Link>}
       {!isSuperAdmin && <Link className="gd-toplink" to="/upload">업로드</Link>}
       <button className="gd-toplink" onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer" }}>
         로그아웃

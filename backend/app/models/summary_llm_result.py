@@ -4,15 +4,14 @@ from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Identity, Index, 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.rdb import Base
-from app.models.enums import DocMainType, DocSubType
+from app.models.enums import Category
 
 
 class SummaryLlmResult(Base):
     __tablename__ = "summary_llm_results"
 
     __table_args__ = (
-        Index("idx_document_main_type", "doc_main_type"),
-        Index("idx_document_sub_type", "doc_sub_type"),
+        Index("idx_document_category", "category"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
@@ -24,14 +23,9 @@ class SummaryLlmResult(Base):
         unique=True,
     )
 
-    doc_main_type: Mapped[DocMainType | None] = mapped_column(
-        Enum(DocMainType, name="doc_main_type", create_constraint=True),
-        comment="카테고리 1차분류",
-    )
-
-    doc_sub_type: Mapped[DocSubType | None] = mapped_column(
-        Enum(DocSubType, name="doc_sub_type", create_constraint=True),
-        comment="카테고리 2차분류",
+    category: Mapped[Category | None] = mapped_column(
+        Enum(Category, name="category", create_constraint=True),
+        comment="카테고리",
     )
 
     summary_ko: Mapped[str | None] = mapped_column(Text)
