@@ -8,12 +8,17 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from loguru import logger
 from passlib.context import CryptContext
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import get_db, require_auth
+from app.models.bookmarked_document import BookmarkedDocument
+from app.models.chat_session import ChatSession
+from app.models.document import Document
 from app.models.enums import UserBan, UserRole
+from app.models.notification import Notification
+from app.models.pinned_document import PinnedDocument
 from app.models.user import User
 from app.models.user_oauth_account import UserOAuthAccount
 from app.schemas.user import (
@@ -64,17 +69,47 @@ def _user_info(user: User) -> UserInfo:
 
 
 async def _merge_into(db: AsyncSession, keep_id: str, drop_id: str) -> None:
-    """drop_id 계정의 oauth_accounts를 keep_id로 옮기고 drop_id 계정을 삭제."""
+    """drop_id 계정의 모든 데이터를 keep_id로 이전하고 drop_id 계정을 삭제."""
     if keep_id == drop_id:
         return
-    # oauth_accounts 재연결
-    rows = await db.execute(
-        select(UserOAuthAccount).where(UserOAuthAccount.user_id == drop_id)
-    )
+
+    # 1. 소셜 연동 이전
+    rows = await db.execute(select(UserOAuthAccount).where(UserOAuthAccount.user_id == drop_id))
     for row in rows.scalars().all():
         row.user_id = keep_id
+
+    # 2. 채팅 세션 이전
+    rows = await db.execute(select(ChatSession).where(ChatSession.user_id == drop_id))
+    for row in rows.scalars().all():
+        row.user_id = keep_id
+
+    # 3. 핀 이전 — keep_id에 이미 있는 문서는 스킵
+    existing = await db.execute(select(PinnedDocument.document_id).where(PinnedDocument.user_id == keep_id))
+    keep_pin_ids = set(existing.scalars().all())
+    rows = await db.execute(select(PinnedDocument).where(PinnedDocument.user_id == drop_id))
+    for row in rows.scalars().all():
+        if row.document_id not in keep_pin_ids:
+            row.user_id = keep_id
+
+    # 4. 북마크 이전 — keep_id에 이미 있는 문서는 스킵
+    existing = await db.execute(select(BookmarkedDocument.document_id).where(BookmarkedDocument.user_id == keep_id))
+    keep_bm_ids = set(existing.scalars().all())
+    rows = await db.execute(select(BookmarkedDocument).where(BookmarkedDocument.user_id == drop_id))
+    for row in rows.scalars().all():
+        if row.document_id not in keep_bm_ids:
+            row.user_id = keep_id
+
+    # 5. 알림 이전
+    rows = await db.execute(select(Notification).where(Notification.user_id == drop_id))
+    for row in rows.scalars().all():
+        row.user_id = keep_id
+
+    # 6. 업로드 문서 이전
+    rows = await db.execute(select(Document).where(Document.uploaded_by_id == drop_id))
+    for row in rows.scalars().all():
+        row.uploaded_by_id = keep_id
+
     await db.flush()
-    # 기존 계정 삭제
     drop_user = await db.get(User, drop_id)
     if drop_user:
         await db.delete(drop_user)
@@ -465,8 +500,10 @@ async def link_kakao_callback(
     dup_row = dup.scalar_one_or_none()
     if dup_row:
         if dup_row.user_id != sp_link_uid:
-            # 다른 계정에 연결됨 → 현재 계정으로 병합
-            await _merge_into(db, keep_id=sp_link_uid, drop_id=dup_row.user_id)
+            # 다른 계정에 이미 연결됨 → 병합 확인 모달로 이동
+            redirect = RedirectResponse(url=f"{settings.frontend_url}/home?merge_confirm=kakao")
+            redirect.set_cookie("sp_merge_drop", dup_row.user_id, httponly=True, max_age=300, samesite="lax")
+            return redirect
         redirect = RedirectResponse(url=f"{settings.frontend_url}/home?link_success=kakao")
     else:
         db.add(UserOAuthAccount(user_id=sp_link_uid, provider="kakao", provider_user_id=provider_id, email=email))
@@ -541,8 +578,10 @@ async def link_google_callback(
     dup_row = dup.scalar_one_or_none()
     if dup_row:
         if dup_row.user_id != sp_link_uid:
-            # 다른 계정에 연결됨 → 현재 계정으로 병합
-            await _merge_into(db, keep_id=sp_link_uid, drop_id=dup_row.user_id)
+            # 다른 계정에 이미 연결됨 → 병합 확인 모달로 이동
+            redirect = RedirectResponse(url=f"{settings.frontend_url}/home?merge_confirm=google")
+            redirect.set_cookie("sp_merge_drop", dup_row.user_id, httponly=True, max_age=300, samesite="lax")
+            return redirect
         redirect = RedirectResponse(url=f"{settings.frontend_url}/home?link_success=google")
     else:
         db.add(UserOAuthAccount(user_id=sp_link_uid, provider="google", provider_user_id=provider_id, email=email))
@@ -677,8 +716,10 @@ async def link_naver_callback(
     dup_row = dup.scalar_one_or_none()
     if dup_row:
         if dup_row.user_id != sp_link_uid:
-            # 다른 계정에 연결됨 → 현재 계정으로 병합
-            await _merge_into(db, keep_id=sp_link_uid, drop_id=dup_row.user_id)
+            # 다른 계정에 이미 연결됨 → 병합 확인 모달로 이동
+            redirect = RedirectResponse(url=f"{settings.frontend_url}/home?merge_confirm=naver")
+            redirect.set_cookie("sp_merge_drop", dup_row.user_id, httponly=True, max_age=300, samesite="lax")
+            return redirect
         redirect = RedirectResponse(url=f"{settings.frontend_url}/home?link_success=naver")
     else:
         db.add(UserOAuthAccount(user_id=sp_link_uid, provider="naver", provider_user_id=provider_id, email=email))
@@ -688,3 +729,50 @@ async def link_naver_callback(
 
     redirect.delete_cookie("sp_link_uid")
     return redirect
+
+
+# ── 병합 확인 / 취소 ───────────────────────────────────────────────────────────
+
+@router.get("/merge-preview")
+async def merge_preview(
+    sp_merge_drop: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """병합 예정인 계정의 데이터 현황을 반환한다."""
+    if not sp_merge_drop:
+        raise HTTPException(status_code=400, detail="병합 세션이 없습니다.")
+
+    async def count(model, col):
+        r = await db.execute(select(func.count()).select_from(model).where(col == sp_merge_drop))
+        return r.scalar_one()
+
+    return {
+        "chat_sessions":        await count(ChatSession,         ChatSession.user_id),
+        "pinned_documents":     await count(PinnedDocument,      PinnedDocument.user_id),
+        "bookmarked_documents": await count(BookmarkedDocument,  BookmarkedDocument.user_id),
+        "uploaded_documents":   await count(Document,            Document.uploaded_by_id),
+    }
+
+
+@router.post("/merge-confirm")
+async def merge_confirm_endpoint(
+    response: Response,
+    sp_link_uid: str = Cookie(None),
+    sp_merge_drop: str = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """병합 확인 — 두 계정을 실제로 합친다."""
+    if not sp_link_uid or not sp_merge_drop:
+        raise HTTPException(status_code=400, detail="병합 세션이 만료되었습니다.")
+    await _merge_into(db, keep_id=sp_link_uid, drop_id=sp_merge_drop)
+    response.delete_cookie("sp_merge_drop", path="/", samesite="lax")
+    response.delete_cookie("sp_link_uid",   path="/", samesite="lax")
+    return {"ok": True}
+
+
+@router.post("/merge-cancel")
+async def merge_cancel(response: Response):
+    """병합 취소 — 관련 쿠키를 제거한다."""
+    response.delete_cookie("sp_merge_drop", path="/", samesite="lax")
+    response.delete_cookie("sp_link_uid",   path="/", samesite="lax")
+    return {"ok": True}

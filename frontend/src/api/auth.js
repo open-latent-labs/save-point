@@ -51,3 +51,28 @@ export async function unlinkOAuth(provider) {
         throw new Error(parseError(text));
     }
 }
+
+export async function getMergePreview() {
+    const res = await fetch(`${BASE}/auth/merge-preview`, { credentials: "include" });
+    if (!res.ok) throw new Error("병합 미리보기 조회 실패");
+    return res.json();
+}
+
+export async function confirmMerge() {
+    const res = await fetch(`${BASE}/auth/merge-confirm`, {
+        method: "POST",
+        credentials: "include",
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(parseError(text));
+    }
+    return res.json();
+}
+
+export async function cancelMerge() {
+    await fetch(`${BASE}/auth/merge-cancel`, {
+        method: "POST",
+        credentials: "include",
+    });
+}
