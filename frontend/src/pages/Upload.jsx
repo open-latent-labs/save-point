@@ -10,7 +10,7 @@ import {
   loadPending, savePending, loadRejected, loadApproved,
   CATEGORY_OPTIONS,
 } from "../data/upload.js";
-import { document_list } from "../api/document.js";
+import { document_list, documentBookmark, documentBookmarkDelete, documentPin, documentPinDelete } from "../api/document.js";
 
 let _uid = 0;
 const uid = () => `f${++_uid}_${Date.now()}`;
@@ -223,17 +223,45 @@ export default function Upload() {
   useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter]);
 
   // ── 즐겨찾기 토글 ──
-  const toggleFav = (id) => {
-    const next = favIds.includes(id) ? favIds.filter((f) => f !== id) : [...favIds, id];
+  const toggleFav = async (id) => {
+    const isCurrentlyFav = favIds.includes(id);
+    const next = isCurrentlyFav ? favIds.filter((f) => f !== id) : [...favIds, id];
     setFavIds(next);
     saveFavs(next);
+    try {
+      if (isCurrentlyFav) {
+        await documentBookmarkDelete(id);
+      } else {
+        await documentBookmark(id, true);
+      }
+    } catch (e) {
+      console.error(e);
+      setFavIds(favIds);
+      saveFavs(favIds);
+    }
   };
 
   // ── 고정핀 토글 ──
-  const togglePin = (id) => {
-    const next = pinIds.includes(id) ? pinIds.filter((p) => p !== id) : [...pinIds, id];
+  const togglePin = async (id) => {
+    const isCurrentlyPinned = pinIds.includes(id);
+    if (!isCurrentlyPinned && pinIds.length >= 3) {
+      alert("고정 문서는 최대 3개까지 설정할 수 있습니다.");
+      return;
+    }
+    const next = isCurrentlyPinned ? pinIds.filter((p) => p !== id) : [...pinIds, id];
     setPinIds(next);
     savePins(next);
+    try {
+      if (isCurrentlyPinned) {
+        await documentPinDelete(id);
+      } else {
+        await documentPin(id, true);
+      }
+    } catch (e) {
+      console.error(e);
+      setPinIds(pinIds);
+      savePins(pinIds);
+    }
   };
 
   // ── 문서 삭제 (더미) ──
