@@ -1,16 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime
-from sqlalchemy import Enum
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, Enum, Integer, String, Boolean, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.rdb import Base
-from app.models.enums import UserRole
+from app.models.enums import UserRole, UserBan
 
 
 class User(Base):
@@ -37,13 +31,36 @@ class User(Base):
         comment="회원 역할(권한 구분)",
     )
 
+    ban: Mapped[UserBan] = mapped_column(
+        Enum(
+            UserBan,
+            name="user_ban",
+            create_constraint=True,
+        ),
+        nullable=False,
+        default=UserBan.UNBAN,
+        comment="회원 계정 상태(계정 상태 구분)",
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="회원 접속 상태(접속 여부 구분)",
+    )
+
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
     )
 
-    nickname: Mapped[str] = mapped_column(
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
@@ -75,6 +92,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+    )
+    last_active_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     updated_at: Mapped[datetime] = mapped_column(

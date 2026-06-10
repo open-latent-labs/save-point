@@ -24,7 +24,7 @@ class ChunkResult(BaseModel):
     page_number: int
 
 # (이거 받아서) -> 이거 반환해요 :: 미리 반환값 표시해주는 문법
-def chunk_text(raw_text: str) -> list[str]:
+def split_into_chunks(raw_text: str) -> list[str]:
     words = raw_text.split()
     chunks = []
     start = 0

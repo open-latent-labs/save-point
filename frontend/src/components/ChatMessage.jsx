@@ -1,5 +1,9 @@
 import React from "react";
 import { IconUser, IconSpark } from "./Icons.jsx";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 export default function ChatMessage({ message }) {
   const { role, text, sources, streaming, thinking } = message;
@@ -20,8 +24,35 @@ export default function ChatMessage({ message }) {
           </div>
         ) : (
           <div className="gd-msg-text">
-            {text}
-            {streaming && <span className="gd-caret" />}
+            {streaming
+              ? <>{text}<span className="gd-caret" /></>
+              : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || "");
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={vscDarkPlus}
+                          language={match[1]}
+                          PreTag="div"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {text}
+                </ReactMarkdown>
+              )
+            }
           </div>
         )}
 
@@ -29,9 +60,9 @@ export default function ChatMessage({ message }) {
           <div className="gd-msg-sources">
             <div className="gd-sources-label">출처</div>
             {sources.map((s, i) => (
-              <a key={i} className="gd-source" href={s.url} target="_blank" rel="noreferrer">
+              <a key={i} className="gd-source" href={`/docs/${s.document_id}`} target="_blank" rel="noreferrer">
                 <span className="num">{String(i + 1).padStart(2, "0")}</span>
-                {s.title}
+                {s.filename} {s.page_number}p
               </a>
             ))}
           </div>
