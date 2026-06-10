@@ -134,6 +134,7 @@ export default function UserDetailSidebar({
     open = true,
     onClose = () => { },
     onSuspend = () => { },
+    onUnsuspend = () => { },
     onDelete = () => { },
 }) {
     const [tab, setTab] = useState("기본 정보");
@@ -253,9 +254,13 @@ export default function UserDetailSidebar({
                             {/* 관리 기능 */}
                             <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
                                 <h3 className="text-[13.5px] font-semibold text-[#c3ccd2] mb-4">관리 기능</h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(displayUser)} variant="warning" />
-                                    <ActionButton icon="trash" label="사용자 삭제" onClick={() => onDelete(displayUser)} variant="danger" />
+                                <div className="grid gap-3">
+                                    {displayUser.ban !== "BAN" && (
+                                        <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(displayUser)} variant="warning" />
+                                    )}
+                                    {displayUser.ban === "BAN" && (
+                                        <ActionButton icon="alert" label="활동 재개" onClick={() => onUnsuspend(displayUser)} variant="success" />
+                                    )}
                                 </div>
                             </section>
                         </>
@@ -283,6 +288,7 @@ const ACTION_VARIANTS = {
     neutral: "bg-white/[0.04] text-[#c3ccd2] border border-white/[0.1] hover:bg-white/[0.08]",
     warning: "bg-[#f5b94a]/[0.08] text-[#f5b94a] border border-[#f5b94a]/30 hover:bg-[#f5b94a]/[0.14]",
     danger: "bg-[#ef4444]/[0.1] text-[#f87171] border border-[#ef4444]/35 hover:bg-[#ef4444]/[0.18]",
+    success: "bg-[#22c55e]/[0.08] text-[#34d399] border border-[#22c55e]/30 hover:bg-[#22c55e]/[0.14]",
 };
 const ActionButton = ({ icon, label, onClick, variant = "neutral", className = "" }) => (
     <button

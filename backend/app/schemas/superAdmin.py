@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
-from app.models.enums import UserRole
+from app.models.enums import UserRole, UserBan
 
 
 class ChangeRoleRequest(BaseModel):
@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     name: str
     user_id: str
     role: UserRole
+    ban: UserBan
     upload_file_count: int
     ask_count: int
     img_url: str | None = None

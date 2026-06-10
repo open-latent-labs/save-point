@@ -63,7 +63,7 @@ async def all_user_list(db: AsyncSession, body: UserListQuery):
 
     offset = (page - 1) * size
 
-    conditions = []
+    conditions = [User.role != UserRole.SUPER_ADMIN]
     if role_filter is not None:
         conditions.append(User.role == role_filter)
     if is_active is not None:

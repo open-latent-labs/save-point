@@ -4,7 +4,8 @@ import { IconMenu, IconUser } from "./Icons.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Topbar({ onMenu, onProfile }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const navigate = useNavigate();
 
   // /auth/logout 호출로 서버 쿠키 삭제 후 로그인 페이지로 이동
@@ -19,8 +20,8 @@ export default function Topbar({ onMenu, onProfile }) {
         <IconMenu />
       </button>
       <div className="gd-topbar-spacer" />
-      <Link className="gd-toplink" to="/docs">문서 위키</Link>
-      <Link className="gd-toplink" to="/upload">업로드</Link>
+      {!isSuperAdmin && <Link className="gd-toplink" to="/docs">문서 위키</Link>}
+      {!isSuperAdmin && <Link className="gd-toplink" to="/upload">업로드</Link>}
       <button className="gd-toplink" onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer" }}>
         로그아웃
       </button>
