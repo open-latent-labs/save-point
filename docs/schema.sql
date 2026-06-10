@@ -177,7 +177,6 @@ CREATE TABLE chat_message (
     session_id           VARCHAR(26)  NOT NULL,
     role                 chat_role    NOT NULL,
     content_ko           TEXT         NOT NULL,                    -- 한국어 (사용자 질문 or AI 답변)
-    query_en             TEXT,                                     -- 검색에 사용된 영어 번역 쿼리
     retrieved_chunk_ids  JSONB,
     model_name           VARCHAR(100),
     latency_ms           INT,
