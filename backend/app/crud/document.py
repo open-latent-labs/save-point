@@ -2,6 +2,7 @@ from math import ceil
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, literal
 
 from app.models.document import Document
@@ -85,3 +86,117 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
     ]
 
     return {"documents": documents, "total_pages": total_pages}
+
+
+async def bookmark(db: AsyncSession, document_id: str, user_id: str):
+    existing = await db.execute(
+        select(BookmarkedDocument)
+        .where(
+            BookmarkedDocument.document_id == document_id,
+            BookmarkedDocument.user_id == user_id,
+        )
+    )
+    existing = existing.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        is_bookmarked = False
+    else:
+        await db.execute(
+            insert(BookmarkedDocument),
+            {"document_id": document_id, "user_id": user_id},
+        )
+        is_bookmarked = True
+
+    await db.commit()
+    return {"is_bookmarked": is_bookmarked}
+
+
+async def bookmark_delete(db: AsyncSession, document_id: str, user_id: str):
+    existing = await db.execute(
+        select(BookmarkedDocument)
+        .where(
+            BookmarkedDocument.document_id == document_id,
+            BookmarkedDocument.user_id == user_id,
+        )
+    )
+    existing = existing.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        is_bookmarked = False
+    else:
+        await db.execute(
+            insert(BookmarkedDocument),
+            {"document_id": document_id, "user_id": user_id},
+        )
+        is_bookmarked = True
+
+    await db.commit()
+    return {"is_bookmarked": is_bookmarked}
+
+
+async def pin(db: AsyncSession, document_id: str, user_id: str):
+    existing = await db.execute(
+        select(PinnedDocument)
+        .where(
+            PinnedDocument.document_id == document_id,
+            PinnedDocument.user_id == user_id,
+        )
+    )
+    existing = existing.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        is_pinned = False
+    else:
+        await db.execute(
+            insert(PinnedDocument),
+            {"document_id": document_id, "user_id": user_id},
+        )
+        is_pinned = True
+
+    await db.commit()
+    return {"is_pinned": is_pinned}
+
+
+async def pin_delete(db: AsyncSession, document_id: str, user_id: str):
+    existing = await db.execute(
+        select(PinnedDocument)
+        .where(
+            PinnedDocument.document_id == document_id,
+            PinnedDocument.user_id == user_id,
+        )
+    )
+    existing = existing.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        is_pinned = False
+    else:
+        await db.execute(
+            insert(PinnedDocument),
+            {"document_id": document_id, "user_id": user_id},
+        )
+        is_pinned = True
+
+    await db.commit()
+    return {"is_pinned": is_pinned}
+
+async def pin_list(db: AsyncSession, user_id: str):
+    result = await db.execute(
+        select(PinnedDocument, Document)
+        .join(Document, Document.id == PinnedDocument.document_id)
+        .where(PinnedDocument.user_id == user_id)
+        .order_by(PinnedDocument.pin_order.asc(), PinnedDocument.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "document_id": pinned.document_id,
+            "filename": doc.filename,
+            "pin_order": pinned.pin_order,
+            "created_at": pinned.created_at.isoformat() if pinned.created_at else None,
+        }
+        for pinned, doc in rows
+    ]
