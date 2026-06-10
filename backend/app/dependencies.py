@@ -21,6 +21,17 @@ def get_vector_db() -> AsyncQdrantClient:
     return get_qdrant_client()
 
 
+async def require_auth(sp_token: str = Cookie(None)) -> dict:
+    if not sp_token:
+        raise HTTPException(status_code=401, detail="인증이 필요합니다.")
+
+    payload = decode_token(sp_token)
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+
+    return payload
+
+
 async def get_current_user_id(sp_token: str = Cookie(None)) -> str:
     if not sp_token:
         raise HTTPException(status_code=401, detail="인증이 필요합니다.")

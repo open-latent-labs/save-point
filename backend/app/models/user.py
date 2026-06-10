@@ -121,3 +121,4 @@ class User(Base):
     pinned_documents = relationship("PinnedDocument", back_populates="user", cascade="all, delete-orphan")
     bookmarked_documents = relationship("BookmarkedDocument", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    oauth_accounts = relationship("UserOAuthAccount", back_populates="user", cascade="all, delete-orphan")
