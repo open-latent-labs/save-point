@@ -18,11 +18,14 @@ async def lifespan(app: FastAPI):
     await init_db()
     await init_qdrant_collection()
 
-    # 서버 시작 시 모델 미리 로드
-    print("모델 로드 중...")
-    await asyncio.to_thread(get_flag_model)
-    await asyncio.to_thread(get_reranker)
-    print("모델 로드 완료")
+    # 서버 시작 시 모델 미리 로드 (ML 라이브러리 불가 환경에서도 서버는 기동)
+    try:
+        print("모델 로드 중...")
+        await asyncio.to_thread(get_flag_model)
+        await asyncio.to_thread(get_reranker)
+        print("모델 로드 완료")
+    except Exception as e:
+        print(f"[경고] ML 모델 로드 실패 (검색/리랭킹 기능 비활성화): {e}")
 
     yield
     await close_qdrant_client()
