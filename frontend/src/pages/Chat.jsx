@@ -6,9 +6,11 @@ import ChatMessage from "../components/ChatMessage.jsx";
 import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
-import { loadRooms, createRoom, updateRoom } from "../data/chatRooms.js";
+import { loadRooms, createRoom, loadMessages, deleteRoom } from "../data/chatRooms.js";
 
-// 메세지마다 고유 아이디 부여 
+// TODO: 로그인 연동 후 실제 user_id로 교체
+const TEMP_USER_ID = "user-id-here";
+
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
 
@@ -18,12 +20,7 @@ export default function Chat() {
 
   const roomId = searchParams.get("room");
 
-
-  const [messagesMap, setMessagesMap] = useState(() => {
-    if (!roomId) return {};
-    const room = loadRooms().find((r) => r.id === roomId);
-    return room ? { [roomId]: room.messages ?? [] } : {};
-  });
+  const [messagesMap, setMessagesMap] = useState({});
   const [input, setInput] = useState("");
   const [busyRooms, setBusyRooms] = useState(new Set());
   const [currentRoomId, setCurrentRoomId] = useState(roomId);
@@ -33,11 +30,9 @@ export default function Chat() {
   const seededRef = useRef("");
   const currentRoomIdRef = useRef(currentRoomId);
 
-  // 현재 방 메시지
   const messages = messagesMap[currentRoomId] ?? [];
   const busy = busyRooms.has(currentRoomId);
 
-  // currentRoomId 바뀔 때마다 ref 업데이트
   useEffect(() => {
     currentRoomIdRef.current = currentRoomId;
   }, [currentRoomId]);
@@ -50,35 +45,56 @@ export default function Chat() {
 
     if (!id) return;
 
-    // 이미 메모리에 있으면 스킵
     setMessagesMap((prev) => {
-      if (prev[id]) return prev;
-      const room = loadRooms().find((r) => r.id === id);
-      return { ...prev, [id]: room?.messages ?? [] };
+      // 이미 메모리에 있으면 (빈 배열이라도) 스킵
+      if (prev[id] !== undefined) return prev;
+
+      loadMessages(id).then((msgs) => {
+        setMessagesMap((p) => {
+          // 로드하는 동안 메시지가 생겼으면 스킵
+          if (p[id]?.length > 0) return p;
+          return { ...p, [id]: msgs };
+        });
+      });
+
+      return { ...prev, [id]: [] };
     });
 
     seededRef.current = "";
   }, [searchParams]);
 
-  // 메시지 변경 시 방에 저장
-  useEffect(() => {
-    if (!currentRoomId || messages.length === 0) return;
-    const finalMessages = messages.filter((m) => !m.thinking);
-    if (finalMessages.length > 0) updateRoom(currentRoomId, finalMessages);
-  }, [messages, currentRoomId]);
-
   const sendMessage = useCallback(
-    (text) => {
+    async (text, removeQ = false) => {
       const q = (text || "").trim();
       if (!q) return;
 
       let roomToUse = currentRoomId;
+      const aiId = uid();
+      let isNewRoom = false;
+
       if (!roomToUse) {
-        const room = createRoom();
+        const room = await createRoom();
         roomToUse = room.id;
+        isNewRoom = true;
         setCurrentRoomId(room.id);
         currentRoomIdRef.current = room.id;
+
+        // 메시지 먼저 추가 후 URL 변경
+        setMessagesMap((prev) => ({
+          ...prev,
+          [room.id]: [
+            { id: uid(), role: "user", text: q },
+            { id: aiId, role: "ai", text: "", sources: [], streaming: false, isLoading: true },
+          ],
+        }));
+
         setSearchParams({ room: room.id }, { replace: true });
+      } else if (removeQ) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("q");
+          return next;
+        }, { replace: true });
       }
 
       if (busyRooms.has(roomToUse)) return;
@@ -86,34 +102,33 @@ export default function Chat() {
       pushHistory(q);
       setBusyRooms((prev) => new Set([...prev, roomToUse]));
 
-      const aiId = uid();
       const capturedRoomId = roomToUse;
 
-      // 해당 방 메시지에 추가
-      setMessagesMap((prev) => ({
-        ...prev,
-        [capturedRoomId]: [
-          ...(prev[capturedRoomId] ?? []),
-          { id: uid(), role: "user", text: q },
-          { id: aiId, role: "ai", text: "", sources: [], streaming: false, thinking: true },
-        ],
-      }));
+      if (!isNewRoom) {
+        setMessagesMap((prev) => ({
+          ...prev,
+          [capturedRoomId]: [
+            ...(prev[capturedRoomId] ?? []),
+            { id: uid(), role: "user", text: q },
+            { id: aiId, role: "ai", text: "", sources: [], streaming: false, isLoading: true },
+          ],
+        }));
+      }
 
       const abort = streamChat(
         q,
-        "user-id-here",
-        // 토큰 받을 때마다
+        TEMP_USER_ID,
+        capturedRoomId,
         (token) => {
           setMessagesMap((prev) => ({
             ...prev,
             [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
               m.id === aiId
-                ? { ...m, thinking: false, streaming: true, text: m.text + token }
+                ? { ...m, isLoading: false, streaming: true, text: m.text + token }
                 : m
             ),
           }));
         },
-        // 출처 받았을 때
         (sources) => {
           setMessagesMap((prev) => ({
             ...prev,
@@ -122,7 +137,6 @@ export default function Chat() {
             ),
           }));
         },
-        // 완료
         () => {
           setMessagesMap((prev) => ({
             ...prev,
@@ -149,9 +163,9 @@ export default function Chat() {
     const q = searchParams.get("q");
     if (q && q !== seededRef.current) {
       seededRef.current = q;
-      sendMessage(q);
+      sendMessage(q, true);
     }
-  }, [searchParams]);
+  }, [searchParams, sendMessage]);
 
   useEffect(() => {
     const el = scrollRef.current;

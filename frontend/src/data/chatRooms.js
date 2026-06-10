@@ -57,48 +57,66 @@ export const DUMMY_ROOMS = [
   },
 ];
 
-export function loadRooms() {
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+// TODO: 로그인 연동 후 실제 user_id로 교체
+const TEMP_USER_ID = "user-id-here";
+
+export async function loadRooms() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [...DUMMY_ROOMS];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) && arr.length > 0 ? arr : [...DUMMY_ROOMS];
+    const res = await fetch(`${BASE_URL}/api/v1/users/${TEMP_USER_ID}/sessions`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((s) => ({
+      id: s.session_id,
+      title: s.session_name,
+      date: s.last_active_at?.slice(0, 10) ?? "",
+      messages: [],
+    }));
   } catch {
-    return [...DUMMY_ROOMS];
+    return [];
   }
 }
 
-export function saveRooms(rooms) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(rooms));
-  } catch { /* noop */ }
+export async function createRoom() {
+  const res = await fetch(`${BASE_URL}/api/v1/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: TEMP_USER_ID }),
+  });
+  const data = await res.json();
+
+  // 사이드바 목록 갱신 이벤트
   window.dispatchEvent(new Event("gamedocs:rooms"));
-}
 
-export function createRoom() {
-  const id = `room_${Date.now()}`;
-  const room = { id, title: "새 채팅", preview: "", date: new Date().toISOString().slice(0, 10), messages: [] };
-  const rooms = [room, ...loadRooms()];
-  saveRooms(rooms);
-  return room;
-}
-
-export function updateRoom(id, messages) {
-  const rooms = loadRooms();
-  const idx = rooms.findIndex((r) => r.id === id);
-  if (idx === -1) return;
-  const first = messages.find((m) => m.role === "user");
-  rooms[idx] = {
-    ...rooms[idx],
-    title: first ? first.text.slice(0, 30) : rooms[idx].title,
-    preview: messages.find((m) => m.role === "ai")?.text?.slice(0, 50) || "",
-    messages,
-    date: new Date().toISOString().slice(0, 10),
+  return {
+    id: data.session_id,
+    title: data.session_name,
+    date: data.created_at?.slice(0, 10) ?? "",
+    messages: [],
   };
-  saveRooms(rooms);
 }
 
-export function deleteRoom(id) {
-  const rooms = loadRooms().filter((r) => r.id !== id);
-  saveRooms(rooms);
+export async function loadMessages(sessionId) {
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}/messages`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((m) => ({
+      id: m.id,
+      role: m.role === "USER" ? "user" : "ai",
+      text: m.content_ko,
+      sources: [],
+      streaming: false,
+      isLoading: false,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteRoom(sessionId) {
+  await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
 }

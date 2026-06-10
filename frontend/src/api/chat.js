@@ -22,13 +22,14 @@ SSE -> GET만 가능, 커스텀 헤더 불가 / 데이터 형식 자동 파싱, 
 /**
  * @param {string} question - 유저 질문
  * @param {string} userId - 유저 ID
+ * @param {string} sessionId - 채팅 세션 ID (백엔드 DB 저장용)
  * @param {(token: string) => void} onToken - 토큰 받을 때마다 호출
  * @param {(sources: Array) => void} onSources - 출처 받았을 때 호출
  * @param {() => void} onDone - 스트리밍 완료 시 호출
  * @returns {() => void} abort 함수 (중지 버튼용)
  */
 // 이벤트 핸들러 네이밍 컨벤션 -> [ON + 이벤트명] 형태는 ~할때 실행되는 함수라는 암묵적 의미
-export function streamChat(question, userId, onToken, onSources, onDone) {
+export function streamChat(question, userId, sessionId, onToken, onSources, onDone) {
   // 스트리밍 도중에 강제 중지할 수 있는 컨트롤러
   // 브라우저 내장 WEB API.
   const controller = new AbortController();
@@ -41,11 +42,11 @@ export function streamChat(question, userId, onToken, onSources, onDone) {
       const response = await fetch(`/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, user_id: userId }),
+        body: JSON.stringify({ question, user_id: userId, session_id: sessionId }),
         // 이후 [controller.abort()] 함수의 말을 듣게 미리 명령. controller.signal과 controller.abort()는 쌍
         signal: controller.signal,
       });
-      
+
       //다음 두 과정 준비
       const reader = response.body.getReader(); // 우편함에서 편지 가져오고 뜯어서 편지지 한 장씩 꺼내기
       const decoder = new TextDecoder(); // 편지 번역하기
@@ -54,27 +55,27 @@ export function streamChat(question, userId, onToken, onSources, onDone) {
         const { done, value } = await reader.read(); // 데이터 올때까지 기다렸다가 오면 DONE, VALUE 반환
         if (done) break; // 스트림 종료
 
-        const text = decoder.decode(value); 
+        const text = decoder.decode(value);
         const lines = text.split("\n").filter((l) => l.startsWith("data: ")); // 여러줄 오면 분리
 
         for (const line of lines) {
           // data: 로 시작하는게 SSE 데이터 형식
           // 서버에서 해당 양식의 데이터를 주면 data: 부분을 자르고 그 외 부분만 사용
-          const data = line.replace("data: ", ""); 
+          const data = line.replace("data: ", "");
 
           //서버가 DONE을 보내면 스트림 종료
           if (data === "[DONE]") {
             onDone();
             return;
           }
-          
+
           // 서버가 출처 보낼땐 앞에 [SOURCES] 붙임 -> 포장 떼고 내용만 저장
           if (data.startsWith("[SOURCES]")) {
             const sources = JSON.parse(data.replace("[SOURCES]", ""));
             onSources(sources);
             continue;
           }
-          
+
           //위 두 케이스(종료, 출처)가 아니면 일반 데이터임으로 받아서 화면에 렌더
           onToken(data);
         }

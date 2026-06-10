@@ -31,7 +31,7 @@ async def create_chat_session(req: SessionCreateRequest, db: AsyncSession = Depe
     session = await create_session(db, session_id, req.user_id)
     return {"session_id": session.id, "session_name": session.session_name, "created_at": session.created_at}
 
-@router.get("/sessions/{user_id}")
+@router.get("/users/{user_id}/sessions")
 async def get_chat_sessions(user_id: str, db: AsyncSession = Depends(get_db)):
     sessions = await get_sessions(db, user_id)
     return [{"session_id": s.id, "session_name": s.session_name, "last_active_at": s.last_active_at} for s in sessions]
