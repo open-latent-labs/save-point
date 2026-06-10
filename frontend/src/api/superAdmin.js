@@ -9,21 +9,21 @@ export async function changeRole({ id, role }) {
     });
 }
 
-export async function banUser({ id, ban }) {
+export async function banUser({ id }) {
     return apiFetch("api/superAdmin/ban_user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id, ban }),
+        body: JSON.stringify({ id, ban: "true" }),
     });
 }
 
-export async function unbanUser({ id, ban }) {
+export async function unbanUser({ id }) {
     return apiFetch("api/superAdmin/unban_user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id, ban }),
+        body: JSON.stringify({ id, ban: "false" }),
     });
 }
 

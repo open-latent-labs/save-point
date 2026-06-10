@@ -123,6 +123,7 @@ const mapUser = (u) => ({
     handle: "@" + u.user_id,
     email: u.email,
     role: u.role,
+    ban: u.ban,
     questions: u.ask_count ?? 0,
     docs: u.upload_file_count ?? 0,
     favorites: 0,
@@ -143,13 +144,13 @@ export default function UserManagement() {
     const [roleFilter, setRoleFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [selected, setSelected] = useState(() => new Set());
-    const [suspendedUsers, setSuspendedUsers] = useState(() => new Set());
     const [detailUser, setDetailUser] = useState(null);
     const [page, setPage] = useState(1);
     const [apiUsers, setApiUsers] = useState([]);
     const [apiTotal, setApiTotal] = useState(0);
     const [apiTotalPages, setApiTotalPages] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [statsData, setStatsData] = useState(STATS_TEMPLATE.map((s) => ({ ...s, value: "-" })));
     const { getRole, updateRole } = useUserRole();
 
@@ -184,7 +185,7 @@ export default function UserManagement() {
         };
         fetchUsers();
         return () => { cancelled = true; };
-    }, [page, roleFilter, statusFilter]);
+    }, [page, roleFilter, statusFilter, refreshKey]);
 
     const toggleRole = async (e, user) => {
         e.stopPropagation();
@@ -200,23 +201,13 @@ export default function UserManagement() {
 
     const toggleSuspend = async (e, user) => {
         e.stopPropagation();
-        const isSuspended = suspendedUsers.has(user.id);
         try {
-            if (isSuspended) {
-                await unbanUser({ id: user.id, ban: "UNBAN" });
-                setSuspendedUsers((prev) => {
-                    const next = new Set(prev);
-                    next.delete(user.id);
-                    return next;
-                });
+            if (user.ban === "BAN") {
+                await unbanUser({ id: user.id });
             } else {
-                await banUser({ id: user.id, ban: "BAN" });
-                setSuspendedUsers((prev) => {
-                    const next = new Set(prev);
-                    next.add(user.id);
-                    return next;
-                });
+                await banUser({ id: user.id });
             }
+            setRefreshKey((k) => k + 1);
         } catch (err) {
             console.error(err);
         }
@@ -381,7 +372,7 @@ export default function UserManagement() {
                                         <td className="font-semibold text-[#e7ecef]">{u.docs.toLocaleString()}</td>
                                         <td onClick={(e) => e.stopPropagation()}>
                                             {(() => {
-                                                const isSuspended = suspendedUsers.has(u.id);
+                                                const isSuspended = u.ban === "BAN";
                                                 return (
                                                     <div className="inline-flex gap-1.5">
                                                         <button
@@ -485,7 +476,8 @@ export default function UserManagement() {
                 open={!!detailUser}
                 onClose={() => setDetailUser(null)}
                 onResetPassword={() => { }}
-                onSuspend={() => { }}
+                onSuspend={async (u) => { await banUser({ id: u.id }); setRefreshKey((k) => k + 1); }}
+                onUnsuspend={async (u) => { await unbanUser({ id: u.id }); setRefreshKey((k) => k + 1); }}
                 onDelete={() => { }}
             />
             <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />
