@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Outlet, useLocation, useSearchParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence, useIsPresent } from "framer-motion";
+import { useOutlet, useLocation, useSearchParams } from "react-router-dom";
 import Sidebar from "./Sidebar.jsx";
 import SidebarToggle from "./SidebarToggle.jsx";
 import MintCascades from "./MintCascades.jsx";
@@ -11,6 +11,17 @@ import { useSidebar } from "../hooks/useSidebar.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
 
 const EASE = [0.4, 0, 0.2, 1];
+
+// AnimatePresence mode="wait"일 때, exit 애니메이션 중에 Router context가 바뀌면
+// <Outlet>이 새 route를 바로 렌더링해서 컴포넌트가 이중 마운트되는 문제를 방지.
+// isPresent=false(exit 중)일 때는 이전 outlet을 그대로 유지(동결)한다.
+function FrozenOutlet({ context }) {
+  const isPresent = useIsPresent();
+  const outlet = useOutlet(context);
+  const frozenRef = useRef(outlet);
+  if (isPresent) frozenRef.current = outlet;
+  return frozenRef.current;
+}
 
 export default function Shell() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useSidebar();
@@ -69,7 +80,7 @@ export default function Shell() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
           >
-            <Outlet context={{ onMenu: () => setSidebarOpen(true), onProfile: () => setMyPageOpen(true) }} />
+            <FrozenOutlet context={{ onMenu: () => setSidebarOpen(true), onProfile: () => setMyPageOpen(true) }} />
           </motion.div>
         </AnimatePresence>
         <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />

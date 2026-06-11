@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import SearchBar from "../components/SearchBar.jsx";
 import Topbar from "../components/Topbar.jsx";
 import { HERO, SUGGESTIONS } from "../data/mock.js";
+import { createRoom } from "../data/chatRooms.js";
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -12,10 +13,13 @@ export default function Landing() {
   const navigate = useNavigate();
   const { onMenu, onProfile } = useOutletContext();
 
-  const goChat = (q) => {
+  const goChat = async (q) => {
     const text = (q ?? query).trim();
     if (!text) return;
-    navigate("/chat?q=" + encodeURIComponent(text));
+
+    // 방 먼저 생성하고 이동
+    const room = await createRoom();
+    navigate(`/chat?room=${room.id}&q=${encodeURIComponent(text)}`);
   };
 
   return (
