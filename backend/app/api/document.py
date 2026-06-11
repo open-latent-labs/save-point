@@ -9,6 +9,7 @@ from app.schemas.document import ListRequest
 from app.crud.document import list as list_crud, bookmark as bookmark_crud, bookmark_delete as bookmark_delete_crud
 from app.crud.document import pin as pin_crud, pin_delete as pin_delete_crud, pin_list as pin_list_crud
 from app.crud.document import request_public as request_public_crud, cancel_public_request as cancel_public_request_crud
+from app.crud.document import public_list as public_list_crud
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -18,6 +19,10 @@ async def upload_document(file: UploadFile = File(...), title: str = Form(...)):
         return {"message": "Document uploaded successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/public")
+async def public_list(db: AsyncSession = Depends(get_db)):
+    return await public_list_crud(db)
 
 @router.post("/list")
 async def list(body: ListRequest, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):

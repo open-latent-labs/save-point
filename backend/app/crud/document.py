@@ -6,11 +6,14 @@ from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, literal
 
+from datetime import datetime, timezone
+
 from app.models.document import Document
 from app.models.bookmarked_document import BookmarkedDocument
 from app.models.pinned_document import PinnedDocument
 from app.models.summary_llm_result import SummaryLlmResult
-from app.models.enums import DocumentStatus
+from app.models.user import User
+from app.models.enums import DocumentStatus, DocumentAccess, UserRole
 
 from app.schemas.document import ListRequest, SortBy
 
@@ -196,7 +199,18 @@ async def request_public(db: AsyncSession, document_id: str, user_id: str):
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
-    doc.status = DocumentStatus.PENDING
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+
+    if user and user.role == UserRole.ADMIN:
+        doc.status = DocumentStatus.APPROVED
+        doc.access_type = DocumentAccess.PUBLIC
+        doc.approved_by_id = user_id
+        doc.approved_at = datetime.now(timezone.utc)
+    else:
+        doc.status = DocumentStatus.PENDING
+
     await db.commit()
     return {"id": document_id}
 
@@ -211,6 +225,29 @@ async def cancel_public_request(db: AsyncSession, document_id: str, user_id: str
     doc.status = DocumentStatus.DONE
     await db.commit()
     return {"id": document_id}
+
+
+async def public_list(db: AsyncSession):
+    result = await db.execute(
+        select(Document, SummaryLlmResult)
+        .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+        .where(
+            Document.access_type == DocumentAccess.PUBLIC,
+            Document.status == DocumentStatus.APPROVED,
+            Document.deleted_by_id.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+    )
+    rows = result.fetchall()
+    return [
+        {
+            "id": doc.id,
+            "filename": doc.filename,
+            "extension": doc.extension,
+            "category": summary.category if summary else "OTHER",
+        }
+        for doc, summary in rows
+    ]
 
 
 async def pin_list(db: AsyncSession, user_id: str):

@@ -73,3 +73,7 @@ export async function requestPublicDocument(document_id) {
 export async function cancelPublicRequest(document_id) {
     return await apiFetch(`/documents/${document_id}/request-public`, { method: "DELETE" });
 }
+
+export async function publicDocumentList() {
+    return apiFetch("/documents/public", { method: "GET" });
+}
