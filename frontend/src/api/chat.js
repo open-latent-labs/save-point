@@ -42,6 +42,7 @@ export function streamChat(question, userId, sessionId, onToken, onSources, onDo
       const response = await fetch(`/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ question, user_id: userId, session_id: sessionId }),
         // 이후 [controller.abort()] 함수의 말을 듣게 미리 명령. controller.signal과 controller.abort()는 쌍
         signal: controller.signal,
