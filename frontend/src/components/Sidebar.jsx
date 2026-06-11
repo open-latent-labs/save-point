@@ -8,6 +8,7 @@ import { BRAND } from "../data/mock.js";
 import { loadPending } from "../data/upload.js";
 import { documentPinList } from "../api/document.js";
 import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function AnimSegment({ value, onChange }) {
   const opts = [{ v: "0", label: "끄기" }, { v: "1", label: "1" }, { v: "2", label: "2" }];
@@ -78,6 +79,7 @@ const EASE = [0.4, 0, 0.2, 1];
 export default function Sidebar({ isOpen, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
   const [showSettings, setShowSettings] = useState(false);
   const [pinnedDocs, setPinnedDocs] = useState([]);
@@ -98,21 +100,21 @@ export default function Sidebar({ isOpen, onNavigate }) {
     fetchPinnedDocs();
     const syncPins    = () => fetchPinnedDocs();
     const syncPending = () => setPendingIds(loadPending());
-    const syncRooms   = () => loadRooms().then((data) => setRooms(data));
+    const syncRooms   = () => loadRooms(user?.id).then((data) => setRooms(data));
 
     window.addEventListener("gamedocs:pins",    syncPins);
     window.addEventListener("gamedocs:pending", syncPending);
     window.addEventListener("gamedocs:rooms",   syncRooms);
 
     // 초기 로드
-    loadRooms().then((data) => setRooms(data));
+    loadRooms(user?.id).then((data) => setRooms(data));
 
     return () => {
       window.removeEventListener("gamedocs:pins",    syncPins);
       window.removeEventListener("gamedocs:pending", syncPending);
       window.removeEventListener("gamedocs:rooms",   syncRooms);
     };
-  }, [fetchPinnedDocs]);
+  }, [fetchPinnedDocs, user?.id]);
 
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
   const currentDocId = docMatch ? docMatch[1] : null;
@@ -168,7 +170,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
       <button
         className="gd-newchat"
         onClick={async () => {
-          const room = await createRoom();
+          const room = await createRoom(user?.id);
           go(`/chat?room=${room.id}`);
         }}
       >
@@ -227,7 +229,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
                         onClick={async (e) => {
                           e.stopPropagation();
                           await deleteRoom(room.id);
-                          loadRooms().then((data) => setRooms(data));
+                          loadRooms(user?.id).then((data) => setRooms(data));
                         }}
                         aria-label="삭제"
                       >
