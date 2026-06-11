@@ -82,7 +82,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const [showSettings, setShowSettings] = useState(false);
   const [pinnedDocs, setPinnedDocs] = useState([]);
   const [pendingIds, setPendingIds] = useState(() => loadPending());
-  const [rooms, setRooms] = useState(() => loadRooms());
+  const [rooms, setRooms] = useState([]);
   const [chatOpen, setChatOpen] = useState(() => location.pathname.startsWith("/chat"));
 
   const fetchPinnedDocs = React.useCallback(async () => {
@@ -98,10 +98,15 @@ export default function Sidebar({ isOpen, onNavigate }) {
     fetchPinnedDocs();
     const syncPins    = () => fetchPinnedDocs();
     const syncPending = () => setPendingIds(loadPending());
-    const syncRooms   = () => setRooms(loadRooms());
+    const syncRooms   = () => loadRooms().then((data) => setRooms(data));
+
     window.addEventListener("gamedocs:pins",    syncPins);
     window.addEventListener("gamedocs:pending", syncPending);
     window.addEventListener("gamedocs:rooms",   syncRooms);
+
+    // 초기 로드
+    loadRooms().then((data) => setRooms(data));
+
     return () => {
       window.removeEventListener("gamedocs:pins",    syncPins);
       window.removeEventListener("gamedocs:pending", syncPending);
@@ -109,7 +114,6 @@ export default function Sidebar({ isOpen, onNavigate }) {
     };
   }, [fetchPinnedDocs]);
 
-  // 현재 URL에서 docId 추출
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
   const currentDocId = docMatch ? docMatch[1] : null;
 
@@ -163,8 +167,8 @@ export default function Sidebar({ isOpen, onNavigate }) {
       {/* 새 채팅 버튼 */}
       <button
         className="gd-newchat"
-        onClick={() => {
-          const room = createRoom();
+        onClick={async () => {
+          const room = await createRoom();
           go(`/chat?room=${room.id}`);
         }}
       >
@@ -220,7 +224,11 @@ export default function Sidebar({ isOpen, onNavigate }) {
                       </button>
                       <button
                         className="gd-sb-room-del"
-                        onClick={(e) => { e.stopPropagation(); deleteRoom(room.id); }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await deleteRoom(room.id);
+                          loadRooms().then((data) => setRooms(data));
+                        }}
                         aria-label="삭제"
                       >
                         <IconClose width="11" height="11" />

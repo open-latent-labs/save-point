@@ -30,8 +30,6 @@ class ChatMessage(Base):
 
     content_ko: Mapped[str] = mapped_column(Text, nullable=False, comment="한국어 (사용자 질문 or AI 답변)")
 
-    query_en: Mapped[str | None] = mapped_column(Text, comment="검색에 사용된 영어 번역 쿼리")
-
     retrieved_chunk_ids: Mapped[dict | None] = mapped_column(JSONB)
 
     model_name: Mapped[str | None] = mapped_column(String(100))

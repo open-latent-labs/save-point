@@ -1,68 +1,71 @@
-# pipelines/query_pipeline.py
+# app/pipelines/query_pipeline.py
 from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
 from app.llm.chat_prompt import build_prompt
-# from app.services.reranker import rerank
-import time
-import psutil
-import os
+from app.services.reranker import rerank
+from app.utils.profiler import profile
+
+# 리소스 확인 용
+# async def query(question: str, user_id: str) -> dict:
+
+#     async with profile("임베딩"):
+#         dense_vector = await embed_query_dense(question)
+#         sparse_vector = await embed_query_sparse(question)
+
+#     async with profile("벡터 검색") as ctx:
+#         search_results = await search_vectors(dense_vector, sparse_vector, user_id)
+#         ctx["extra"] = f"결과: {len(search_results)}개"
+
+#     if not search_results:
+#         return {"prompt": None, "sources": []}
+
+#     # 검색에서 덴스 + 스파스 -> RRF -> 최종 20개 넘어온걸 리랭킹해서 5개만 뽑아냄
+#     async with profile("리랭킹") as ctx:
+#         reranked_results = await rerank(question, search_results, top_k=5)
+#         ctx["extra"] = f"후보 {len(search_results)}개 → Top 5개로 재정렬"
+
+#     if not reranked_results:
+#         return {"prompt": None, "sources": []}
+
+#     # 참고문서 넣은 프롬프트 생성
+#     prompt = build_prompt(question, reranked_results)
+
+#     # 출처 정리
+#     sources = [
+#         {
+#             "document_id": r["document_id"],
+#             "filename": r["filename"],
+#             "page_number": r["page_number"],
+#         }
+#         for r in reranked_results
+#     ]
+
+#     # 프롬프트, 출처 반환
+#     return {"prompt": prompt, "sources": sources}
 
 async def query(question: str, user_id: str) -> dict:
-    process = psutil.Process(os.getpid())
-
-    # ── Dense + Sparse 임베딩 ──
-    start = time.time()
-    ram_before = process.memory_info().rss / 1024 / 1024
-    cpu_before = process.cpu_percent(interval=None)
 
     dense_vector = await embed_query_dense(question)
-    sparse_vector = embed_query_sparse(question)
-
-    ram_after = process.memory_info().rss / 1024 / 1024
-    cpu_after = process.cpu_percent(interval=None)
-    print(f"\n{'='*60}")
-    print(f"[임베딩]")
-    print(f"  소요 시간: {time.time() - start:.2f}초")
-    print(f"  CPU 사용률: {cpu_after:.1f}%")
-    print(f"  RAM 사용량: {ram_after:.1f}MB (변화: {ram_after - ram_before:+.1f}MB)")
-    print(f"{'='*60}")
-
-    # ── 벡터 검색 ──
-    start = time.time()
-    ram_before = process.memory_info().rss / 1024 / 1024
-    cpu_before = process.cpu_percent(interval=None)
+    sparse_vector = await embed_query_sparse(question)
 
     search_results = await search_vectors(dense_vector, sparse_vector, user_id)
-
-    ram_after = process.memory_info().rss / 1024 / 1024
-    cpu_after = process.cpu_percent(interval=None)
-    print(f"[벡터 검색]")
-    print(f"  소요 시간: {time.time() - start:.2f}초")
-    print(f"  CPU 사용률: {cpu_after:.1f}%")
-    print(f"  RAM 사용량: {ram_after:.1f}MB (변화: {ram_after - ram_before:+.1f}MB)")
-    print(f"  결과: {len(search_results)}개")
-    print(f"{'='*60}")
 
     if not search_results:
         return {"prompt": None, "sources": []}
 
-    # ── 리랭킹 ──
-    # reranked_results = rerank(question, search_results, top_k=3)
-    # print(f"{'='*60}")
+    reranked_results = await rerank(question, search_results, top_k=5)
 
-    # if not reranked_results:
-    #     return {"prompt": None, "sources": []}
+    if not reranked_results:
+        return {"prompt": None, "sources": []}
 
-    # ── 프롬프트 구성 ──
-    prompt = build_prompt(question, search_results)
+    prompt = build_prompt(question, reranked_results)
 
-    # 찾은 문서 데이터(출처)
     sources = [
         {
             "document_id": r["document_id"],
             "filename": r["filename"],
             "page_number": r["page_number"],
         }
-        for r in search_results
+        for r in reranked_results
     ]
 
     return {"prompt": prompt, "sources": sources}
