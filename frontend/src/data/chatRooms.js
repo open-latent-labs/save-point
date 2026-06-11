@@ -104,7 +104,7 @@ export async function loadMessages(sessionId) {
       id: m.id,
       role: m.role === "USER" ? "user" : "ai",
       text: m.content_ko,
-      sources: [],
+      sources: m.retrieved_chunk_ids ?? [],  // 출처 복원
       streaming: false,
       isLoading: false,
     }));

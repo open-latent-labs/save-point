@@ -22,12 +22,13 @@ async function tryRefresh() {
 // 인증이 필요한 모든 API 요청에 사용
 // 401 수신 시 refresh → 재시도, refresh도 실패하면 /login으로 이동
 export async function apiFetch(url, options = {}) {
-    const res = await fetch(url, { ...options, credentials: "include" });
+    const fullUrl = `${BASE}${url}`;
+    const res = await fetch(fullUrl, { ...options, credentials: "include" });
 
     if (res.status === 401) {
         const refreshed = await tryRefresh();
         if (refreshed) {
-            const retryRes = await fetch(url, { ...options, credentials: "include" });
+            const retryRes = await fetch(fullUrl, { ...options, credentials: "include" });
             if (!retryRes.ok) {
                 const text = await retryRes.text().catch(() => retryRes.statusText);
                 throw new Error(parseError(text));

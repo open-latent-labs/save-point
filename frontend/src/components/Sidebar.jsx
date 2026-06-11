@@ -5,8 +5,8 @@ import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
 import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
-import { loadPending } from "../data/upload.js";
 import { documentPinList } from "../api/document.js";
+import { adminApprovalCount } from "../api/admin.js";
 import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -77,13 +77,13 @@ function SettingsModal({ onClose }) {
 const EASE = [0.4, 0, 0.2, 1];
 
 export default function Sidebar({ isOpen, onNavigate }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
   const [showSettings, setShowSettings] = useState(false);
   const [pinnedDocs, setPinnedDocs] = useState([]);
-  const [pendingIds, setPendingIds] = useState(() => loadPending());
+  const [approvalCount, setApprovalCount] = useState(0);
   const [rooms, setRooms] = useState([]);
   const [chatOpen, setChatOpen] = useState(() => location.pathname.startsWith("/chat"));
 
@@ -96,26 +96,35 @@ export default function Sidebar({ isOpen, onNavigate }) {
     }
   }, []);
 
+  const fetchApprovalCount = React.useCallback(async () => {
+    if (user?.role !== "ADMIN") return;
+    try {
+      const count = await adminApprovalCount();
+      setApprovalCount(typeof count === "number" ? count : 0);
+    } catch {
+      setApprovalCount(0);
+    }
+  }, [user]);
+
   React.useEffect(() => {
     fetchPinnedDocs();
-    const syncPins    = () => fetchPinnedDocs();
-    const syncPending = () => setPendingIds(loadPending());
-    const syncRooms   = () => loadRooms(user?.id).then((data) => setRooms(data));
+    fetchApprovalCount();
+    const syncPins = () => fetchPinnedDocs();
+    const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
 
-    window.addEventListener("gamedocs:pins",    syncPins);
-    window.addEventListener("gamedocs:pending", syncPending);
-    window.addEventListener("gamedocs:rooms",   syncRooms);
+    window.addEventListener("gamedocs:pins", syncPins);
+    window.addEventListener("gamedocs:rooms", syncRooms);
 
     // 초기 로드
     loadRooms(user?.id).then((data) => setRooms(data));
 
     return () => {
-      window.removeEventListener("gamedocs:pins",    syncPins);
-      window.removeEventListener("gamedocs:pending", syncPending);
-      window.removeEventListener("gamedocs:rooms",   syncRooms);
+      window.removeEventListener("gamedocs:pins", syncPins);
+      window.removeEventListener("gamedocs:rooms", syncRooms);
     };
-  }, [fetchPinnedDocs, user?.id]);
+  }, [fetchPinnedDocs, fetchApprovalCount, user?.id]);
 
+  // 현재 URL에서 docId 추출
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
   const currentDocId = docMatch ? docMatch[1] : null;
 
@@ -153,168 +162,170 @@ export default function Sidebar({ isOpen, onNavigate }) {
       transition={{ duration: 0.3, ease: EASE }}
     >
       <div style={{ width: 260, minWidth: 260, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* 브랜드 그라디언트 스트립 */}
-      <div className="gd-sb-brand-strip" />
+        {/* 브랜드 그라디언트 스트립 */}
+        <div className="gd-sb-brand-strip" />
 
-      {/* 헤더 */}
-      <div className="gd-sb-head">
-        <Link to="/home" className="gd-logo" onClick={() => onNavigate?.()}>
-          {BRAND}<span className="ai">.ai</span>
-        </Link>
-        <button className="gd-sb-close" onClick={() => onNavigate?.()} aria-label="사이드바 닫기">
-          <IconClose width="18" height="18" />
-        </button>
-      </div>
+        {/* 헤더 */}
+        <div className="gd-sb-head">
+          <Link to="/home" className="gd-logo" onClick={() => onNavigate?.()}>
+            {BRAND}<span className="ai">.ai</span>
+          </Link>
+          <button className="gd-sb-close" onClick={() => onNavigate?.()} aria-label="사이드바 닫기">
+            <IconClose width="18" height="18" />
+          </button>
+        </div>
 
-      {/* 새 채팅 버튼 */}
-      <button
-        className="gd-newchat"
-        onClick={async () => {
-          const room = await createRoom(user?.id);
-          go(`/chat?room=${room.id}`);
-        }}
-      >
-        <IconPlus />
-        새 채팅
-      </button>
-
-      {/* 상단 네비게이션 */}
-      <nav className="gd-sb-nav-section">
-        <button className={"gd-sb-navitem" + (isActive("/home") ? " active" : "")} onClick={() => go("/home")}>
-          홈
-        </button>
-        {/* AI 채팅 — 클릭 시 목록 토글 */}
+        {/* 새 채팅 버튼 */}
         <button
-          className={"gd-sb-navitem gd-sb-navitem--chat" + (isActive("/chat") ? " active" : "")}
-          onClick={() => { go("/chat"); setChatOpen((v) => !v); }}
+          className="gd-newchat"
+          onClick={async () => {
+            const room = await createRoom(user?.id);
+            go(`/chat?room=${room.id}`);
+          }}
         >
-          AI 채팅
-          <motion.svg
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-            width={13} height={13}
-            style={{ marginLeft: "auto", flexShrink: 0 }}
-            animate={{ rotate: chatOpen ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+          <IconPlus />
+          새 채팅
+        </button>
+
+        {/* 상단 네비게이션 */}
+        <nav className="gd-sb-nav-section">
+          <button className={"gd-sb-navitem" + (isActive("/home") ? " active" : "")} onClick={() => go("/home")}>
+            홈
+          </button>
+          {/* AI 채팅 — 클릭 시 목록 토글 */}
+          <button
+            className={"gd-sb-navitem gd-sb-navitem--chat" + (isActive("/chat") ? " active" : "")}
+            onClick={() => { go("/chat"); setChatOpen((v) => !v); }}
           >
-            <polyline points="6 9 12 15 18 9" />
-          </motion.svg>
-        </button>
-
-        <AnimatePresence initial={false}>
-          {chatOpen && (
-            <motion.div
-              key="chat-rooms"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-              style={{ overflow: "hidden" }}
+            AI 채팅
+            <motion.svg
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+              width={13} height={13}
+              style={{ marginLeft: "auto", flexShrink: 0 }}
+              animate={{ rotate: chatOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className="gd-sb-rooms-list">
-                {rooms.map((room) => {
-                  const active = location.search.includes(`room=${room.id}`);
-                  return (
-                    <div key={room.id} className={"gd-sb-room-item" + (active ? " active" : "")}>
-                      <button
-                        className="gd-sb-room-btn"
-                        onClick={() => go(`/chat?room=${room.id}`)}
-                        title={room.title}
-                      >
-                        <span className="gd-sb-room-title">{room.title}</span>
-                        <span className="gd-sb-room-date">{room.date?.slice(5)}</span>
-                      </button>
-                      <button
-                        className="gd-sb-room-del"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await deleteRoom(room.id);
-                          loadRooms(user?.id).then((data) => setRooms(data));
-                        }}
-                        aria-label="삭제"
-                      >
-                        <IconClose width="11" height="11" />
-                      </button>
-                    </div>
-                  );
-                })}
-                {rooms.length === 0 && (
-                  <div className="gd-sb-pinned-empty" style={{ paddingLeft: 12 }}>채팅 기록이 없습니다</div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <polyline points="6 9 12 15 18 9" />
+            </motion.svg>
+          </button>
 
-        <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")}>
-          내 문서
-        </button>
-        <button
-          className={"gd-sb-navitem" + (isActive("/approval") ? " active" : "")}
-          onClick={() => go("/approval")}
-          style={{ display: "flex", alignItems: "center", gap: 7 }}
-        >
-          <IconGlobe width="13" height="13" />
-          승인 문서함
-          {pendingIds.length > 0 && (
-            <span className="gd-sb-pending-count">{pendingIds.length}</span>
-          )}
-        </button>
-      </nav>
+          <AnimatePresence initial={false}>
+            {chatOpen && (
+              <motion.div
+                key="chat-rooms"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="gd-sb-rooms-list">
+                  {rooms.map((room) => {
+                    const active = location.search.includes(`room=${room.id}`);
+                    return (
+                      <div key={room.id} className={"gd-sb-room-item" + (active ? " active" : "")}>
+                        <button
+                          className="gd-sb-room-btn"
+                          onClick={() => go(`/chat?room=${room.id}`)}
+                          title={room.title}
+                        >
+                          <span className="gd-sb-room-title">{room.title}</span>
+                          <span className="gd-sb-room-date">{room.date?.slice(5)}</span>
+                        </button>
+                        <button
+                          className="gd-sb-room-del"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await deleteRoom(room.id);
+                            loadRooms(user?.id).then((data) => setRooms(data));
+                          }}
+                          aria-label="삭제"
+                        >
+                          <IconClose width="11" height="11" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {rooms.length === 0 && (
+                    <div className="gd-sb-pinned-empty" style={{ paddingLeft: 12 }}>채팅 기록이 없습니다</div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* ── 내 문서함 (고정핀 된 문서) ── */}
-      <div className="gd-sb-section-div" />
-      <div className="gd-sb-section-label">
-        <IconPin width="12" height="12" /> 내 문서함
-      </div>
-      <div className="gd-sb-pinned-list">
-        {pinnedDocs.length === 0 ? (
-          <div className="gd-sb-pinned-empty">고정된 문서가 없습니다</div>
-        ) : (
-          pinnedDocs.map((doc) => (
+          <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")}>
+            내 문서
+          </button>
+          {user?.role === "ADMIN" && (
             <button
-              key={doc.document_id}
-              className="gd-sb-pinned-item"
-              onClick={() => go(`/chat?q=${encodeURIComponent((doc.filename ?? "") + " 요약해줘")}`)}
-              title={doc.filename}
+              className={"gd-sb-navitem" + (isActive("/approval") ? " active" : "")}
+              onClick={() => go("/approval")}
+              style={{ display: "flex", alignItems: "center", gap: 7 }}
             >
-              <IconFile width="13" height="13" className="gd-sb-pinned-ic" />
-              <span className="gd-sb-pinned-name">{doc.filename}</span>
+              <IconGlobe width="13" height="13" />
+              승인 문서함
+              {approvalCount > 0 && (
+                <span className="gd-sb-pending-count">{approvalCount}</span>
+              )}
             </button>
-          ))
-        )}
-      </div>
+          )}
+        </nav>
 
-      {/* 구분선 + 공용 문서 섹션 헤딩 */}
-      <div className="gd-sb-section-div" />
-      <div className="gd-sb-section-label">
-        <IconBookOpen width="12" height="12" /> 공용 문서
-      </div>
+        {/* ── 내 문서함 (고정핀 된 문서) ── */}
+        <div className="gd-sb-section-div" />
+        <div className="gd-sb-section-label">
+          <IconPin width="12" height="12" /> 내 문서함
+        </div>
+        <div className="gd-sb-pinned-list">
+          {pinnedDocs.length === 0 ? (
+            <div className="gd-sb-pinned-empty">고정된 문서가 없습니다</div>
+          ) : (
+            pinnedDocs.map((doc) => (
+              <button
+                key={doc.document_id}
+                className="gd-sb-pinned-item"
+                onClick={() => go(`/chat?q=${encodeURIComponent((doc.filename ?? "") + " 요약해줘")}`)}
+                title={doc.filename}
+              >
+                <IconFile width="13" height="13" className="gd-sb-pinned-ic" />
+                <span className="gd-sb-pinned-name">{doc.filename}</span>
+              </button>
+            ))
+          )}
+        </div>
 
-      {/* 공용 문서 트리 */}
-      <div className="gd-sb-tree-scroll">
-        {docsTree.map((node) => (
-          <DocTreeNode
-            key={node.id}
-            node={node}
-            level={0}
-            activeId={currentDocId}
-            onSelect={handleDocSelect}
-            expandedIds={expandedIds}
-            onToggle={handleToggle}
-          />
-        ))}
-      </div>
+        {/* 구분선 + 공용 문서 섹션 헤딩 */}
+        <div className="gd-sb-section-div" />
+        <div className="gd-sb-section-label">
+          <IconBookOpen width="12" height="12" /> 공용 문서
+        </div>
 
-      {/* 하단 푸터 */}
-      <div className="gd-sb-foot">
-        <div className="gd-sb-foot-wiki">CURVC DevOps Wiki v1.0</div>
-        <button className="gd-sb-item" onClick={() => setShowSettings(true)}>
-          <IconSettings width="15" height="15" /> <span className="txt">설정</span>
-        </button>
-      </div>
+        {/* 공용 문서 트리 */}
+        <div className="gd-sb-tree-scroll">
+          {docsTree.map((node) => (
+            <DocTreeNode
+              key={node.id}
+              node={node}
+              level={0}
+              activeId={currentDocId}
+              onSelect={handleDocSelect}
+              expandedIds={expandedIds}
+              onToggle={handleToggle}
+            />
+          ))}
+        </div>
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {/* 하단 푸터 */}
+        <div className="gd-sb-foot">
+          <div className="gd-sb-foot-wiki">CURVC DevOps Wiki v1.0</div>
+          <button className="gd-sb-item" onClick={() => setShowSettings(true)}>
+            <IconSettings width="15" height="15" /> <span className="txt">설정</span>
+          </button>
+        </div>
+
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </div>
     </motion.aside>
   );
