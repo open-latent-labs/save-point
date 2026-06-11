@@ -110,19 +110,19 @@ export default function Sidebar({ isOpen, onNavigate }) {
     fetchPinnedDocs();
     fetchApprovalCount();
     const syncPins = () => fetchPinnedDocs();
-    const syncRooms = () => loadRooms().then((data) => setRooms(data));
+    const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
 
     window.addEventListener("gamedocs:pins", syncPins);
     window.addEventListener("gamedocs:rooms", syncRooms);
 
     // 초기 로드
-    loadRooms().then((data) => setRooms(data));
+    loadRooms(user?.id).then((data) => setRooms(data));
 
     return () => {
       window.removeEventListener("gamedocs:pins", syncPins);
       window.removeEventListener("gamedocs:rooms", syncRooms);
     };
-  }, [fetchPinnedDocs, fetchApprovalCount]);
+  }, [fetchPinnedDocs, fetchApprovalCount, user?.id]);
 
   // 현재 URL에서 docId 추출
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
@@ -179,7 +179,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
         <button
           className="gd-newchat"
           onClick={async () => {
-            const room = await createRoom();
+            const room = await createRoom(user?.id);
             go(`/chat?room=${room.id}`);
           }}
         >
@@ -238,7 +238,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
                           onClick={async (e) => {
                             e.stopPropagation();
                             await deleteRoom(room.id);
-                            loadRooms().then((data) => setRooms(data));
+                            loadRooms(user?.id).then((data) => setRooms(data));
                           }}
                           aria-label="삭제"
                         >

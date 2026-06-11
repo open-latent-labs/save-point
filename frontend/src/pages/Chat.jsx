@@ -7,8 +7,7 @@ import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
 import { loadRooms, createRoom, loadMessages, deleteRoom } from "../data/chatRooms.js";
-
-const TEMP_USER_ID = "user-id-here";
+import { useAuth } from "../context/AuthContext.jsx";
 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
@@ -16,6 +15,7 @@ const uid = () => `m${++_id}_${Date.now()}`;
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { onMenu, onProfile } = useOutletContext();
+  const { user } = useAuth();
 
   const roomId = searchParams.get("room");
 
@@ -76,7 +76,7 @@ export default function Chat() {
       let isNewRoom = false;
 
       if (!roomToUse) {
-        const room = await createRoom();
+        const room = await createRoom(user?.id);
         roomToUse = room.id;
         isNewRoom = true;
         setCurrentRoomId(room.id);
@@ -128,7 +128,7 @@ export default function Chat() {
 
       const abort = streamChat(
         q,
-        TEMP_USER_ID,
+        user?.id ?? "",
         capturedRoomId,
         (token) => {
           setMessagesMap((prev) => ({
