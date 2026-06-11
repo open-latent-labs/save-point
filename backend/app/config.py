@@ -50,20 +50,20 @@ class Settings(BaseSettings):
     minio_use_ssl: bool
 
     # ── Google OAuth ──────────────────────────────────────────────────────────
-    google_client_id: str = ""
-    google_client_secret: str = ""
-    google_redirect_uri: str = ""
-    frontend_url: str = ""
+    google_client_id: str 
+    google_client_secret: str
+    google_redirect_uri: str
+    frontend_url: str
 
     # ── Kakao OAuth ───────────────────────────────────────────────────────────
-    kakao_client_id: str = ""
-    kakao_client_secret: str = ""
-    kakao_redirect_uri: str = "http://localhost:8000/auth/kakao/callback"
+    kakao_client_id: str
+    kakao_client_secret: str
+    kakao_redirect_uri: str
 
     # ── Naver OAuth ───────────────────────────────────────────────────────────
-    naver_client_id: str = ""
-    naver_client_secret: str = ""
-    naver_redirect_uri: str = "http://localhost:8000/auth/naver/callback"
+    naver_client_id: str
+    naver_client_secret: str
+    naver_redirect_uri: str
 
 
 @lru_cache

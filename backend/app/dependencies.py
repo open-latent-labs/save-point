@@ -44,6 +44,21 @@ async def get_current_user_id(sp_token: str = Cookie(None)) -> str:
     return payload["sub"]
 
 
+async def require_admin(sp_token: str = Cookie(None)) -> dict:
+    if not sp_token:
+        raise HTTPException(status_code=403, detail="인증이 필요합니다.")
+
+    payload = decode_token(sp_token)
+
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=403, detail="유효하지 않은 토큰입니다.")
+
+    if payload.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    return payload
+
+
 async def require_super_admin(sp_token: str = Cookie(None)) -> dict:
     if not sp_token:
         raise HTTPException(status_code=403, detail="인증이 필요합니다.")
