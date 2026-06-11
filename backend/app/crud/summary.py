@@ -33,7 +33,7 @@ async def document_content(db: AsyncSession, document_id: str):
         },
     }
 
-async def summary_delete(db: AsyncSession, document_id: str,user_id: str):
+async def delete_documnet(db: AsyncSession, document_id: str,user_id: str):
 
     result = await db.execute(
         select(Document)

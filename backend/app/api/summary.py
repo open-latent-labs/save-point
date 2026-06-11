@@ -3,7 +3,7 @@ from app.utils.minio_client import upload_file, BUCKET_NAME
 from typing import Annotated
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud.summary import summary_delete as summary_delete_crud, document_update_access as document_update_access_crud
+from app.crud.summary import delete_documnet as delete_documnet_crud, document_update_access as document_update_access_crud
 from app.crud.summary import document_content as document_content_crud
 from app.schemas.summary import SummaryUpdate
 
@@ -13,8 +13,8 @@ from app.dependencies import get_db, get_current_user_id
 router = APIRouter(prefix="/summary", tags=["summary"])
 
 @router.delete("/{document_id}/summary")
-async def delete_summary(document_id: str, db: AsyncSession = Depends(get_db),user_id: str = Depends(get_current_user_id)):
-    result = await summary_delete_crud(db, document_id, user_id)
+async def delete_documnet(document_id: str, db: AsyncSession = Depends(get_db),user_id: str = Depends(get_current_user_id)):
+    result = await delete_documnet_crud(db, document_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Summary not found")
     return result
