@@ -46,7 +46,16 @@ async def delete_chat_session(session_id: str, db: AsyncSession = Depends(get_db
 @router.get("/sessions/{session_id}/messages")
 async def get_chat_messages(session_id: str, db: AsyncSession = Depends(get_db)):
     messages = await get_messages(db, session_id)
-    return [{"id": m.id, "role": m.role, "content_ko": m.content_ko, "created_at": m.created_at} for m in messages]
+    return [
+        {
+            "id": m.id,
+            "role": m.role,
+            "content_ko": m.content_ko,
+            "created_at": m.created_at,
+            "retrieved_chunk_ids": m.retrieved_chunk_ids,  # 출처 포함
+        }
+        for m in messages
+    ]
 
 # ── 채팅 ──
 

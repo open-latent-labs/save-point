@@ -4,6 +4,34 @@ from app.llm.chat_prompt import build_prompt
 from app.services.reranker import rerank
 from app.utils.profiler import profile
 
+async def query(question: str, user_id: str) -> dict:
+
+    dense_vector = await embed_query_dense(question)
+    sparse_vector = await embed_query_sparse(question)
+
+    search_results = await search_vectors(dense_vector, sparse_vector, user_id)
+
+    if not search_results:
+        return {"prompt": None, "sources": []}
+
+    reranked_results = await rerank(question, search_results, top_k=5)
+
+    if not reranked_results:
+        return {"prompt": None, "sources": []}
+
+    prompt = build_prompt(question, reranked_results)
+
+    sources = [
+        {
+            "document_id": r["document_id"],
+            "filename": r["filename"],
+            "page_number": r["page_number"],
+        }
+        for r in reranked_results
+    ]
+
+    return {"prompt": prompt, "sources": sources}
+
 # 리소스 확인 용
 # async def query(question: str, user_id: str) -> dict:
 
@@ -41,31 +69,3 @@ from app.utils.profiler import profile
 
 #     # 프롬프트, 출처 반환
 #     return {"prompt": prompt, "sources": sources}
-
-async def query(question: str, user_id: str) -> dict:
-
-    dense_vector = await embed_query_dense(question)
-    sparse_vector = await embed_query_sparse(question)
-
-    search_results = await search_vectors(dense_vector, sparse_vector, user_id)
-
-    if not search_results:
-        return {"prompt": None, "sources": []}
-
-    reranked_results = await rerank(question, search_results, top_k=5)
-
-    if not reranked_results:
-        return {"prompt": None, "sources": []}
-
-    prompt = build_prompt(question, reranked_results)
-
-    sources = [
-        {
-            "document_id": r["document_id"],
-            "filename": r["filename"],
-            "page_number": r["page_number"],
-        }
-        for r in reranked_results
-    ]
-
-    return {"prompt": prompt, "sources": sources}
