@@ -4,8 +4,8 @@ export async function document_content(id) {
     return apiFetch(`/summary/docs/${id}`);
 }
 
-export async function document_delete(id) {
-    return apiFetch(`/summary/${id}/delete`, {
+export async function document_delete(document_id) {
+    return apiFetch(`/summary/${document_id}/summary`, {
         method: "DELETE",
     });
 }
