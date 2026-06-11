@@ -15,3 +15,19 @@ export async function adminApprovalCount() {
         credentials: "include",
     });
 }
+
+export async function adminPublishDocument(document_id) {
+    return apiFetch(`/admin/documents/${document_id}/publish`, { method: "POST", credentials: "include" });
+}
+
+export async function adminApproveDocument(document_id) {
+    return apiFetch(`/admin/documents/${document_id}/publish`, { method: "POST", credentials: "include" });
+}
+
+export async function adminRejectDocument(document_id) {
+    return apiFetch(`/admin/documents/${document_id}/reject`, { method: "POST", credentials: "include" });
+}
+
+export async function adminCancelPending(document_id) {
+    return apiFetch(`/admin/documents/${document_id}/cancel-pending`, { method: "POST", credentials: "include" });
+}

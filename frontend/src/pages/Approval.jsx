@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import { IconTrash, IconGlobe } from "../components/Icons.jsx";
 import { CATEGORY_OPTIONS, formatSize } from "../data/upload.js";
-import { adminApprovalList } from "../api/admin.js";
+import { adminApprovalList, adminApproveDocument, adminRejectDocument, adminCancelPending } from "../api/admin.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const extColors = {
@@ -36,13 +36,30 @@ export default function Approval() {
     });
   }, [user, currentPage]);
 
-  const removeDoc = (id) => {
-    setPendingDocs((prev) => prev.filter((d) => d.id !== id));
-    setApprovalCount((c) => {
-      const next = Math.max(0, c - 1);
-      setTotalPages(Math.max(1, Math.ceil(next / 7)));
-      return next;
+  const refreshList = () => {
+    adminApprovalList(currentPage).then((data) => {
+      if (data && Array.isArray(data.items)) {
+        setPendingDocs(data.items);
+        setApprovalCount(data.total);
+        setTotalPages(data.total_pages);
+        window.dispatchEvent(new Event("gamedocs:approval-count"));
+      }
     });
+  };
+
+  const approveDoc = async (id) => {
+    try { await adminApproveDocument(id); } catch (e) { console.error(e); }
+    refreshList();
+  };
+
+  const rejectDoc = async (id) => {
+    try { await adminRejectDocument(id); } catch (e) { console.error(e); }
+    refreshList();
+  };
+
+  const cancelPending = async (id) => {
+    try { await adminCancelPending(id); } catch (e) { console.error(e); }
+    refreshList();
   };
 
   return (

@@ -1,10 +1,13 @@
 import math
+from datetime import datetime, timezone
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 
 from app.models.document import Document
+from app.models.enums import DocumentAccess, DocumentStatus
 from app.models.summary_llm_result import SummaryLlmResult
 
 
@@ -47,3 +50,36 @@ async def admin_approval_count(db: AsyncSession):
         .where(Document.status == "PENDING")
     )
     return result.scalar_one()
+
+
+async def admin_publish_document(db: AsyncSession, document_id: str, admin_id: str):
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.access_type = DocumentAccess.PUBLIC
+    doc.status = DocumentStatus.APPROVED
+    doc.approved_by_id = admin_id
+    doc.approved_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"id": document_id}
+
+
+async def admin_reject_document(db: AsyncSession, document_id: str):
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.status = DocumentStatus.REJECTED
+    await db.commit()
+    return {"id": document_id}
+
+
+async def admin_cancel_pending(db: AsyncSession, document_id: str):
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.status = DocumentStatus.DONE
+    await db.commit()
+    return {"id": document_id}

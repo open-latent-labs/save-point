@@ -1,0 +1,127 @@
+================================================================
+  GameDocs.AI — feature/86 변경사항 정리
+  날짜: 2026-06-11
+================================================================
+
+----------------------------------------------------------------
+1. 관리자 직접 공용 등록 (바로 공용 등록)
+----------------------------------------------------------------
+기존: 관리자도 일반 유저와 동일하게 "공용 등록 신청" 버튼만 존재
+변경: 관리자 계정으로 로그인 시 "바로 공용 등록" 버튼으로 전환
+     → 승인 프로세스 없이 즉시 PUBLIC + APPROVED 처리
+
+관련 파일:
+  - backend/app/crud/admin.py         : admin_publish_document() 함수 추가
+  - backend/app/api/admin.py          : POST /admin/documents/{id}/publish 엔드포인트 추가
+  - frontend/src/api/admin.js         : adminPublishDocument() 함수 추가
+  - frontend/src/pages/Upload.jsx     : isAdmin 분기, adminPublish() 함수 추가
+                                        글로브 버튼 → 관리자/유저 역할별 분기 렌더링
+
+
+----------------------------------------------------------------
+2. 유저 공용 등록 신청 흐름 수정 (실제 DB 반영)
+----------------------------------------------------------------
+기존: "공용 등록 신청" 버튼 클릭 시 localStorage에만 기록되어
+     관리자 승인 문서함에 아무것도 표시되지 않음
+변경: API 호출(POST /documents/{id}/request-public)로 DB status를
+     PENDING으로 변경 → 관리자 승인 문서함에 즉시 반영
+
+관련 파일:
+  - backend/app/crud/document.py      : request_public(), cancel_public_request() 함수 추가
+  - backend/app/api/document.py       : POST/DELETE /documents/{id}/request-public 엔드포인트 추가
+  - frontend/src/api/document.js      : requestPublicDocument(), cancelPublicRequest() 함수 추가
+  - frontend/src/pages/Upload.jsx     : requestPublic() → async API 호출 + refreshKey 갱신
+
+
+----------------------------------------------------------------
+3. 관리자 승인 문서함 승인/반려/취소 기능
+----------------------------------------------------------------
+기존: 승인·반려·취소 버튼 클릭 시 함수 미정의 오류 (approveDoc is not defined)
+변경: 각 버튼에 실제 API 연결, 처리 후 목록 즉시 갱신
+
+추가된 API 엔드포인트:
+  POST /admin/documents/{id}/publish       → 승인 (PUBLIC + APPROVED)
+  POST /admin/documents/{id}/reject        → 반려 (REJECTED)
+  POST /admin/documents/{id}/cancel-pending → 신청 취소 (DONE)
+
+관련 파일:
+  - backend/app/crud/admin.py         : admin_reject_document(), admin_cancel_pending() 함수 추가
+  - backend/app/api/admin.py          : reject, cancel-pending 엔드포인트 추가
+  - frontend/src/api/admin.js         : adminApproveDocument(), adminRejectDocument(),
+                                        adminCancelPending() 함수 추가
+  - frontend/src/pages/Approval.jsx   : approveDoc(), rejectDoc(), cancelPending() 함수 추가
+                                        refreshList() — 액션 후 목록 서버 재조회
+
+
+----------------------------------------------------------------
+4. 새로고침 없이 UI 즉시 반영
+----------------------------------------------------------------
+기존: 승인/반려 처리 후 수동 새로고침 필요
+변경: API 호출 완료 후 setRefreshKey(k+1) 트리거로 자동 목록 갱신
+
+관련 파일:
+  - frontend/src/pages/Upload.jsx     : requestPublic, adminPublish 모두 refreshKey 갱신
+  - frontend/src/pages/Approval.jsx   : 각 액션 후 refreshList() 호출
+
+
+----------------------------------------------------------------
+5. 사이드바 승인 카운트 배지 즉시 동기화
+----------------------------------------------------------------
+기존: 승인/반려 처리 후 사이드바 숫자 배지가 업데이트되지 않음
+     (페이지 숫자 vs 사이드바 배지 불일치)
+변경: 커스텀 이벤트(gamedocs:approval-count) 버스 패턴으로
+     Approval 페이지 → Sidebar 실시간 동기화
+
+관련 파일:
+  - frontend/src/pages/Approval.jsx   : refreshList() 안에서 window.dispatchEvent() 발행
+  - frontend/src/components/Sidebar.jsx : gamedocs:approval-count 리스너 등록/해제
+
+
+----------------------------------------------------------------
+6. 문서 상태(status) 기반 렌더링으로 전환
+----------------------------------------------------------------
+기존: 승인 대기 여부를 localStorage(pendingIds)로 판단
+변경: 서버에서 내려오는 doc.status 값으로 판단
+     ("PENDING" / "REJECTED" / "APPROVED")
+
+효과:
+  - 다른 기기나 세션에서도 상태 일치
+  - "승인 대기중" 필터 탭 정확히 동작
+
+관련 파일:
+  - frontend/src/pages/Upload.jsx     : setMyDocs 매핑에 status 필드 추가
+                                        isPending={doc.status === "PENDING"}
+                                        isRejected={doc.status === "REJECTED"}
+                                        filteredDocs pending 필터 → d.status === "PENDING"
+
+
+----------------------------------------------------------------
+7. DB commit 누락 버그 수정
+----------------------------------------------------------------
+기존: request_public, cancel_public_request, admin_publish/reject/cancel
+     모두 commit 없이 반환 → DB에 실제 반영 안 됨
+변경: 각 함수 말미에 await db.commit() 추가
+
+관련 파일:
+  - backend/app/crud/document.py      : request_public, cancel_public_request에 commit 추가
+  - backend/app/crud/admin.py         : publish, reject, cancel_pending에 commit 추가
+
+
+================================================================
+  변경된 파일 목록 (총 10개)
+================================================================
+
+Backend (5)
+  backend/app/crud/admin.py
+  backend/app/crud/document.py
+  backend/app/api/admin.py
+  backend/app/api/document.py
+
+Frontend (6)
+  frontend/src/api/admin.js
+  frontend/src/api/document.js
+  frontend/src/pages/Upload.jsx
+  frontend/src/pages/Approval.jsx
+  frontend/src/components/Sidebar.jsx
+
+================================================================
