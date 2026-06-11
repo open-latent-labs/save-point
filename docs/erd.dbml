@@ -1,23 +1,23 @@
 // =============================================================
-// schema.dbml
-// Source: PostgreSQL 15+ schema.sql
-// Note: ULID PK는 백엔드에서 생성, BIGINT PK는 GENERATED ALWAYS AS IDENTITY (increment)
+// erd.dbml
+// GameDocs.AI - PostgreSQL 15+ schema
+// dbdiagram.io / dbml-cli 용
+// 참고: ULID PK(varchar 26)는 백엔드 생성, BIGINT PK는 IDENTITY(increment)
 // =============================================================
 
-// ----------------------------- ENUMS -----------------------------
-
-Enum user_role {
+// ---------- ENUM 정의 ----------
+enum user_role {
   USER
   ADMIN
   SUPER_ADMIN
 }
 
-Enum user_ban {
+enum user_ban {
   BAN
   UNBAN
 }
 
-Enum document_status {
+enum document_status {
   INITIAL
   PROCESSING
   DONE
@@ -26,12 +26,12 @@ Enum document_status {
   REJECTED
 }
 
-Enum document_access {
+enum document_access {
   PUBLIC
   PRIVATE
 }
 
-Enum category {
+enum category {
   ENGINE_REFERENCE
   POSTMORTEM
   BUG_ANALYSIS
@@ -40,25 +40,25 @@ Enum category {
   OTHER
 }
 
-Enum ocr_status {
+enum ocr_status {
   PENDING
   DONE
   FAILED
 }
 
-Enum ocr_engine {
+enum ocr_engine {
   NATIVE
   PADDLE
   SURYA
 }
 
-Enum job_type {
+enum job_type {
   OCR
   CLASSIFY_SUMMARIZE
   EMBED
 }
 
-Enum job_status {
+enum job_status {
   QUEUED
   RUNNING
   DONE
@@ -66,41 +66,40 @@ Enum job_status {
   RETRYING
 }
 
-Enum approval_action {
+enum approval_action {
   APPROVED
   REJECTED
 }
 
-Enum chat_role {
+enum chat_role {
   USER
   ASSISTANT
 }
 
-Enum notification_type {
+enum notification_type {
   ROLE_PROMOTED
   ROLE_DEMOTED
   DOCUMENT_APPROVED
   DOCUMENT_REJECTED
 }
 
-// ----------------------------- TABLES -----------------------------
-
+// ---------- 테이블 정의 ----------
 Table users {
-  id                varchar(26)  [pk, not null]
-  password          varchar(255) [not null]
-  role              user_role    [not null, default: 'USER', note: '회원 역할(권한 구분)']
-  email             varchar(255) [not null, unique]
-  name              varchar(255) [not null]
-  user_id           varchar(26)  [not null, unique]
-  ban               user_ban     [not null, default: 'UNBAN', note: '회원 계정 상태']
-  is_active         boolean      [not null, default: true]
+  id                varchar(26)   [pk]
+  password          varchar(255)  [not null]
+  role              user_role     [not null, default: 'USER', note: '회원 역할(권한 구분)']
+  email             varchar(255)  [not null, unique]
+  name              varchar(255)  [not null]
+  user_id           varchar(26)   [not null, unique]
+  ban               user_ban      [not null, default: 'UNBAN', note: '회원 계정 상태']
+  is_active         boolean       [not null, default: true]
   last_active_at    timestamptz
-  upload_file_count int          [not null, default: 0, note: '업로드한 문서 갯수']
-  ask_count         int          [not null, default: 0, note: '챗봇 질문 수']
-  img_url           varchar(512) [default: 'user_image.png']
+  upload_file_count int           [not null, default: 0, note: '업로드한 문서 갯수']
+  ask_count         int           [not null, default: 0, note: '챗봇 질문 수']
+  img_url           varchar(512)  [default: 'user_image.png']
   ip                varchar(45)
-  created_at        timestamptz  [default: `now()`]
-  updated_at        timestamptz  [default: `now()`]
+  created_at        timestamptz   [default: `now()`]
+  updated_at        timestamptz   [default: `now()`]
 }
 
 Table user_role_log {
@@ -114,7 +113,7 @@ Table user_role_log {
 }
 
 Table documents {
-  id              varchar(26)     [pk, not null, note: 'ULID, 백엔드 생성']
+  id              varchar(26)     [pk, note: 'ULID, 백엔드 생성']
   filename        varchar(255)
   extension       varchar(255)
   file_size       bigint
@@ -122,11 +121,13 @@ Table documents {
   access_type     document_access [not null, default: 'PRIVATE']
   uploaded_by_id  varchar(26)     [not null]
   approved_by_id  varchar(26)
+  deleted_by_id   varchar(26)     [default: null]
+  deleted_at      timestamptz     [default: null]
   approved_at     timestamptz
   created_at      timestamptz     [not null, default: `now()`]
   updated_at      timestamptz     [not null, default: `now()`, note: '업로드, 마지막으로 문서 수정한 시간']
 
-  Indexes {
+  indexes {
     status         [name: 'idx_documents_status']
     uploaded_by_id [name: 'idx_document_uploaded_by']
   }
@@ -145,15 +146,15 @@ Table ocr_results {
 }
 
 Table summary_llm_results {
-  id            bigint      [pk, increment]
-  document_id   varchar(26) [not null, unique, note: 'ULID']
-  category      category    [note: '카테고리']
-  summary_ko    text
-  model_name    varchar(100)
-  model_version varchar(50)
-  processed_at  timestamptz
+  id             bigint       [pk, increment]
+  document_id    varchar(26)  [not null, unique, note: 'ULID']
+  category       category     [note: '카테고리']
+  summary_ko     text
+  model_name     varchar(100)
+  model_version  varchar(50)
+  processed_at   timestamptz
 
-  Indexes {
+  indexes {
     category [name: 'idx_document_category']
   }
 }
@@ -169,24 +170,24 @@ Table document_chunks {
   is_indexed      boolean     [not null, default: false]
   indexed_at      timestamptz
 
-  Indexes {
+  indexes {
     document_id [name: 'idx_chunks_document_id']
-    is_indexed  [name: 'idx_chunks_not_indexed', note: 'partial: WHERE is_indexed = FALSE']
+    is_indexed  [name: 'idx_chunks_not_indexed (partial: WHERE is_indexed = FALSE)']
   }
 }
 
 Table processing_jobs {
-  id            bigint      [pk, increment]
-  document_id   varchar(26) [not null]
-  job_type      job_type    [not null]
-  job_status    job_status  [not null, default: 'QUEUED']
-  attempt_count int         [not null, default: 0]
-  error_message text        [note: '마지막 실패 원인']
-  queued_at     timestamptz [not null, default: `now()`]
-  started_at    timestamptz
-  finished_at   timestamptz
+  id             bigint      [pk, increment]
+  document_id    varchar(26) [not null]
+  job_type       job_type    [not null]
+  job_status     job_status  [not null, default: 'QUEUED']
+  attempt_count  int         [not null, default: 0]
+  error_message  text        [note: '마지막 실패 원인']
+  queued_at      timestamptz [not null, default: `now()`]
+  started_at     timestamptz
+  finished_at    timestamptz
 
-  Indexes {
+  indexes {
     document_id [name: 'idx_jobs_document_id']
     job_type    [name: 'idx_jobs_type']
     job_status  [name: 'idx_jobs_status']
@@ -194,120 +195,109 @@ Table processing_jobs {
 }
 
 Table chat_sessions {
-  id             varchar(26) [pk, not null, note: 'ULID']
-  user_id        varchar(26) [not null]
+  id             varchar(26)  [pk, note: 'ULID']
+  user_id        varchar(26)  [not null]
   session_name   varchar(200)
-  last_active_at timestamptz [not null, default: `now()`]
-  created_at     timestamptz [not null, default: `now()`]
+  last_active_at timestamptz  [not null, default: `now()`]
+  created_at     timestamptz  [not null, default: `now()`]
 
-  Indexes {
+  indexes {
     user_id [name: 'idx_chat_sessions_user']
   }
 }
 
 Table chat_message {
-  id                  varchar(26) [pk, not null, note: 'ULID']
-  session_id          varchar(26) [not null]
-  role                chat_role   [not null]
-  content_ko          text        [not null, note: '한국어 (사용자 질문 or AI 답변)']
-  query_en            text        [note: '검색에 사용된 영어 번역 쿼리']
+  id                  varchar(26)  [pk, note: 'ULID']
+  session_id          varchar(26)  [not null]
+  role                chat_role    [not null]
+  content_ko          text         [not null, note: '한국어 (사용자 질문 or AI 답변)']
   retrieved_chunk_ids jsonb
   model_name          varchar(100)
   latency_ms          int
-  created_at          timestamptz [not null, default: `now()`]
+  created_at          timestamptz  [not null, default: `now()`]
 
-  Indexes {
+  indexes {
     session_id [name: 'idx_messages_session']
   }
 }
 
 Table approval_logs {
-  id          bigint          [pk, increment]
-  document_id varchar(26)
-  actor_id    varchar(26)
-  action      approval_action [not null]
-  reason      text
-  created_at  timestamptz     [not null, default: `now()`]
+  id           bigint          [pk, increment]
+  document_id  varchar(26)
+  actor_id     varchar(26)
+  action       approval_action [not null]
+  reason       text
+  created_at   timestamptz     [not null, default: `now()`]
 
-  Indexes {
+  indexes {
     document_id [name: 'idx_approval_document_id']
   }
 }
 
 Table pinned_documents {
-  user_id     varchar(26) [not null]
-  document_id varchar(26) [not null]
-  pin_order   int         [not null, default: 0, note: '고정 순서 조정용']
-  created_at  timestamptz [not null, default: `now()`]
+  user_id      varchar(26)  [not null]
+  document_id  varchar(26)  [not null]
+  pin_order    int          [not null, default: 0, note: '고정 순서 조정용']
+  created_at   timestamptz  [not null, default: `now()`]
 
-  Indexes {
+  indexes {
     (user_id, document_id) [pk]
   }
 }
 
 Table bookmarked_documents {
-  user_id     varchar(26) [not null]
-  document_id varchar(26) [not null]
-  created_at  timestamptz [not null, default: `now()`]
+  user_id      varchar(26)  [not null]
+  document_id  varchar(26)  [not null]
+  created_at   timestamptz  [not null, default: `now()`]
 
-  Indexes {
+  indexes {
     (user_id, document_id) [pk]
   }
 }
 
 Table notifications {
-  id         varchar(26)       [pk, not null, note: 'ULID, 백엔드 생성']
+  id         varchar(26)       [pk, note: 'ULID, 백엔드 생성']
   user_id    varchar(26)       [not null, note: '알림 수신자']
   type       notification_type [not null]
-  ref_id     bigint            [not null, note: '연관 로그 PK (역할 변경 → user_role_log.id, 문서 심사 → approval_logs.id)']
-  message    text              [not null, note: '프론트 노출 메시지 (백엔드에서 생성)']
+  ref_id     bigint            [not null, note: '연관 로그 PK (ROLE_* → user_role_log.id, DOCUMENT_* → approval_logs.id) / 폴리모픽이라 물리 FK 없음']
+  message    text              [not null, note: '프론트 노출 메시지 (백엔드 생성)']
   is_read    boolean           [not null, default: false]
   read_at    timestamptz
   created_at timestamptz       [not null, default: `now()`]
 
-  Indexes {
-    (user_id, created_at) [name: 'idx_notifications_user_unread', note: 'partial: WHERE is_read = FALSE, created_at DESC']
+  indexes {
+    (user_id, created_at) [name: 'idx_notifications_user_unread (partial: WHERE is_read = FALSE)']
   }
 }
 
-// ----------------------------- REFERENCES -----------------------------
-
+// ---------- 관계(FK) 정의 ----------
 // user_role_log
 Ref: user_role_log.target_user_id     > users.id [delete: set null]
-Ref: user_role_log.changed_by_user_id > users.id
+Ref: user_role_log.changed_by_user_id > users.id [delete: no action]
 
 // documents
-Ref: documents.uploaded_by_id > users.id
+Ref: documents.uploaded_by_id > users.id [delete: no action]
 Ref: documents.approved_by_id > users.id [delete: set null]
+Ref: documents.deleted_by_id  > users.id [delete: no action]
 
-// ocr_results
-Ref: ocr_results.document_id > documents.id [delete: cascade]
+// ocr_results / summary / chunks / jobs (document 1:N or 1:1)
+Ref: ocr_results.document_id          - documents.id [delete: cascade]  // UNIQUE → 1:1
+Ref: summary_llm_results.document_id  - documents.id [delete: cascade]  // UNIQUE → 1:1
+Ref: document_chunks.document_id      > documents.id [delete: cascade]
+Ref: processing_jobs.document_id      > documents.id [delete: cascade]
 
-// summary_llm_results
-Ref: summary_llm_results.document_id > documents.id [delete: cascade]
-
-// document_chunks
-Ref: document_chunks.document_id > documents.id [delete: cascade]
-
-// processing_jobs
-Ref: processing_jobs.document_id > documents.id [delete: cascade]
-
-// chat_sessions
-Ref: chat_sessions.user_id > users.id [delete: cascade]
-
-// chat_message
-Ref: chat_message.session_id > chat_sessions.id [delete: cascade]
+// chat
+Ref: chat_sessions.user_id    > users.id         [delete: cascade]
+Ref: chat_message.session_id  > chat_sessions.id [delete: cascade]
 
 // approval_logs
 Ref: approval_logs.document_id > documents.id [delete: set null]
 Ref: approval_logs.actor_id    > users.id     [delete: set null]
 
-// pinned_documents
-Ref: pinned_documents.user_id     > users.id     [delete: cascade]
-Ref: pinned_documents.document_id > documents.id [delete: cascade]
-
-// bookmarked_documents
-Ref: bookmarked_documents.user_id     > users.id     [delete: cascade]
+// pinned / bookmarked (N:M 브릿지)
+Ref: pinned_documents.user_id        > users.id     [delete: cascade]
+Ref: pinned_documents.document_id    > documents.id [delete: cascade]
+Ref: bookmarked_documents.user_id    > users.id     [delete: cascade]
 Ref: bookmarked_documents.document_id > documents.id [delete: cascade]
 
 // notifications
