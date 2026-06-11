@@ -40,6 +40,12 @@ export async function apiFetch(url, options = {}) {
         return;
     }
 
+    if (res.status === 403) {
+        // 정지 계정 등 권한 없음 → 로그인 페이지로 이동
+        window.location.href = "/login";
+        return;
+    }
+
     if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
         throw new Error(parseError(text));

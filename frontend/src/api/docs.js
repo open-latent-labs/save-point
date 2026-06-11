@@ -11,7 +11,7 @@ export async function document_delete(document_id) {
 }
 
 export async function document_update_access(id, content) {
-    return apiFetch(`/summary/${id}/access`, {
+    return apiFetch(`/summary/${id}/content`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),

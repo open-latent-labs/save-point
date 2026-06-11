@@ -12,6 +12,7 @@ from app.api.admin import router as admin_router
 from app.api.summary import router as summary_router
 from app.services.flag_model import get_flag_model
 from app.services.reranker import get_reranker
+from app.config import settings
 import app.models
 import asyncio
 
@@ -40,9 +41,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_origins = [o.strip() for o in settings.frontend_url.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,7 +66,7 @@ app.include_router(summary_router)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     origin = request.headers.get("origin", "")
     headers = {"Access-Control-Allow-Origin": origin} if origin else {}
-    return JSONResponse(status_code=500, content={"detail": str(exc)}, headers=headers)
+    return JSONResponse(status_code=500, content={"detail": "서버 오류가 발생했습니다."}, headers=headers)
 
 
 
