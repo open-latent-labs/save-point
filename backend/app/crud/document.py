@@ -124,16 +124,9 @@ async def bookmark_delete(db: AsyncSession, document_id: str, user_id: str):
 
     if existing:
         await db.delete(existing)
-        is_bookmarked = False
-    else:
-        await db.execute(
-            insert(BookmarkedDocument),
-            {"document_id": document_id, "user_id": user_id},
-        )
-        is_bookmarked = True
+        await db.commit()
 
-    await db.commit()
-    return {"is_bookmarked": is_bookmarked}
+    return {"is_bookmarked": False}
 
 
 async def pin(db: AsyncSession, document_id: str, user_id: str):
@@ -172,16 +165,9 @@ async def pin_delete(db: AsyncSession, document_id: str, user_id: str):
 
     if existing:
         await db.delete(existing)
-        is_pinned = False
-    else:
-        await db.execute(
-            insert(PinnedDocument),
-            {"document_id": document_id, "user_id": user_id},
-        )
-        is_pinned = True
+        await db.commit()
 
-    await db.commit()
-    return {"is_pinned": is_pinned}
+    return {"is_pinned": False}
 
 async def pin_list(db: AsyncSession, user_id: str):
     result = await db.execute(
