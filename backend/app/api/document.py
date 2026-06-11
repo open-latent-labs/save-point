@@ -8,6 +8,7 @@ from app.dependencies import get_db, get_current_user_id
 from app.schemas.document import ListRequest
 from app.crud.document import list as list_crud, bookmark as bookmark_crud, bookmark_delete as bookmark_delete_crud
 from app.crud.document import pin as pin_crud, pin_delete as pin_delete_crud, pin_list as pin_list_crud
+from app.crud.document import request_public as request_public_crud, cancel_public_request as cancel_public_request_crud
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -43,3 +44,13 @@ async def delete_pin_document(document_id: str, db: AsyncSession = Depends(get_d
 async def pin_list(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
     print(user_id)
     return await pin_list_crud(db, user_id)
+
+
+@router.post("/{document_id}/request-public")
+async def request_public(document_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    return await request_public_crud(db, document_id, user_id)
+
+
+@router.delete("/{document_id}/request-public")
+async def cancel_public_request(document_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    return await cancel_public_request_crud(db, document_id, user_id)
