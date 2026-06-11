@@ -111,9 +111,11 @@ export default function Sidebar({ isOpen, onNavigate }) {
     fetchApprovalCount();
     const syncPins = () => fetchPinnedDocs();
     const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
+    const syncApprovalCount = () => fetchApprovalCount();
 
     window.addEventListener("gamedocs:pins", syncPins);
     window.addEventListener("gamedocs:rooms", syncRooms);
+    window.addEventListener("gamedocs:approval-count", syncApprovalCount);
 
     // 초기 로드
     loadRooms(user?.id).then((data) => setRooms(data));
@@ -121,6 +123,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
     return () => {
       window.removeEventListener("gamedocs:pins", syncPins);
       window.removeEventListener("gamedocs:rooms", syncRooms);
+      window.removeEventListener("gamedocs:approval-count", syncApprovalCount);
     };
   }, [fetchPinnedDocs, fetchApprovalCount, user?.id]);
 

@@ -65,3 +65,11 @@ export async function documentPinList() {
         method: "GET",
     });
 }
+
+export async function requestPublicDocument(document_id) {
+    return await apiFetch(`/documents/${document_id}/request-public`, { method: "POST" });
+}
+
+export async function cancelPublicRequest(document_id) {
+    return await apiFetch(`/documents/${document_id}/request-public`, { method: "DELETE" });
+}

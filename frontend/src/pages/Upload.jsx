@@ -10,7 +10,9 @@ import {
   loadPending, savePending, loadRejected, loadApproved,
   CATEGORY_OPTIONS,
 } from "../data/upload.js";
-import { document_list, documentBookmark, documentBookmarkDelete, documentPin, documentPinDelete } from "../api/document.js";
+import { document_list, documentBookmark, documentBookmarkDelete, documentPin, documentPinDelete, requestPublicDocument } from "../api/document.js";
+import { adminPublishDocument } from "../api/admin.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 let _uid = 0;
 const uid = () => `f${++_uid}_${Date.now()}`;
@@ -28,7 +30,7 @@ const extColors = {
   doc: "#5BC8FF",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish }) {
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish, isAdmin, onAdminPublish }) {
   const navigate = useNavigate();
   return (
     <div
@@ -74,15 +76,26 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
       </div>
 
       <div className="gd-docitem-actions" onClick={(e) => e.stopPropagation()}>
-        {!isPending && !isRejected && (
-          <button
-            className="gd-docitem-pub"
-            onClick={() => onPublish(doc.id)}
-            aria-label="공용 문서로 등록 신청"
-            title="공용 문서로 등록 신청"
-          >
-            <IconGlobe width="14" height="14" />
-          </button>
+        {!isPending && !isRejected && !doc.isPublic && (
+          isAdmin ? (
+            <button
+              className="gd-docitem-pub"
+              onClick={() => onAdminPublish(doc.id)}
+              aria-label="바로 공용 등록"
+              title="바로 공용 등록"
+            >
+              <IconGlobe width="14" height="14" />
+            </button>
+          ) : (
+            <button
+              className="gd-docitem-pub"
+              onClick={() => onPublish(doc.id)}
+              aria-label="공용 등록 신청"
+              title="공용 등록 신청"
+            >
+              <IconGlobe width="14" height="14" />
+            </button>
+          )
         )}
         <button
           className={"gd-docitem-pin" + (isPin ? " on" : "")}
@@ -137,6 +150,8 @@ function makeSquareIcon(src, size = 192) {
 
 export default function Upload() {
   const { onMenu, onProfile } = useOutletContext();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
@@ -205,6 +220,7 @@ export default function Upload() {
           category: d.category ?? "OTHER",
           date: d.created_at ? d.created_at.slice(0, 10) : "-",
           isPublic: d.access_type === "PUBLIC",
+          status: d.status ?? "",
         })));
         setFavIds(docs.filter((d) => d.is_bookmarked).map((d) => d.id));
         setPinIds(docs.filter((d) => d.is_pinned).map((d) => d.id));
@@ -268,17 +284,32 @@ export default function Upload() {
   const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
 
   // ── 공용 문서 등록 신청 ──
-  const requestPublic = (id) => {
-    const next = [...pendingIds, id];
-    setPendingIds(next);
-    savePending(next);
+  const requestPublic = async (id) => {
+    try {
+      await requestPublicDocument(id);
+      setPage(1);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ── 관리자 직접 공용 등록 ──
+  const adminPublish = async (id) => {
+    try {
+      await adminPublishDocument(id);
+      setPage(1);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // category / sort / public / private 는 서버에서 처리
   // fav / pending 은 로컬 상태 기반이므로 클라이언트에서만 필터링
   const filteredDocs = myDocs.filter((d) => {
     if (visFilter === "fav")     return favIds.includes(d.id);
-    if (visFilter === "pending") return pendingIds.includes(d.id);
+    if (visFilter === "pending") return d.status === "PENDING";
     return true;
   });
 
@@ -553,9 +584,11 @@ export default function Upload() {
                         isPin={pinIds.includes(doc.id)}
                         onPin={togglePin}
                         onDelete={deleteDoc}
-                        isPending={pendingIds.includes(doc.id)}
-                        isRejected={rejectedIds.includes(doc.id)}
+                        isPending={doc.status === "PENDING"}
+                        isRejected={doc.status === "REJECTED"}
                         onPublish={requestPublic}
+                        isAdmin={isAdmin}
+                        onAdminPublish={adminPublish}
                       />
                     ))}
                   </div>
