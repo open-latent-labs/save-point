@@ -23,7 +23,16 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     # query에서 관련 문서를 찾지 못해 prompt가 None으로 넘어온 경우
     # 다음 채팅 띄우고 종료
     if not result["prompt"]:
-        yield "data: 질문에 관한 관련 문서를 찾을 수 없습니다. 다시 질문해주세요.\n\n"
+        no_answer = "질문에 관한 관련 문서를 찾을 수 없습니다. 다시 질문해주세요."
+        await save_message(
+            db=db,
+            message_id=str(ULID()),
+            session_id=session_id,
+            role=ChatRole.ASSISTANT,
+            content_ko=no_answer,
+        )
+        await update_session_last_active(db, session_id)
+        yield f"data: {no_answer}\n\n"
         yield "data: [DONE]\n\n"
         return
 
