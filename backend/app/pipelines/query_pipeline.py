@@ -1,6 +1,6 @@
 # app/pipelines/query_pipeline.py
 from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
-from app.llm.chat_prompt import build_prompt
+from app.llm.chat_prompt import build_prompt, none_source_build_prompt
 from app.services.reranker import rerank
 from app.utils.profiler import profile
 
