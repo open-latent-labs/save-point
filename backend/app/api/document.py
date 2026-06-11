@@ -11,7 +11,7 @@ from app.crud.document import pin as pin_crud, pin_delete as pin_delete_crud, pi
 from app.crud.document import request_public as request_public_crud, cancel_public_request as cancel_public_request_crud
 from app.crud.document import public_list as public_list_crud
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...), title: str = Form(...)):

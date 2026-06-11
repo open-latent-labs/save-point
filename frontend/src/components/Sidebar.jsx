@@ -143,7 +143,11 @@ export default function Sidebar({ isOpen, onNavigate }) {
     const syncPins = () => fetchPinnedDocs();
     const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
     const syncApprovalCount = () => fetchApprovalCount();
+<<<<<<< HEAD
     const syncPublicDocs = () => fetchPublicDocs();
+=======
+    const syncPending = () => setPendingIds(loadPending());
+>>>>>>> b9e1984f6480f99659f734eb37f10c39a47bb16f
 
     window.addEventListener("gamedocs:pins", syncPins);
     window.addEventListener("gamedocs:rooms", syncRooms);
