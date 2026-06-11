@@ -75,6 +75,19 @@ class Document(Base):
         ),
     )
 
+    deleted_by_id: Mapped[str | None] = mapped_column(
+        String(26),
+        ForeignKey("users.id"),
+        nullable=True,
+        default=None,
+    )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
     )
@@ -103,6 +116,12 @@ class Document(Base):
         "User",
         foreign_keys=[approved_by_id],
         back_populates="approved_documents",
+    )
+
+    deleted_by = relationship(
+        "User",
+        foreign_keys=[deleted_by_id],
+        back_populates="deleted_documents",
     )
 
     ocr_result = relationship("OcrResult", back_populates="document", uselist=False, cascade="all, delete-orphan")
