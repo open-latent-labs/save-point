@@ -17,8 +17,7 @@ def build_prompt(question: str, context_chunks: list[dict]) -> str:
 
                 [답변]"""
 
-def none_source_build_prompt(question: str, context_chunks: list[dict]) -> str:
-    context = "\n\n".join([c["chunk_text"] for c in context_chunks])
+def none_source_build_prompt(question: str) -> str:
 
     return f"""
                 # ROLE

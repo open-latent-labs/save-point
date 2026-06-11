@@ -11,13 +11,17 @@ async def query(question: str, user_id: str) -> dict:
 
     search_results = await search_vectors(dense_vector, sparse_vector, user_id)
 
+    # 문서 못 찾으면 none_source 프롬프트로 LLM에 질문
     if not search_results:
-        return {"prompt": None, "sources": []}
+        prompt = none_source_build_prompt(question)
+        return {"prompt": prompt, "sources": []}
 
     reranked_results = await rerank(question, search_results, top_k=5)
 
+    # 리랭킹 후에도 없으면 none_source 프롬프트로
     if not reranked_results:
-        return {"prompt": None, "sources": []}
+        prompt = none_source_build_prompt(question)
+        return {"prompt": prompt, "sources": []}
 
     prompt = build_prompt(question, reranked_results)
 
