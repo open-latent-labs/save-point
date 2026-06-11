@@ -76,12 +76,15 @@ export async function loadRooms(userId) {
   }
 }
 
-export async function createRoom(userId) {
+export async function createRoom(userId, sessionName = "새 채팅") {
   const res = await fetch(`${BASE_URL}/api/v1/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({ user_id: userId, session_name: sessionName }),
   });
+  if (!res.ok) {
+    throw new Error(`Session creation failed: ${res.status}`);
+  }
   const data = await res.json();
 
   // 사이드바 목록 갱신 이벤트
