@@ -8,8 +8,8 @@ from app.models.enums import ChatRole
 
 # ── 세션 ──
 
-async def create_session(db: AsyncSession, session_id: str, user_id: str) -> ChatSession:
-    session = ChatSession(id=session_id, user_id=user_id, session_name="새 채팅")
+async def create_session(db: AsyncSession, session_id: str, user_id: str, session_name: str = "새 채팅") -> ChatSession:
+    session = ChatSession(id=session_id, user_id=user_id, session_name=session_name)
     db.add(session)
     await db.commit()
     await db.refresh(session)

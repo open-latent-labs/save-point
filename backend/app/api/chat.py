@@ -22,13 +22,14 @@ class ChatRequest(BaseModel):
 
 class SessionCreateRequest(BaseModel):
     user_id: str
+    session_name: str = "새 채팅"
 
 # ── 세션 ──
 
 @router.post("/sessions")
 async def create_chat_session(req: SessionCreateRequest, db: AsyncSession = Depends(get_db)):
     session_id = str(ULID())
-    session = await create_session(db, session_id, req.user_id)
+    session = await create_session(db, session_id, req.user_id, req.session_name)
     return {"session_id": session.id, "session_name": session.session_name, "created_at": session.created_at}
 
 @router.get("/users/{user_id}/sessions")

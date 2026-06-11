@@ -59,12 +59,10 @@ export const DUMMY_ROOMS = [
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-// TODO: 로그인 연동 후 실제 user_id로 교체
-const TEMP_USER_ID = "user-id-here";
-
-export async function loadRooms() {
+export async function loadRooms(userId) {
+  if (!userId) return [];
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/users/${TEMP_USER_ID}/sessions`);
+    const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/sessions`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.map((s) => ({
@@ -78,12 +76,15 @@ export async function loadRooms() {
   }
 }
 
-export async function createRoom() {
+export async function createRoom(userId, sessionName = "새 채팅") {
   const res = await fetch(`${BASE_URL}/api/v1/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: TEMP_USER_ID }),
+    body: JSON.stringify({ user_id: userId, session_name: sessionName }),
   });
+  if (!res.ok) {
+    throw new Error(`Session creation failed: ${res.status}`);
+  }
   const data = await res.json();
 
   // 사이드바 목록 갱신 이벤트

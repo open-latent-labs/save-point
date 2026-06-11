@@ -7,8 +7,7 @@ import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
 import { loadRooms, createRoom, loadMessages, deleteRoom } from "../data/chatRooms.js";
-
-const TEMP_USER_ID = "user-id-here";
+import { useAuth } from "../context/AuthContext.jsx";
 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
@@ -16,6 +15,7 @@ const uid = () => `m${++_id}_${Date.now()}`;
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { onMenu, onProfile } = useOutletContext();
+  const { user } = useAuth();
 
   const roomId = searchParams.get("room");
 
@@ -76,7 +76,14 @@ export default function Chat() {
       let isNewRoom = false;
 
       if (!roomToUse) {
-        const room = await createRoom();
+        if (!user?.id) return;
+        let room;
+        try {
+          room = await createRoom(user.id, q.length > 40 ? q.slice(0, 40) + "…" : q);
+        } catch (err) {
+          console.error("방 생성 실패:", err);
+          return;
+        }
         roomToUse = room.id;
         isNewRoom = true;
         setCurrentRoomId(room.id);
@@ -128,7 +135,7 @@ export default function Chat() {
 
       const abort = streamChat(
         q,
-        TEMP_USER_ID,
+        user?.id ?? "",
         capturedRoomId,
         (token) => {
           setMessagesMap((prev) => ({
@@ -174,12 +181,13 @@ export default function Chat() {
 
   // URL ?q= 첫 메시지 자동 전송
   useEffect(() => {
+    if (!user?.id) return;
     const q = searchParams.get("q");
     if (q && q !== seededRef.current) {
       seededRef.current = q;
       sendMessage(q, true);
     }
-  }, [searchParams, sendMessage]);
+  }, [searchParams, sendMessage, user]);
 
   useEffect(() => {
     const el = scrollRef.current;
