@@ -7,9 +7,9 @@ class UserRole(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
 
 
-class UserStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DEACTIVE = "DEACTIVE"
+class UserBan(str, enum.Enum):
+    BAN = "BAN"
+    UNBAN = "UNBAN"
 
 
 class DocumentStatus(str, enum.Enum):
@@ -26,7 +26,7 @@ class DocumentAccess(str, enum.Enum):
     PRIVATE = "PRIVATE"
 
 
-class DocMainType(str, enum.Enum):
+class Category(str, enum.Enum):
     ENGINE_REFERENCE = "ENGINE_REFERENCE"
     POSTMORTEM = "POSTMORTEM"
     BUG_ANALYSIS = "BUG_ANALYSIS"
@@ -51,9 +51,9 @@ class OcrStatus(str, enum.Enum):
 
 
 class OcrEngine(str, enum.Enum):
+    NATIVE = "NATIVE"
     PADDLE = "PADDLE"
-    EASYOCR = "EASYOCR"
-    TESSERACT = "TESSERACT"
+    SURYA = "SURYA"
 
 
 class JobType(str, enum.Enum):

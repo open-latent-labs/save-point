@@ -7,6 +7,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── JWT ──────────────────────────────────────────────────────────────────
@@ -47,6 +48,22 @@ class Settings(BaseSettings):
     minio_root_user: str
     minio_root_password: str
     minio_use_ssl: bool
+
+    # ── Google OAuth ──────────────────────────────────────────────────────────
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = ""
+    frontend_url: str = ""
+
+    # ── Kakao OAuth ───────────────────────────────────────────────────────────
+    kakao_client_id: str = ""
+    kakao_client_secret: str = ""
+    kakao_redirect_uri: str = "http://localhost:8000/auth/kakao/callback"
+
+    # ── Naver OAuth ───────────────────────────────────────────────────────────
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
+    naver_redirect_uri: str = "http://localhost:8000/auth/naver/callback"
 
 
 @lru_cache

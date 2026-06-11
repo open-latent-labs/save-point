@@ -5,13 +5,13 @@
 -- =============================================================
 
 CREATE TYPE user_role        AS ENUM ('USER', 'ADMIN','SUPER_ADMIN');
-CREATE TYPE user_status      AS ENUM ('ACTIVE', 'DEACTIVE');
+CREATE TYPE user_ban         AS ENUM ('BAN', 'UNBAN');
 CREATE TYPE document_status  AS ENUM ('INITIAL', 'PROCESSING', 'DONE', 'PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE document_access  AS ENUM ('PUBLIC', 'PRIVATE');
-CREATE TYPE doc_main_type    AS ENUM ('ENGINE_REFERENCE', 'POSTMORTEM', 'BUG_ANALYSIS', 'ARCHITECTURE', 'TUTORIAL', 'OTHER');
-CREATE TYPE doc_sub_type     AS ENUM ('UNITY', 'UNREAL', 'GODOT', 'CUSTOM', 'AUTOMATION', 'OTHER');
+CREATE TYPE category         AS ENUM ('ENGINE_REFERENCE', 'POSTMORTEM', 'BUG_ANALYSIS', 'ARCHITECTURE', 'TUTORIAL', 'OTHER');
+
 CREATE TYPE ocr_status       AS ENUM ('PENDING', 'DONE', 'FAILED');
-CREATE TYPE ocr_engine       AS ENUM ('PADDLE', 'EASYOCR', 'TESSERACT');
+CREATE TYPE ocr_engine       AS ENUM ('NATIVE', 'PADDLE', 'SURYA');
 CREATE TYPE job_type         AS ENUM ('OCR', 'CLASSIFY_SUMMARIZE', 'EMBED');
 CREATE TYPE job_status       AS ENUM ('QUEUED', 'RUNNING', 'DONE', 'FAILED', 'RETRYING');
 CREATE TYPE approval_action  AS ENUM ('APPROVED', 'REJECTED');
@@ -22,7 +22,11 @@ CREATE TABLE users (
     password          VARCHAR(255) NOT NULL,
     role              user_role    NOT NULL DEFAULT 'USER',        -- 회원 역할(권한 구분)
     email             VARCHAR(255) NOT NULL,
-    nickname          VARCHAR(255) NOT NULL,
+    name              VARCHAR(255) NOT NULL,
+    user_id           VARCHAR(26) NOT NULL,
+    ban               user_ban     NOT NULL DEFAULT 'UNBAN',       -- 회원 계정 상태
+    is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
+    last_active_at    TIMESTAMPTZ,
     upload_file_count INT          NOT NULL DEFAULT 0,             -- 업로드한 문서 갯수
     ask_count         INT          NOT NULL DEFAULT 0,             -- 챗봇 질문 수
     img_url           VARCHAR(512)          DEFAULT 'user_image.png',
@@ -32,7 +36,7 @@ CREATE TABLE users (
 
     CONSTRAINT pk_users          PRIMARY KEY (id),
     CONSTRAINT uq_users_email    UNIQUE (email),
-    CONSTRAINT uq_users_nickname UNIQUE (nickname)
+    CONSTRAINT uq_users_user_id UNIQUE (user_id)
 );
 
 COMMENT ON COLUMN users.role              IS '회원 역할(권한 구분)';
@@ -97,8 +101,7 @@ COMMENT ON COLUMN ocr_results.confidence_score IS '0.0 ~ 1.0';
 CREATE TABLE summary_llm_results (
     id             BIGINT        GENERATED ALWAYS AS IDENTITY,
     document_id    VARCHAR(26)   NOT NULL,                         -- ULID
-    doc_main_type  doc_main_type,                                  -- 카테고리 1차분류
-    doc_sub_type   doc_sub_type,                                   -- 카테고리 2차분류
+    category       category,                                     -- 카테고리
     summary_ko     TEXT,
     model_name     VARCHAR(100),
     model_version  VARCHAR(50),
@@ -109,11 +112,9 @@ CREATE TABLE summary_llm_results (
     CONSTRAINT fk_summary_document     FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
 );
 
-COMMENT ON COLUMN summary_llm_results.doc_main_type IS '카테고리 1차분류';
-COMMENT ON COLUMN summary_llm_results.doc_sub_type  IS '카테고리 2차분류';
+COMMENT ON COLUMN summary_llm_results.category IS '카테고리';
 
-CREATE INDEX idx_document_main_type ON summary_llm_results (doc_main_type);
-CREATE INDEX idx_document_sub_type  ON summary_llm_results (doc_sub_type);
+CREATE INDEX idx_document_category ON summary_llm_results (category);
 
 CREATE TABLE document_chunks (
     id              BIGINT      GENERATED ALWAYS AS IDENTITY,

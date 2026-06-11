@@ -1,16 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { MOCK_DOCS, CATEGORY_OPTIONS, formatSize, loadFavs, loadPins } from "../data/upload.js";
-import { IconClose } from "./Icons.jsx";
+import { IconClose, IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
+import { getLinkedOAuth, unlinkOAuth } from "../api/auth.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
-const MOCK_ME = {
-  name: "김개발",
-  handle: "@kimdev",
-  email: "kimdev@studio.com",
-  joinedAt: "2024-05-12",
-  questions: 124,
-};
 
 const AVATAR_BG = [
   ["#2dd4bf","#0d9488"], ["#60a5fa","#2563eb"], ["#f472b6","#db2777"],
@@ -20,6 +15,14 @@ const AVATAR_BG = [
 const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
 const extBg = { pdf:"#c97070", md:"#36E0A1", txt:"#8A93FF", docx:"#5BC8FF", doc:"#5BC8FF" };
+
+const API_BASE = "http://localhost:8000";
+
+const PROVIDERS = [
+  { key: "google", label: "Google", Icon: IconGoogle },
+  { key: "kakao",  label: "Kakao",  Icon: IconKakao },
+  { key: "naver",  label: "Naver",  Icon: IconNaver },
+];
 
 const TABS = ["내 정보", "내 문서", "설정"];
 
@@ -39,6 +42,7 @@ function Avatar({ name }) {
 export default function MyPageDrawer({ open, onClose }) {
   const [tab, setTab] = useState("내 정보");
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const myDocs   = MOCK_DOCS.filter((d) => !d.isPublic);
   const favCount = loadFavs().length || 3;
@@ -48,6 +52,32 @@ export default function MyPageDrawer({ open, onClose }) {
   const [streaming, setStreaming] = useState(true);
   const [korean, setKorean]       = useState(true);
   const [sources, setSources]     = useState(true);
+
+  const [linkedProviders, setLinkedProviders] = useState([]);
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && tab === "내 정보") {
+      getLinkedOAuth()
+        .then((data) => setLinkedProviders(data.accounts.map((a) => a.provider)))
+        .catch(() => {});
+    }
+  }, [open, tab]);
+
+  const handleLink = (provider) => {
+    window.location.href = `${API_BASE}/auth/link/${provider}/init`;
+  };
+
+  const handleUnlink = async (provider) => {
+    setOauthLoading(true);
+    try {
+      await unlinkOAuth(provider);
+      setLinkedProviders((prev) => prev.filter((p) => p !== provider));
+    } catch {
+    } finally {
+      setOauthLoading(false);
+    }
+  };
 
   const setAnimType = (val) => {
     setAnimTypeState(val);
@@ -90,13 +120,13 @@ export default function MyPageDrawer({ open, onClose }) {
               </div>
 
               <div className="gd-mypage-profile">
-                <Avatar name={MOCK_ME.name} />
+                <Avatar name={user?.name} />
                 <div>
                   <div className="gd-mypage-name">
-                    {MOCK_ME.name}
-                    <span className="gd-mypage-badge">USER</span>
+                    {user?.name}
+                    <span className="gd-mypage-badge">{user?.role}</span>
                   </div>
-                  <div className="gd-mypage-email">{MOCK_ME.email}</div>
+                  <div className="gd-mypage-email">{user?.email}</div>
                 </div>
               </div>
             </div>
@@ -123,7 +153,7 @@ export default function MyPageDrawer({ open, onClose }) {
                   {/* 통계 */}
                   <div className="gd-mypage-stats">
                     <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val">{MOCK_ME.questions}</div>
+                      <div className="gd-mypage-stat-val">{user?.ask_count ?? 0}</div>
                       <div className="gd-mypage-stat-lbl">질문</div>
                     </div>
                     <div className="gd-mypage-stat">
@@ -142,9 +172,9 @@ export default function MyPageDrawer({ open, onClose }) {
                   <div className="gd-mypage-section-label">기본 정보</div>
                   <div>
                     {[
-                      { key: "닉네임",  val: MOCK_ME.handle },
-                      { key: "이메일",  val: MOCK_ME.email },
-                      { key: "가입일",  val: MOCK_ME.joinedAt },
+                      { key: "아이디",  val: user?.user_id },
+                      { key: "이메일",  val: user?.email },
+                      { key: "가입일",  val: user?.created_at },
                       { key: "고정",    val: `${pinCount}개` },
                     ].map(({ key, val }) => (
                       <div key={key} className="gd-mypage-inforow">
@@ -156,9 +186,61 @@ export default function MyPageDrawer({ open, onClose }) {
 
                   <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
 
+                  {/* 연결된 소셜 계정 */}
+                  <div className="gd-mypage-section-label">연결된 계정</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {PROVIDERS.map(({ key, label, Icon }) => {
+                      const linked = linkedProviders.includes(key);
+                      const isNaver = false;
+                      return (
+                        <div
+                          key={key}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            background: "var(--surface)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Icon />
+                            <span style={{ fontSize: 13, color: "var(--fg)" }}>{label}</span>
+                          </div>
+                          {linked ? (
+                            <button
+                              style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                border: "1px solid var(--border-strong)", background: "transparent",
+                                color: "var(--faint)", cursor: "pointer" }}
+                              disabled={oauthLoading}
+                              onClick={() => handleUnlink(key)}
+                            >
+                              연결 해제
+                            </button>
+                          ) : (
+                            <button
+                              style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                border: "none", background: isNaver ? "var(--dim)" : "var(--accent)",
+                                color: "#fff", cursor: isNaver ? "not-allowed" : "pointer" }}
+                              disabled={isNaver || oauthLoading}
+                              title={isNaver ? "준비 중" : undefined}
+                              onClick={() => !isNaver && handleLink(key)}
+                            >
+                              {isNaver ? "준비 중" : "연결하기"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
+
                   <button
                     className="gd-mypage-action danger"
-                    onClick={() => { onClose(); navigate("/login"); }}
+                    onClick={async () => { await logout(); onClose(); navigate("/login"); }}
                     style={{ marginTop: 8 }}
                   >
                     로그아웃

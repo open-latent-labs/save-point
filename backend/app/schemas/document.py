@@ -1,5 +1,27 @@
+from enum import Enum
+from typing import Optional
+
 from pydantic import BaseModel
 
-# TODO: 요청/응답 스키마 작성
+from app.models.enums import Category, DocumentAccess, DocumentStatus
+
+
+class SortBy(str, Enum):
+    LATEST = "latest"
+    NAME = "name"
+    FILE_SIZE = "file_size"
+    BOOKMARKED = "bookmarked"
+
+
 class DocumentUploadResponse(BaseModel):
     pass
+
+
+class ListRequest(BaseModel):
+    page: int
+    size: int
+    sort: SortBy = SortBy.LATEST
+    access_type: Optional[DocumentAccess] = None
+    status: Optional[DocumentStatus] = None
+    category: Optional[Category] = None
+

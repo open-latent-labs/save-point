@@ -5,7 +5,8 @@ import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
 import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
-import { loadPins, loadPending, MOCK_DOCS } from "../data/upload.js";
+import { loadPending } from "../data/upload.js";
+import { documentPinList } from "../api/document.js";
 import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
 
 function AnimSegment({ value, onChange }) {
@@ -79,13 +80,23 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const location = useLocation();
   const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
   const [showSettings, setShowSettings] = useState(false);
-  const [pinIds, setPinIds] = useState(() => loadPins());
+  const [pinnedDocs, setPinnedDocs] = useState([]);
   const [pendingIds, setPendingIds] = useState(() => loadPending());
   const [rooms, setRooms] = useState([]);
   const [chatOpen, setChatOpen] = useState(() => location.pathname.startsWith("/chat"));
 
+  const fetchPinnedDocs = React.useCallback(async () => {
+    try {
+      const data = await documentPinList();
+      setPinnedDocs(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   React.useEffect(() => {
-    const syncPins    = () => setPinIds(loadPins());
+    fetchPinnedDocs();
+    const syncPins    = () => fetchPinnedDocs();
     const syncPending = () => setPendingIds(loadPending());
     const syncRooms   = () => loadRooms().then((data) => setRooms(data));
 
@@ -101,9 +112,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
       window.removeEventListener("gamedocs:pending", syncPending);
       window.removeEventListener("gamedocs:rooms",   syncRooms);
     };
-  }, []);
-
-  const pinnedDocs = MOCK_DOCS.filter((d) => pinIds.includes(d.id));
+  }, [fetchPinnedDocs]);
 
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
   const currentDocId = docMatch ? docMatch[1] : null;
@@ -262,13 +271,13 @@ export default function Sidebar({ isOpen, onNavigate }) {
         ) : (
           pinnedDocs.map((doc) => (
             <button
-              key={doc.id}
+              key={doc.document_id}
               className="gd-sb-pinned-item"
-              onClick={() => go(`/chat?q=${encodeURIComponent(doc.name + " 요약해줘")}`)}
-              title={doc.name}
+              onClick={() => go(`/chat?q=${encodeURIComponent((doc.filename ?? "") + " 요약해줘")}`)}
+              title={doc.filename}
             >
               <IconFile width="13" height="13" className="gd-sb-pinned-ic" />
-              <span className="gd-sb-pinned-name">{doc.name}</span>
+              <span className="gd-sb-pinned-name">{doc.filename}</span>
             </button>
           ))
         )}

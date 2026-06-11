@@ -21,15 +21,14 @@ export const SUGGESTIONS = [
   "모바일 드로우콜 배칭",
 ];
 
-// 사이드바 문서 카테고리
+// 사이드바 문서 카테고리 (백엔드 Category enum과 동일한 키 사용)
 export const CATEGORIES = [
-  { key: "unity", label: "Unity", color: "#5BC8FF" },
-  { key: "unreal", label: "Unreal Engine 5", color: "#C792EA" },
-  { key: "shader", label: "Shader", color: "#36E0A1" },
-  { key: "rendering", label: "Rendering", color: "#FFB454" },
-  { key: "gameplay", label: "Gameplay", color: "#FF7A85" },
-  { key: "performance", label: "Performance", color: "#E6E64D" },
-  { key: "postmortem", label: "Postmortem", color: "#8A93FF" },
+  { key: "ENGINE_REFERENCE", label: "엔진 레퍼런스", color: "#5BC8FF" },
+  { key: "POSTMORTEM",       label: "포스트모템",    color: "#8A93FF" },
+  { key: "BUG_ANALYSIS",     label: "버그 분석",     color: "#FF7A85" },
+  { key: "ARCHITECTURE",     label: "아키텍처",      color: "#C792EA" },
+  { key: "TUTORIAL",         label: "튜토리얼",      color: "#36E0A1" },
+  { key: "OTHER",            label: "기타",          color: "#FFB454" },
 ];
 
 // 데모용 기본 최근 기록 (localStorage 가 비어 있을 때 노출)
