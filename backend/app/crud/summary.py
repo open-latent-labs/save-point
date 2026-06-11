@@ -33,16 +33,18 @@ async def document_content(db: AsyncSession, document_id: str):
         },
     }
 
-async def summary_delete(db: AsyncSession, document_id: str):
+async def summary_delete(db: AsyncSession, document_id: str,user_id: str):
+
     result = await db.execute(
-        select(SummaryLlmResult)
-        .join(Document, Document.id == SummaryLlmResult.document_id)
-        .where(SummaryLlmResult.document_id == document_id)
+        select(Document)
+        .where(Document.id == document_id)
     )
     row = result.scalar_one_or_none()
     if row is None:
         return None
-    await db.delete(row)
+    row.deleted_by_id = user_id
+    row.deleted_at = func.now()
+    
     await db.commit()
     return {"deleted": True}
 

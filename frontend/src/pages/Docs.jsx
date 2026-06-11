@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
-import { document_content, document_update_access } from "../api/docs.js";
+import { document_content, document_delete, document_update_access } from "../api/docs.js";
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
@@ -66,6 +66,12 @@ export default function Docs() {
 
   const handleCancel = () => setIsEditing(false);
 
+  const handleDelete = async () => {
+    if (!window.confirm("문서를 삭제하시겠습니까?")) return;
+    await document_delete(docId);
+    navigate(-1);
+  };
+
   const textareaStyle = {
     width: "100%",
     minHeight: "160px",
@@ -104,11 +110,17 @@ export default function Docs() {
               {!location.pathname.includes("original") && (
                 <button
                   onClick={() => navigate(location.pathname.replace(/\/$/, "") + "/original")}
-                  className="flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
+                  className="flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--mint-strong)]/40 text-[var(--mint)]/70 bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--mint)] hover:text-[var(--mint)]"
                 >
                   원문내용 보기
                 </button>
               )}
+              <button
+                onClick={handleDelete}
+                className="flex-shrink-0 ml-auto px-3 py-1 rounded-md text-xs border border-red-900/60 text-red-400/80 border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-red-400 hover:text-red-400"
+              >
+                삭제
+              </button>
             </div>
 
             {/* 메타 */}

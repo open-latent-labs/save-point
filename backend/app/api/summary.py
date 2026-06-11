@@ -13,8 +13,8 @@ from app.dependencies import get_db, get_current_user_id
 router = APIRouter(prefix="/summary", tags=["summary"])
 
 @router.delete("/{document_id}/summary")
-async def delete_summary(document_id: str, db: AsyncSession = Depends(get_db)):
-    result = await summary_delete_crud(db, document_id)
+async def delete_summary(document_id: str, db: AsyncSession = Depends(get_db),user_id: str = Depends(get_current_user_id)):
+    result = await summary_delete_crud(db, document_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Summary not found")
     return result
