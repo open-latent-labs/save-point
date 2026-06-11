@@ -279,7 +279,7 @@ export default function MyPageDrawer({ open, onClose }) {
                       <button
                         key={doc.id}
                         className="gd-mypage-docitem"
-                        onClick={() => { onClose(); navigate(`/docs/${encodeURIComponent(doc.name)}`); }}
+                        onClick={() => { onClose(); navigate(`/docs/${doc.id}`); }}
                         title={doc.name}
                       >
                         <div

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.db.rdb import init_db
 from app.db.vector_db import init_qdrant_collection, close_qdrant_client
 from app.api.document import router as document_router
@@ -8,6 +9,7 @@ from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.superAdmin import router as superAdmin_router
 from app.api.admin import router as admin_router
+from app.api.summary import router as summary_router
 from app.services.flag_model import get_flag_model
 from app.services.reranker import get_reranker
 import app.models
@@ -15,7 +17,7 @@ import asyncio
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     await init_db()
     await init_qdrant_collection()
 
@@ -51,6 +53,19 @@ app.include_router(chat_router)
 app.include_router(auth_router)
 app.include_router(superAdmin_router)
 app.include_router(admin_router)
+app.include_router(summary_router)
+
+# @app.exception_handler(Exception)
+# async def unhandled_exception_handler(_request: Request, exc: Exception):
+#     return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin", "")
+    headers = {"Access-Control-Allow-Origin": origin} if origin else {}
+    return JSONResponse(status_code=500, content={"detail": str(exc)}, headers=headers)
+
+
 
 @app.get("/")
 async def root():
