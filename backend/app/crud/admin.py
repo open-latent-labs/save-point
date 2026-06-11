@@ -29,7 +29,7 @@ async def admin_approval_list(db: AsyncSession, page: int = 1, page_size: int = 
     return {
         "items": [
             {
-                "id": doc.id,
+                "document_id": doc.id,
                 "filename": doc.filename,
                 "extension": doc.extension,
                 "file_size": doc.file_size,

@@ -89,7 +89,7 @@ export default function Approval() {
               </div>
               <div className="gd-doclist">
                 {pendingDocs.map((doc) => (
-                  <div key={doc.id} className="gd-docitem">
+                  <div key={doc.document_id} className="gd-docitem" onClick={() => navigate(`/docs/${doc.document_id}`)} style={{ cursor: "pointer" }}>
                     <div className="gd-docitem-ext" style={{ background: extColors[doc.extension] || "var(--dim)" }}>
                       {doc.extension?.toUpperCase()}
                     </div>
@@ -120,24 +120,24 @@ export default function Approval() {
                       </div>
                     </div>
 
-                    <div className="gd-docitem-actions">
+                    <div className="gd-docitem-actions" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="gd-approval-approve-btn"
-                        onClick={() => approveDoc(doc.id)}
+                        onClick={() => approveDoc(doc.document_id)}
                         title="승인"
                       >
                         승인
                       </button>
                       <button
                         className="gd-approval-reject-btn"
-                        onClick={() => rejectDoc(doc.id)}
+                        onClick={() => rejectDoc(doc.document_id)}
                         title="반려"
                       >
                         반려
                       </button>
                       <button
                         className="gd-docitem-del"
-                        onClick={() => cancelPending(doc.id)}
+                        onClick={() => cancelPending(doc.document_id)}
                         aria-label="신청 취소"
                         title="신청 취소"
                       >

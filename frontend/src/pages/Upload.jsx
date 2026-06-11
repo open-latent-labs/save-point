@@ -35,7 +35,7 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
   return (
     <div
       className={"gd-docitem" + (isPin ? " pinned" : "")}
-      onClick={() => navigate(`/docs/${encodeURIComponent(doc.name)}`)}
+      onClick={() => navigate(`/docs/${doc.id}`)}
       style={{ cursor: "pointer" }}
     >
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
