@@ -62,16 +62,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 export async function loadRooms(userId) {
   if (!userId) return [];
   try {
-<<<<<<< HEAD
     const res = await fetch(`${BASE_URL}/v1/users/${userId}/sessions`);
     if (!res.ok) {
       console.error(`[loadRooms] API 오류 ${res.status}:`, await res.text().catch(() => ""));
       return [];
     }
-=======
-    const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/sessions`);
-    if (!res.ok) return [];
->>>>>>> 3a6c9df4cf2b0837efd4386e3d2697fb8100f215
     const data = await res.json();
     return data.map((s) => ({
       id: s.session_id,
