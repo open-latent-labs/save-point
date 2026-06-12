@@ -17,7 +17,7 @@ const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
 const extBg = { pdf:"#c97070", md:"#36E0A1", txt:"#8A93FF", docx:"#5BC8FF", doc:"#5BC8FF" };
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000/api";
 
 const PROVIDERS = [
   { key: "google", label: "Google", Icon: IconGoogle },

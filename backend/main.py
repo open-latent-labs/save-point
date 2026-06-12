@@ -51,12 +51,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(document_router)
-app.include_router(chat_router)
-app.include_router(auth_router)
-app.include_router(superAdmin_router)
-app.include_router(admin_router)
-app.include_router(summary_router)
+app.include_router(document_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(superAdmin_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
+app.include_router(summary_router, prefix="/api")
 
 # @app.exception_handler(Exception)
 # async def unhandled_exception_handler(_request: Request, exc: Exception):
@@ -65,8 +65,15 @@ app.include_router(summary_router)
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     origin = request.headers.get("origin", "")
-    headers = {"Access-Control-Allow-Origin": origin} if origin else {}
-    return JSONResponse(status_code=500, content={"detail": "서버 오류가 발생했습니다."}, headers=headers)
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+    } if origin else {}
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "서버 오류가 발생했습니다."},
+        headers=headers
+    )
 
 
 

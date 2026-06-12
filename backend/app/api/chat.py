@@ -8,7 +8,7 @@ from app.services.chat_service import stream_answer
 from app.crud.chat import create_session, get_sessions, delete_session, get_messages, rename_session
 from app.schemas.chat import ChatRequest, SessionCreateRequest, SessionRenameRequest
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/v1")
 
 # ── 세션 ──
 
