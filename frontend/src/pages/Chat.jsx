@@ -122,6 +122,9 @@ export default function Chat() {
             { id: aiId, role: "ai", text: "", sources: [], streaming: false, isLoading: true },
           ],
         }));
+
+        // 유저가 메시지를 보낸 순간 사이드바 즉시 갱신
+        window.dispatchEvent(new CustomEvent("gamedocs:room-active", { detail: capturedRoomId }));
       }
 
       // ?q= 제거 — 로딩 메시지 설정 이후에 수행해야 Effect 1 재실행 시 덮어쓰기 방지

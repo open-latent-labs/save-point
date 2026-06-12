@@ -57,6 +57,7 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
         model_name="bge-m3",
         latency_ms=latency_ms,
     )
+    await update_session_last_active(db, session_id)
 
     print(f"\n[답변 전달 완료]")
     print(f"  질문: {question}")

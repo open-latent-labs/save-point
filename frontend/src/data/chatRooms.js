@@ -60,16 +60,19 @@ export const DUMMY_ROOMS = [
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 export async function loadRooms(userId) {
-  console.log("[loadRooms] 호출 userId:", userId);
   if (!userId) return [];
   try {
+<<<<<<< HEAD
     const res = await fetch(`${BASE_URL}/v1/users/${userId}/sessions`);
     if (!res.ok) {
       console.error(`[loadRooms] API 오류 ${res.status}:`, await res.text().catch(() => ""));
       return [];
     }
+=======
+    const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/sessions`);
+    if (!res.ok) return [];
+>>>>>>> 3a6c9df4cf2b0837efd4386e3d2697fb8100f215
     const data = await res.json();
-    console.log("[loadRooms] 응답:", data);
     return data.map((s) => ({
       id: s.session_id,
       title: s.session_name,
@@ -94,7 +97,6 @@ export async function createRoom(userId, sessionName = "새 채팅") {
   const data = await res.json();
 
   // 사이드바 목록 갱신 이벤트
-  console.log("[createRoom] gamedocs:rooms 이벤트 발송, 생성된 방:", data);
   window.dispatchEvent(new Event("gamedocs:rooms"));
 
   return {
