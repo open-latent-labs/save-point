@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -127,3 +130,16 @@ def extract_document(
         ))
 
     return DocumentExtractionResult(file_path=file_path, pages=results)
+
+
+async def run_ocr(file_bytes: bytes, extension: str) -> DocumentExtractionResult:
+    """bytes → 임시 파일 → extract_document (스레드 풀) → 파일 정리."""
+    suffix = extension if extension.startswith(".") else f".{extension}"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+    try:
+        return await asyncio.to_thread(extract_document, tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
