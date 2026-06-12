@@ -2899,8 +2899,17 @@ a {
   border-color: rgba(54, 224, 161, .25);
 }
 
+.gd-up-item.status-processing {
+  border-color: rgba(245, 158, 11, .3);
+}
+
 .gd-up-item.status-error {
   border-color: rgba(224, 138, 138, .3);
+}
+
+@keyframes gd-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .35; }
 }
 
 .gd-up-icon {
