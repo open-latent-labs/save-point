@@ -30,6 +30,14 @@ async def delete_session(db: AsyncSession, session_id: str) -> None:
         await db.delete(session)
         await db.commit()
 
+async def rename_session(db: AsyncSession, session_id: str, name: str) -> None:
+    await db.execute(
+        update(ChatSession)
+        .where(ChatSession.id == session_id)
+        .values(session_name=name)
+    )
+    await db.commit()
+
 # ── 메시지 ──
 
 async def save_message(

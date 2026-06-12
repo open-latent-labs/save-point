@@ -6,7 +6,7 @@ import ChatMessage from "../components/ChatMessage.jsx";
 import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
-import { loadRooms, createRoom, loadMessages, deleteRoom } from "../data/chatRooms.js";
+import { loadRooms, createRoom, loadMessages, deleteRoom, renameRoom } from "../data/chatRooms.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 let _id = 0;
@@ -24,7 +24,12 @@ export default function Chat() {
   const [busyRooms, setBusyRooms] = useState(new Set());
   const [currentRoomId, setCurrentRoomId] = useState(roomId);
 
+  const [roomTitle, setRoomTitle] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
   const scrollRef = useRef(null);
+  const titleInputRef = useRef(null);
   const abortMapRef = useRef(new Map());
   const seededRef = useRef("");
   const currentRoomIdRef = useRef(currentRoomId);
@@ -37,6 +42,19 @@ export default function Chat() {
   useEffect(() => {
     currentRoomIdRef.current = currentRoomId;
   }, [currentRoomId]);
+
+  // 방이 바뀌면 제목 로드
+  useEffect(() => {
+    if (!currentRoomId || !user?.id) {
+      setRoomTitle("");
+      setEditingTitle(false);
+      return;
+    }
+    loadRooms(user.id).then((rooms) => {
+      const room = rooms.find((r) => r.id === currentRoomId);
+      if (room) setRoomTitle(room.title ?? "");
+    });
+  }, [currentRoomId, user?.id]);
 
   // 방이 바뀌면 해당 방 메시지 로드
   useEffect(() => {
@@ -197,6 +215,30 @@ export default function Chat() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  const startEditTitle = () => {
+    setTitleDraft(roomTitle);
+    setEditingTitle(true);
+  };
+
+  const saveTitle = async () => {
+    const name = titleDraft.trim();
+    setEditingTitle(false);
+    if (!name || name === roomTitle) return;
+    const prev = roomTitle;
+    setRoomTitle(name);
+    try {
+      await renameRoom(currentRoomId, name);
+      window.dispatchEvent(new Event("gamedocs:rooms"));
+    } catch {
+      setRoomTitle(prev);
+    }
+  };
+
+  const cancelTitle = () => {
+    setEditingTitle(false);
+    setTitleDraft(roomTitle);
+  };
+
   const onSubmit = () => {
     sendMessage(input);
     setInput("");
@@ -206,13 +248,55 @@ export default function Chat() {
     <div className="gd-chat">
       <Topbar onMenu={onMenu} onProfile={onProfile} />
 
-      <div className={`gd-chat-top${messages.length === 0 ? " gd-chat-top--empty" : ""}`}>
-        <div className="gd-chat-top-inner">
-          {messages.length === 0 && (
+      {currentRoomId && (
+        <div className="gd-chat-titlebar">
+          <div className="gd-chat-titlebar-inner">
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                className="gd-chat-title-input"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") cancelTitle();
+                }}
+                autoFocus
+                maxLength={200}
+              />
+            ) : (
+              <button className="gd-chat-title-btn" onClick={startEditTitle} title="클릭하여 제목 수정">
+                {roomTitle || "새 채팅"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="gd-chat-scroll" ref={scrollRef}>
+        {messages.length === 0 ? (
+          <div className="gd-chat-empty-wrap">
             <p className="gd-chat-empty-hint">
               무엇이든 물어보세요. 엔진 문서·사례를 분석해 드립니다.
             </p>
-          )}
+            <div className="gd-chat-empty-suggest">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="gd-chip" onClick={() => { sendMessage(s); }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="gd-chat-inner">
+            {messages.map((m) => <ChatMessage key={m.id} message={m} />)}
+          </div>
+        )}
+      </div>
+
+      <div className="gd-chat-bottom">
+        <div className="gd-chat-bottom-inner">
           <SearchBar
             value={input}
             onChange={setInput}
@@ -221,28 +305,11 @@ export default function Chat() {
             variant="send"
             disabled={busy}
           />
-          {messages.length === 0 && (
-            <div className="gd-chat-empty-suggest">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} className="gd-chip" onClick={() => { sendMessage(s); }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="gd-composer-hint">
             <kbd>Enter</kbd> 전송 · GameDocs.AI 는 mock 데이터로 동작하는 데모입니다
           </div>
         </div>
       </div>
-
-      {messages.length > 0 && (
-        <div className="gd-chat-scroll" ref={scrollRef}>
-          <div className="gd-chat-inner">
-            {messages.map((m) => <ChatMessage key={m.id} message={m} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

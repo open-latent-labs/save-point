@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Shell from "./components/Shell.jsx";
 import Landing from "./pages/Landing.jsx";
 import Chat from "./pages/Chat.jsx";
+import ChatHistory from "./pages/ChatHistory.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Upload from "./pages/Upload.jsx";
@@ -46,6 +47,7 @@ function AppRoutes() {
           <Route element={<PrivateRoute><Shell /></PrivateRoute>}>
             <Route path="/home" element={<Landing />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/chat/history" element={<ChatHistory />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/approval" element={<Approval />} />
             <Route path="/docs" element={<Docs />} />

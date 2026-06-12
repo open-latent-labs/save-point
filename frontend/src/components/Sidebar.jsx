@@ -75,6 +75,7 @@ function SettingsModal({ onClose }) {
 }
 
 const EASE = [0.4, 0, 0.2, 1];
+const ROOM_LIMIT = 4;
 
 export default function Sidebar({ isOpen, onNavigate }) {
   const { user } = useAuth();
@@ -236,7 +237,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
                 style={{ overflow: "hidden" }}
               >
                 <div className="gd-sb-rooms-list">
-                  {rooms.map((room) => {
+                  {rooms.slice(0, ROOM_LIMIT).map((room) => {
                     const active = location.search.includes(`room=${room.id}`);
                     return (
                       <div key={room.id} className={"gd-sb-room-item" + (active ? " active" : "")}>
@@ -264,6 +265,11 @@ export default function Sidebar({ isOpen, onNavigate }) {
                   })}
                   {rooms.length === 0 && (
                     <div className="gd-sb-pinned-empty" style={{ paddingLeft: 12 }}>채팅 기록이 없습니다</div>
+                  )}
+                  {rooms.length > ROOM_LIMIT && (
+                    <button className="gd-sb-more-btn" onClick={() => go("/chat/history")}>
+                      +{rooms.length - ROOM_LIMIT}개 더보기
+                    </button>
                   )}
                 </div>
               </motion.div>

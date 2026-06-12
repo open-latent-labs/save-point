@@ -122,3 +122,13 @@ export async function deleteRoom(sessionId) {
     method: "DELETE",
   });
 }
+
+export async function renameRoom(sessionId, name) {
+  const res = await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_name: name }),
+  });
+  if (!res.ok) throw new Error(`Rename failed: ${res.status}`);
+  return res.json();
+}

@@ -9,3 +9,6 @@ class ChatRequest(BaseModel):
 class SessionCreateRequest(BaseModel):
     user_id: str
     session_name: str = "새 채팅"
+
+class SessionRenameRequest(BaseModel):
+    session_name: str

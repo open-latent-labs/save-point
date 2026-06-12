@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.services.chat_service import stream_answer
-from app.crud.chat import create_session, get_sessions, delete_session, get_messages
-from app.schemas.chat import ChatRequest, SessionCreateRequest
+from app.crud.chat import create_session, get_sessions, delete_session, get_messages, rename_session
+from app.schemas.chat import ChatRequest, SessionCreateRequest, SessionRenameRequest
 
 router = APIRouter(prefix="/api/v1")
 
@@ -22,6 +22,11 @@ async def create_chat_session(req: SessionCreateRequest, db: AsyncSession = Depe
 async def get_chat_sessions(user_id: str, db: AsyncSession = Depends(get_db)):
     sessions = await get_sessions(db, user_id)
     return [{"session_id": s.id, "session_name": s.session_name, "last_active_at": s.last_active_at} for s in sessions]
+
+@router.patch("/sessions/{session_id}")
+async def rename_chat_session(session_id: str, req: SessionRenameRequest, db: AsyncSession = Depends(get_db)):
+    await rename_session(db, session_id, req.session_name)
+    return {"ok": True}
 
 @router.delete("/sessions/{session_id}")
 async def delete_chat_session(session_id: str, db: AsyncSession = Depends(get_db)):
