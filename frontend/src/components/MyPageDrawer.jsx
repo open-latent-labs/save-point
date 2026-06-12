@@ -9,20 +9,20 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 
 const AVATAR_BG = [
-  ["#2dd4bf","#0d9488"], ["#60a5fa","#2563eb"], ["#f472b6","#db2777"],
-  ["#fbbf24","#d97706"], ["#a78bfa","#7c3aed"], ["#34d399","#059669"],
+  ["#2dd4bf", "#0d9488"], ["#60a5fa", "#2563eb"], ["#f472b6", "#db2777"],
+  ["#fbbf24", "#d97706"], ["#a78bfa", "#7c3aed"], ["#34d399", "#059669"],
 ];
 
 const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
-const extBg = { pdf:"#c97070", md:"#36E0A1", txt:"#8A93FF", docx:"#5BC8FF", doc:"#5BC8FF" };
+const extBg = { pdf: "#c97070", md: "#36E0A1", txt: "#8A93FF", docx: "#5BC8FF", doc: "#5BC8FF" };
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "/api";
 
 const PROVIDERS = [
   { key: "google", label: "Google", Icon: IconGoogle },
-  { key: "kakao",  label: "Kakao",  Icon: IconKakao },
-  { key: "naver",  label: "Naver",  Icon: IconNaver },
+  { key: "kakao", label: "Kakao", Icon: IconKakao },
+  { key: "naver", label: "Naver", Icon: IconNaver },
 ];
 
 const TABS = ["내 정보", "내 문서", "설정"];
@@ -51,8 +51,8 @@ export default function MyPageDrawer({ open, onClose }) {
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
   const [streaming, setStreaming] = useState(true);
-  const [korean, setKorean]       = useState(true);
-  const [sources, setSources]     = useState(true);
+  const [korean, setKorean] = useState(true);
+  const [sources, setSources] = useState(true);
 
   const [linkedProviders, setLinkedProviders] = useState([]);
   const [oauthLoading, setOauthLoading] = useState(false);
@@ -70,14 +70,14 @@ export default function MyPageDrawer({ open, onClose }) {
           category: d.category ?? "OTHER",
         })));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [open]);
 
   useEffect(() => {
     if (open && tab === "내 정보") {
       getLinkedOAuth()
         .then((data) => setLinkedProviders(data.accounts.map((a) => a.provider)))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [open, tab]);
 
@@ -189,10 +189,10 @@ export default function MyPageDrawer({ open, onClose }) {
                   <div className="gd-mypage-section-label">기본 정보</div>
                   <div>
                     {[
-                      { key: "아이디",  val: user?.user_id },
-                      { key: "이메일",  val: user?.email },
-                      { key: "가입일",  val: user?.created_at },
-                      { key: "고정",    val: `${pinCount}개` },
+                      { key: "아이디", val: user?.user_id },
+                      { key: "이메일", val: user?.email },
+                      { key: "가입일", val: user?.created_at },
+                      { key: "고정", val: `${pinCount}개` },
                     ].map(({ key, val }) => (
                       <div key={key} className="gd-mypage-inforow">
                         <span className="gd-mypage-infokey">{key}</span>
@@ -228,9 +228,11 @@ export default function MyPageDrawer({ open, onClose }) {
                           </div>
                           {linked ? (
                             <button
-                              style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                              style={{
+                                fontSize: 11, padding: "3px 10px", borderRadius: 6,
                                 border: "1px solid var(--border-strong)", background: "transparent",
-                                color: "var(--faint)", cursor: "pointer" }}
+                                color: "var(--faint)", cursor: "pointer"
+                              }}
                               disabled={oauthLoading}
                               onClick={() => handleUnlink(key)}
                             >
@@ -238,9 +240,11 @@ export default function MyPageDrawer({ open, onClose }) {
                             </button>
                           ) : (
                             <button
-                              style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                              style={{
+                                fontSize: 11, padding: "3px 10px", borderRadius: 6,
                                 border: "none", background: isNaver ? "var(--dim)" : "var(--accent)",
-                                color: "#fff", cursor: isNaver ? "not-allowed" : "pointer" }}
+                                color: "#fff", cursor: isNaver ? "not-allowed" : "pointer"
+                              }}
                               disabled={isNaver || oauthLoading}
                               title={isNaver ? "준비 중" : undefined}
                               onClick={() => !isNaver && handleLink(key)}
@@ -268,10 +272,10 @@ export default function MyPageDrawer({ open, onClose }) {
               {/* ── 내 문서 ── */}
               {tab === "내 문서" && (
                 <>
-                  <div className="gd-mypage-section-label">업로드한 문서 <span style={{ color:"var(--border-strong)", marginLeft:4 }}>{myDocs.length}</span></div>
+                  <div className="gd-mypage-section-label">업로드한 문서 <span style={{ color: "var(--border-strong)", marginLeft: 4 }}>{myDocs.length}</span></div>
 
                   {myDocs.length === 0 ? (
-                    <div style={{ padding:"40px 16px", textAlign:"center", color:"var(--faint)", fontSize:13 }}>
+                    <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--faint)", fontSize: 13 }}>
                       업로드된 문서가 없습니다.
                     </div>
                   ) : (
@@ -293,7 +297,7 @@ export default function MyPageDrawer({ open, onClose }) {
                           <div className="gd-mypage-docmeta">
                             <span className="gd-mypage-doccat" style={{ background: catColor[doc.category] }} />
                             <span>{catLabel[doc.category]}</span>
-                            <span style={{ color:"var(--border-strong)" }}>·</span>
+                            <span style={{ color: "var(--border-strong)" }}>·</span>
                             <span>{formatSize(doc.size)}</span>
                           </div>
                         </div>
@@ -301,7 +305,7 @@ export default function MyPageDrawer({ open, onClose }) {
                     ))
                   )}
 
-                  <div className="gd-mypage-section-div" style={{ margin:"8px 0 4px" }} />
+                  <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
                   <button
                     className="gd-mypage-action mint"
                     onClick={() => { onClose(); navigate("/upload"); }}
@@ -318,7 +322,7 @@ export default function MyPageDrawer({ open, onClose }) {
                   <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
                     <div className="lbl">애니메이션</div>
                     <div className="gd-anim-segment">
-                      {[{ v:"0", label:"끄기" }, { v:"1", label:"1" }, { v:"2", label:"2" }].map((o) => (
+                      {[{ v: "0", label: "끄기" }, { v: "1", label: "1" }, { v: "2", label: "2" }].map((o) => (
                         <button
                           key={o.v}
                           className={"gd-anim-seg-btn" + (animType === o.v ? " active" : "")}
@@ -330,9 +334,9 @@ export default function MyPageDrawer({ open, onClose }) {
                     </div>
                   </div>
                   {[
-                    { label:"스트리밍 응답", desc:"AI 답변을 타이핑 애니메이션으로 표시", on:streaming, toggle:() => setStreaming(v=>!v) },
-                    { label:"한국어 우선",   desc:"답변을 한국어로 우선 생성",            on:korean,    toggle:() => setKorean(v=>!v) },
-                    { label:"출처 표시",     desc:"답변 하단에 참고 문서 링크 노출",       on:sources,   toggle:() => setSources(v=>!v) },
+                    { label: "스트리밍 응답", desc: "AI 답변을 타이핑 애니메이션으로 표시", on: streaming, toggle: () => setStreaming(v => !v) },
+                    { label: "한국어 우선", desc: "답변을 한국어로 우선 생성", on: korean, toggle: () => setKorean(v => !v) },
+                    { label: "출처 표시", desc: "답변 하단에 참고 문서 링크 노출", on: sources, toggle: () => setSources(v => !v) },
                   ].map(({ label, desc, on, toggle }) => (
                     <div key={label} className="gd-setting-row">
                       <div>
