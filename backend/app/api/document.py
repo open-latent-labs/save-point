@@ -1,7 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException,Depends, Query
-from app.utils.minio_client import upload_file, BUCKET_NAME
-from typing import Annotated
-from loguru import logger
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user_id
@@ -11,14 +8,38 @@ from app.crud.document import pin as pin_crud, pin_delete as pin_delete_crud, pi
 from app.crud.document import request_public as request_public_crud, cancel_public_request as cancel_public_request_crud
 from app.crud.document import public_list as public_list_crud
 
+from app.schemas.document import DocumentUploadResponse, ListRequest
+from app.services.document_service import run_processing_pipeline, start_upload
+
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-@router.post("/upload")
-async def upload_document(file: UploadFile = File(...), title: str = Form(...)):
-    try:
-        return {"message": "Document uploaded successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/upload", response_model=DocumentUploadResponse, status_code=202)
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    file_bytes = await file.read()
+    doc = await start_upload(db, user_id, file_bytes, file.filename, 
+                             file.content_type or "application/octet-stream")
+    
+    background_tasks.add_task(
+        run_processing_pipeline,
+        document_id=doc.id,
+        file_bytes=file_bytes,
+        extension=doc.extension,
+        user_id=user_id,
+        access_type=doc.access_type.value,
+        filename=doc.filename,
+    )
+
+    return DocumentUploadResponse(
+        document_id=doc.id,
+        status="PROCESSING",
+        message="파일 업로드가 완료되었습니다. 백그라운드에서 처리 중입니다.",
+    )
+
 
 @router.get("/public")
 async def public_list(db: AsyncSession = Depends(get_db)):

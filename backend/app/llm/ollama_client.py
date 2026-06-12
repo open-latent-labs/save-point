@@ -39,3 +39,24 @@ async def generate_stream(prompt: str):
 #         )
 #         data = response.json()
 #         return data["response"]
+
+async def generate(
+    prompt: str,
+    model: str | None = None,
+    json_mode: bool = False,
+) -> str:
+    payload: dict = {
+        "model": model or settings.summary_model,
+        "prompt": prompt,
+        "stream": False,
+    }
+    if json_mode:
+        payload["format"] = "json"
+
+    async with httpx.AsyncClient(timeout=180) as client:
+        response = await client.post(
+            f"{settings.ollama_base_url}/api/generate",
+            json=payload,
+        )
+        data = response.json()
+        return data.get("response", "")
