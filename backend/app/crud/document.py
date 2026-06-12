@@ -1,5 +1,6 @@
 from math import ceil
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import insert
@@ -9,6 +10,7 @@ from app.models.document import Document
 from app.models.bookmarked_document import BookmarkedDocument
 from app.models.pinned_document import PinnedDocument
 from app.models.summary_llm_result import SummaryLlmResult
+from app.models.enums import DocumentStatus
 
 from app.schemas.document import ListRequest, SortBy
 
@@ -43,31 +45,49 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
         SortBy.BOOKMARKED: is_bookmarked.desc(),
     }
 
-    conditions = [Document.uploaded_by_id == user_id]
+    # idx_documents_uploader_doc(uploaded_by_id, id WHERE deleted_by_id IS NULL) 활용
+    doc_conditions = [
+        Document.uploaded_by_id == user_id,
+        Document.deleted_by_id.is_(None),
+    ]
     if body.status:
-        conditions.append(Document.status == body.status)
+        doc_conditions.append(Document.status == body.status)
     if body.access_type:
-        conditions.append(Document.access_type == body.access_type)
-    if body.category:
-        conditions.append(SummaryLlmResult.category == body.category)
+        doc_conditions.append(Document.access_type == body.access_type)
 
-    count_result = await db.execute(
-        select(func.count(Document.id))
-        .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
-        .where(*conditions)
-    )
+    # category 필터 유무에 따라 SummaryLlmResult JOIN 방식 분기
+    if body.category:
+        # INNER JOIN: category 조건 만족하는 rows만 접근
+        count_stmt = (
+            select(func.count(Document.id))
+            .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+            .where(*doc_conditions, SummaryLlmResult.category == body.category)
+        )
+        main_stmt = (
+            select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
+            .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+            .where(*doc_conditions, SummaryLlmResult.category == body.category)
+            .order_by(sort_map[body.sort])
+            .offset((body.page - 1) * body.size)
+            .limit(body.size)
+        )
+    else:
+        # category 필터 없음: count는 SummaryLlmResult JOIN 불필요
+        count_stmt = select(func.count(Document.id)).where(*doc_conditions)
+        main_stmt = (
+            select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
+            .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+            .where(*doc_conditions)
+            .order_by(sort_map[body.sort])
+            .offset((body.page - 1) * body.size)
+            .limit(body.size)
+        )
+
+    count_result = await db.execute(count_stmt)
     total = count_result.scalar_one()
     total_pages = ceil(total / body.size) if total > 0 else 1
 
-    result = await db.execute(
-        select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
-        .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
-        .where(*conditions)
-        .order_by(sort_map[body.sort])
-        .offset((body.page - 1) * body.size)
-        .limit(body.size)
-    )
-
+    result = await db.execute(main_stmt)
     rows = result.fetchall()
     documents = [
         {
@@ -124,16 +144,9 @@ async def bookmark_delete(db: AsyncSession, document_id: str, user_id: str):
 
     if existing:
         await db.delete(existing)
-        is_bookmarked = False
-    else:
-        await db.execute(
-            insert(BookmarkedDocument),
-            {"document_id": document_id, "user_id": user_id},
-        )
-        is_bookmarked = True
+        await db.commit()
 
-    await db.commit()
-    return {"is_bookmarked": is_bookmarked}
+    return {"is_bookmarked": False}
 
 
 async def pin(db: AsyncSession, document_id: str, user_id: str):
@@ -172,16 +185,33 @@ async def pin_delete(db: AsyncSession, document_id: str, user_id: str):
 
     if existing:
         await db.delete(existing)
-        is_pinned = False
-    else:
-        await db.execute(
-            insert(PinnedDocument),
-            {"document_id": document_id, "user_id": user_id},
-        )
-        is_pinned = True
+        await db.commit()
 
+    return {"is_pinned": False}
+
+async def request_public(db: AsyncSession, document_id: str, user_id: str):
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.uploaded_by_id == user_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.status = DocumentStatus.PENDING
     await db.commit()
-    return {"is_pinned": is_pinned}
+    return {"id": document_id}
+
+
+async def cancel_public_request(db: AsyncSession, document_id: str, user_id: str):
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.uploaded_by_id == user_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    doc.status = DocumentStatus.DONE
+    await db.commit()
+    return {"id": document_id}
+
 
 async def pin_list(db: AsyncSession, user_id: str):
     result = await db.execute(

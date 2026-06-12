@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { MOCK_DOCS, CATEGORY_OPTIONS, formatSize, loadFavs, loadPins } from "../data/upload.js";
+import { CATEGORY_OPTIONS, formatSize, loadFavs, loadPins } from "../data/upload.js";
 import { IconClose, IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
 import { getLinkedOAuth, unlinkOAuth } from "../api/auth.js";
+import { document_list } from "../api/document.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 
@@ -44,8 +45,8 @@ export default function MyPageDrawer({ open, onClose }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const myDocs   = MOCK_DOCS.filter((d) => !d.isPublic);
-  const favCount = loadFavs().length || 3;
+  const [myDocs, setMyDocs] = useState([]);
+  const favCount = loadFavs().length;
   const pinCount = loadPins().length;
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
@@ -55,6 +56,22 @@ export default function MyPageDrawer({ open, onClose }) {
 
   const [linkedProviders, setLinkedProviders] = useState([]);
   const [oauthLoading, setOauthLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    document_list(1, { size: 50 })
+      .then((data) => {
+        const docs = Array.isArray(data) ? data : (data?.documents ?? []);
+        setMyDocs(docs.map((d) => ({
+          id: d.id,
+          name: d.filename ?? "",
+          size: d.file_size ?? 0,
+          ext: (d.extension ?? "").toLowerCase().replace(/^\./, "") || "file",
+          category: d.category ?? "OTHER",
+        })));
+      })
+      .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (open && tab === "내 정보") {
@@ -262,7 +279,7 @@ export default function MyPageDrawer({ open, onClose }) {
                       <button
                         key={doc.id}
                         className="gd-mypage-docitem"
-                        onClick={() => { onClose(); navigate(`/docs/${encodeURIComponent(doc.name)}`); }}
+                        onClick={() => { onClose(); navigate(`/docs/${doc.id}`); }}
                         title={doc.name}
                       >
                         <div

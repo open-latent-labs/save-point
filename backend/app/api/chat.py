@@ -22,13 +22,14 @@ class ChatRequest(BaseModel):
 
 class SessionCreateRequest(BaseModel):
     user_id: str
+    session_name: str = "새 채팅"
 
 # ── 세션 ──
 
 @router.post("/sessions")
 async def create_chat_session(req: SessionCreateRequest, db: AsyncSession = Depends(get_db)):
     session_id = str(ULID())
-    session = await create_session(db, session_id, req.user_id)
+    session = await create_session(db, session_id, req.user_id, req.session_name)
     return {"session_id": session.id, "session_name": session.session_name, "created_at": session.created_at}
 
 @router.get("/users/{user_id}/sessions")
@@ -46,7 +47,16 @@ async def delete_chat_session(session_id: str, db: AsyncSession = Depends(get_db
 @router.get("/sessions/{session_id}/messages")
 async def get_chat_messages(session_id: str, db: AsyncSession = Depends(get_db)):
     messages = await get_messages(db, session_id)
-    return [{"id": m.id, "role": m.role, "content_ko": m.content_ko, "created_at": m.created_at} for m in messages]
+    return [
+        {
+            "id": m.id,
+            "role": m.role,
+            "content_ko": m.content_ko,
+            "created_at": m.created_at,
+            "retrieved_chunk_ids": m.retrieved_chunk_ids,  # 출처 포함
+        }
+        for m in messages
+    ]
 
 # ── 채팅 ──
 

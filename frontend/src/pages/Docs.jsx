@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
-import { getDocContent } from "../data/docsData.js";
+import { document_content, document_delete, document_update_access } from "../api/docs.js";
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
@@ -14,7 +14,7 @@ export default function Docs() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return getDocContent(docId);
+    return null;
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -29,11 +29,28 @@ export default function Docs() {
         return;
       } catch (e) { console.error(e); }
     }
-    setDocData(getDocContent(docId));
-    setIsEditing(false);
+    document_content(docId).then((data) => {
+      setDocData(data);
+      setIsEditing(false);
+    });
   }, [docId]);
 
-  const normalizedDesc = docData.desc === "요약 내용이 비어 있습니다." ? "" : (docData.desc || "");
+  if (!docData) {
+    return (
+      <div className="gd-page">
+        <Topbar onMenu={onMenu} onProfile={onProfile} />
+        <div className="gd-page-scroll">
+          <div className="gd-doc-wrap">
+            <div className="gd-doc-card">
+              <p style={{ color: "var(--dim)", fontSize: "13.5px" }}>불러오는 중...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const normalizedDesc = docData.summary?.summary || "";
   const isEmpty = !normalizedDesc;
 
   const handleEditStart = () => {
@@ -41,14 +58,19 @@ export default function Docs() {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    const updated = { ...docData, desc: draftDesc };
-    setDocData(updated);
-    localStorage.setItem(`gamedocs_edited_${docId}`, JSON.stringify(updated));
+  const handleSave = async () => {
+    await document_update_access(docId, draftDesc);
+    setDocData({ ...docData, summary: { ...docData.summary, summary: draftDesc } });
     setIsEditing(false);
   };
 
   const handleCancel = () => setIsEditing(false);
+
+  const handleDelete = async () => {
+    if (!window.confirm("문서를 삭제하시겠습니까?")) return;
+    await document_delete(docId);
+    navigate(-1);
+  };
 
   const textareaStyle = {
     width: "100%",
@@ -74,32 +96,37 @@ export default function Docs() {
         <div className="gd-doc-wrap">
           <div className="gd-doc-card">
             {/* 브레드크럼 */}
-            <nav className="gd-breadcrumb">
-              {docData.breadcrumb.map((item, i) => (
-                <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {i > 0 && <span className="gd-breadcrumb-sep">/</span>}
-                  <span className={i === docData.breadcrumb.length - 1 ? "gd-breadcrumb-item last" : "gd-breadcrumb-item"}>
-                    {item}
-                  </span>
+            {docData.summary?.category && (
+              <nav className="gd-breadcrumb">
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="gd-breadcrumb-item">{docData.summary.category}</span>
                 </span>
-              ))}
-            </nav>
+              </nav>
+            )}
 
             {/* 제목 */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h1 className="gd-doc-title" style={{ margin: 0 }}>{docData.title}</h1>
+              <h1 className="gd-doc-title" style={{ margin: 0 }}>{docData.document.filename}</h1>
               {!location.pathname.includes("original") && (
                 <button
                   onClick={() => navigate(location.pathname.replace(/\/$/, "") + "/original")}
-                  className="flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
+                  className="flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--mint-strong)]/40 text-[var(--mint)]/70 bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--mint)] hover:text-[var(--mint)]"
                 >
                   원문내용 보기
                 </button>
               )}
+              <button
+                onClick={handleDelete}
+                className="flex-shrink-0 ml-auto px-3 py-1 rounded-md text-xs border border-red-900/60 text-red-400/80 border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-red-400 hover:text-red-400"
+              >
+                삭제
+              </button>
             </div>
 
             {/* 메타 */}
-            {docData.meta && <p className="gd-doc-meta">{docData.meta}</p>}
+            {docData.document?.created_at && (
+              <p className="gd-doc-meta">{docData.document.created_at}</p>
+            )}
 
             {/* 전체 요약 영역 */}
             <div style={{ marginTop: 16, marginBottom: 24 }}>
@@ -154,51 +181,13 @@ export default function Docs() {
                       onClick={handleEditStart}
                       className="px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
                     >
-                      {isEmpty ? "내용 추가" : "전체 수정"}
+                      전체 수정
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 섹션 테이블 */}
-            {docData.sections.length > 0 ? (
-              docData.sections.map((section, si) => (
-                <section key={si} style={{ marginTop: si > 0 ? 36 : 0 }}>
-                  <div className="gd-section-heading">{section.title}</div>
-                  <div className="gd-doc-table-wrap">
-                    <table className="gd-doc-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: "30%" }}>제품</th>
-                          <th>요약</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.rows.map((row, ri) => (
-                          <tr key={ri}>
-                            <td className="name">{row.name}</td>
-                            <td className="desc">
-                              <span style={{
-                                color: row.desc ? "var(--dim)" : "var(--faint)",
-                                whiteSpace: "pre-wrap",
-                                wordBreak: "break-word",
-                              }}>
-                                {row.desc || "요약 내용이 비어 있습니다."}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              ))
-            ) : (
-              <div className="gd-doc-empty">
-                <p>요약 내용이 비어 있습니다.</p>
-              </div>
-            )}
           </div>
         </div>
       </div>

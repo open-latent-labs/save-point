@@ -35,6 +35,7 @@ from app.utils.jwt import create_access_token, create_refresh_token, decode_toke
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_DUMMY_HASH = pwd_context.hash("__dummy_timing_guard__")
 
 USER_ID_RE = re.compile(r'^[a-zA-Z0-9_]{4,20}$')
 
@@ -236,10 +237,14 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
     result = await db.execute(select(User).where(User.user_id == body.user_id))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(body.password, user.password):
+    # user가 없어도 bcrypt 연산을 수행해 응답 시간을 일정하게 유지 (타이밍 어택 방지)
+    password_ok = pwd_context.verify(body.password, user.password if user else _DUMMY_HASH)
+    if not user or not password_ok:
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    await db.refresh(user)
+    if user.ban == UserBan.BAN:
+        raise HTTPException(status_code=403, detail="정지된 계정입니다.")
+
     payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(payload), create_refresh_token(payload))
     return TokenResponse(user=_user_info(user))
@@ -261,7 +266,10 @@ async def refresh(response: Response, sp_refresh: str = Cookie(None), db: AsyncS
         _clear_auth_cookies(response)
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
 
-    await db.refresh(user)
+    if user.ban == UserBan.BAN:
+        _clear_auth_cookies(response)
+        raise HTTPException(status_code=403, detail="정지된 계정입니다.")
+
     new_payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(new_payload), create_refresh_token(new_payload))
     return {"message": "토큰이 재발급되었습니다."}
@@ -274,19 +282,11 @@ async def logout(response: Response):
 
 
 @router.get("/me", response_model=UserInfo)
-async def me(sp_token: str = Cookie(None), db: AsyncSession = Depends(get_db)):
-    if not sp_token:
-        raise HTTPException(status_code=401, detail="인증이 필요합니다.")
-
-    payload = decode_token(sp_token)
-    if not payload or payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
-
+async def me(payload: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == payload["sub"]))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
-
     return _user_info(user)
 
 
@@ -369,6 +369,9 @@ async def google_callback(code: str | None = None, error: str | None = None, db:
 
     user = await _get_or_create_oauth_user(db, "google", g.get("id", ""), email, g.get("name") or email.split("@")[0])
 
+    if user.ban == UserBan.BAN:
+        return RedirectResponse(url=error_url + "banned")
+
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
     redirect = RedirectResponse(url=f"{settings.frontend_url}{redirect_path}", status_code=302)
@@ -428,6 +431,9 @@ async def kakao_callback(code: str | None = None, error: str | None = None, db: 
     )
 
     user = await _get_or_create_oauth_user(db, "kakao", provider_id, email, name)
+
+    if user.ban == UserBan.BAN:
+        return RedirectResponse(url=error_url + "banned")
 
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
@@ -645,6 +651,9 @@ async def naver_callback(
     name: str = n.get("name") or n.get("nickname") or f"네이버유저{provider_id[-4:]}"
 
     user = await _get_or_create_oauth_user(db, "naver", provider_id, email, name)
+
+    if user.ban == UserBan.BAN:
+        return RedirectResponse(url=error_url + "banned")
 
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"

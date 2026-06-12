@@ -117,6 +117,12 @@ class User(Base):
         back_populates="approved_by",
     )
 
+    deleted_documents = relationship(
+        "Document",
+        foreign_keys="Document.deleted_by_id",
+        back_populates="deleted_by",
+    )
+
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     pinned_documents = relationship("PinnedDocument", back_populates="user", cascade="all, delete-orphan")
     bookmarked_documents = relationship("BookmarkedDocument", back_populates="user", cascade="all, delete-orphan")

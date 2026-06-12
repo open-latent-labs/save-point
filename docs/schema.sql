@@ -66,6 +66,9 @@ CREATE TABLE documents (
     access_type     document_access  NOT NULL DEFAULT 'PRIVATE',
     uploaded_by_id  VARCHAR(26)      NOT NULL,
     approved_by_id  VARCHAR(26),
+    deleted_by_id VARCHAR(26) DEFAULT NULL REFERENCES users(id),
+    deleted_at   TIMESTAMPTZ DEFAULT NULL,
+
     approved_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ      NOT NULL DEFAULT NOW(),       -- 업로드, 마지막으로 문서 수정한 시간

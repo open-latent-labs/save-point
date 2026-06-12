@@ -7,9 +7,7 @@ import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
 import { loadRooms, createRoom, loadMessages, deleteRoom } from "../data/chatRooms.js";
-
-// TODO: 로그인 연동 후 실제 user_id로 교체
-const TEMP_USER_ID = "user-id-here";
+import { useAuth } from "../context/AuthContext.jsx";
 
 let _id = 0;
 const uid = () => `m${++_id}_${Date.now()}`;
@@ -17,6 +15,7 @@ const uid = () => `m${++_id}_${Date.now()}`;
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { onMenu, onProfile } = useOutletContext();
+  const { user } = useAuth();
 
   const roomId = searchParams.get("room");
 
@@ -29,6 +28,8 @@ export default function Chat() {
   const abortMapRef = useRef(new Map());
   const seededRef = useRef("");
   const currentRoomIdRef = useRef(currentRoomId);
+  // loadMessages를 막을 방 id 추적
+  const skipLoadRef = useRef(new Set());
 
   const messages = messagesMap[currentRoomId] ?? [];
   const busy = busyRooms.has(currentRoomId);
@@ -46,12 +47,14 @@ export default function Chat() {
     if (!id) return;
 
     setMessagesMap((prev) => {
-      // 이미 메모리에 있으면 (빈 배열이라도) 스킵
       if (prev[id] !== undefined) return prev;
+
+      // sendMessage가 이미 처리 중인 방이면 loadMessages 스킵
+      if (skipLoadRef.current.has(id)) return prev;
 
       loadMessages(id).then((msgs) => {
         setMessagesMap((p) => {
-          // 로드하는 동안 메시지가 생겼으면 스킵
+          if (p[id]?.some((m) => m.isLoading || m.streaming)) return p;
           if (p[id]?.length > 0) return p;
           return { ...p, [id]: msgs };
         });
@@ -73,13 +76,21 @@ export default function Chat() {
       let isNewRoom = false;
 
       if (!roomToUse) {
-        const room = await createRoom();
+        if (!user?.id) return;
+        let room;
+        try {
+          room = await createRoom(user.id, q.length > 40 ? q.slice(0, 40) + "…" : q);
+        } catch (err) {
+          console.error("방 생성 실패:", err);
+          return;
+        }
         roomToUse = room.id;
         isNewRoom = true;
         setCurrentRoomId(room.id);
         currentRoomIdRef.current = room.id;
 
-        // 메시지 먼저 추가 후 URL 변경
+        skipLoadRef.current.add(room.id);
+
         setMessagesMap((prev) => ({
           ...prev,
           [room.id]: [
@@ -89,12 +100,7 @@ export default function Chat() {
         }));
 
         setSearchParams({ room: room.id }, { replace: true });
-      } else if (removeQ) {
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("q");
-          return next;
-        }, { replace: true });
+
       }
 
       if (busyRooms.has(roomToUse)) return;
@@ -105,6 +111,9 @@ export default function Chat() {
       const capturedRoomId = roomToUse;
 
       if (!isNewRoom) {
+        // 이 방의 loadMessages를 막음 (setSearchParams보다 먼저 설정해야 race condition 방지)
+        skipLoadRef.current.add(capturedRoomId);
+
         setMessagesMap((prev) => ({
           ...prev,
           [capturedRoomId]: [
@@ -115,9 +124,18 @@ export default function Chat() {
         }));
       }
 
+      // ?q= 제거 — 로딩 메시지 설정 이후에 수행해야 Effect 1 재실행 시 덮어쓰기 방지
+      if (removeQ) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("q");
+          return next;
+        }, { replace: true });
+      }
+
       const abort = streamChat(
         q,
-        TEMP_USER_ID,
+        user?.id ?? "",
         capturedRoomId,
         (token) => {
           setMessagesMap((prev) => ({
@@ -138,6 +156,9 @@ export default function Chat() {
           }));
         },
         () => {
+          // 완료 후 skipLoad 해제
+          skipLoadRef.current.delete(capturedRoomId);
+
           setMessagesMap((prev) => ({
             ...prev,
             [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
@@ -160,12 +181,13 @@ export default function Chat() {
 
   // URL ?q= 첫 메시지 자동 전송
   useEffect(() => {
+    if (!user?.id) return;
     const q = searchParams.get("q");
     if (q && q !== seededRef.current) {
       seededRef.current = q;
       sendMessage(q, true);
     }
-  }, [searchParams, sendMessage]);
+  }, [searchParams, sendMessage, user]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -185,7 +207,7 @@ export default function Chat() {
         <div className="gd-chat-top-inner">
           {messages.length === 0 && (
             <p className="gd-chat-empty-hint">
-              무엇이든 물어보세요. 엔진 문서·사례를 분석해 답해 드립니다.
+              무엇이든 물어보세요. 엔진 문서·사례를 분석해 드립니다.
             </p>
           )}
           <SearchBar

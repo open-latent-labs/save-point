@@ -2100,6 +2100,41 @@ a {
   border-color: rgba(54, 224, 161, .55);
 }
 
+.gd-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+.gd-page-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.gd-page-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.3);
+  color: var(--text-primary, #fff);
+}
+.gd-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.gd-page-info {
+  font-size: 13px;
+  color: var(--text-secondary, #aaa);
+  min-width: 56px;
+  text-align: center;
+}
+
 .gd-public-badge {
   display: inline-flex;
   align-items: center;

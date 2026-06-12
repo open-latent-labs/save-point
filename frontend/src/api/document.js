@@ -11,23 +11,23 @@ export async function upload_document(file, title) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
-    return await apiFetch("/api/documents/upload", {
+    return await apiFetch("/documents/upload", {
         method: "POST",
         body: formData,
     });
 }
 
-export async function document_list(page, { sort, access_type, status, category } = {}) {
+export async function document_list(page, { sort, access_type, status, category, size = 4 } = {}) {
     const body = {
         page: page ?? 1,
-        size: 4,
+        size,
         ...(sort && { sort: SORT_MAP[sort] ?? sort }),
         ...(access_type && { access_type }),
         ...(status && { status }),
         ...(category && { category }),
     };
 
-    return await apiFetch("/api/documents/list", {
+    return await apiFetch("/documents/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -35,33 +35,41 @@ export async function document_list(page, { sort, access_type, status, category 
 }
 
 export async function documentBookmark(document_id, is_bookmarked) {
-    return await apiFetch(`/api/documents/${document_id}/bookmark`, {
+    return await apiFetch(`/documents/${document_id}/bookmark`, {
         method: "POST",
         body: JSON.stringify({ is_bookmarked }),
     });
 }
 
 export async function documentBookmarkDelete(document_id) {
-    return await apiFetch(`/api/documents/${document_id}/bookmark/delete`, {
+    return await apiFetch(`/documents/${document_id}/bookmark/delete`, {
         method: "DELETE",
     });
 }
 
 export async function documentPin(document_id, is_pinned) {
-    return await apiFetch(`/api/documents/${document_id}/pin`, {
+    return await apiFetch(`/documents/${document_id}/pin`, {
         method: "POST",
         body: JSON.stringify({ is_pinned }),
     });
 }
 
 export async function documentPinDelete(document_id) {
-    return await apiFetch(`/api/documents/${document_id}/pin/delete`, {
+    return await apiFetch(`/documents/${document_id}/pin/delete`, {
         method: "DELETE",
     });
 }
 
 export async function documentPinList() {
-    return await apiFetch("/api/documents/pin/list", {
+    return await apiFetch("/documents/pin/list", {
         method: "GET",
     });
+}
+
+export async function requestPublicDocument(document_id) {
+    return await apiFetch(`/documents/${document_id}/request-public`, { method: "POST" });
+}
+
+export async function cancelPublicRequest(document_id) {
+    return await apiFetch(`/documents/${document_id}/request-public`, { method: "DELETE" });
 }

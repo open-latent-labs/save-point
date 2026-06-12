@@ -59,34 +59,42 @@ export const DUMMY_ROOMS = [
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-// TODO: 로그인 연동 후 실제 user_id로 교체
-const TEMP_USER_ID = "user-id-here";
-
-export async function loadRooms() {
+export async function loadRooms(userId) {
+  console.log("[loadRooms] 호출 userId:", userId);
+  if (!userId) return [];
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/users/${TEMP_USER_ID}/sessions`);
-    if (!res.ok) return [];
+    const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/sessions`);
+    if (!res.ok) {
+      console.error(`[loadRooms] API 오류 ${res.status}:`, await res.text().catch(() => ""));
+      return [];
+    }
     const data = await res.json();
+    console.log("[loadRooms] 응답:", data);
     return data.map((s) => ({
       id: s.session_id,
       title: s.session_name,
       date: s.last_active_at?.slice(0, 10) ?? "",
       messages: [],
     }));
-  } catch {
+  } catch (e) {
+    console.error("[loadRooms] 네트워크 오류:", e);
     return [];
   }
 }
 
-export async function createRoom() {
+export async function createRoom(userId, sessionName = "새 채팅") {
   const res = await fetch(`${BASE_URL}/api/v1/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: TEMP_USER_ID }),
+    body: JSON.stringify({ user_id: userId, session_name: sessionName }),
   });
+  if (!res.ok) {
+    throw new Error(`Session creation failed: ${res.status}`);
+  }
   const data = await res.json();
 
   // 사이드바 목록 갱신 이벤트
+  console.log("[createRoom] gamedocs:rooms 이벤트 발송, 생성된 방:", data);
   window.dispatchEvent(new Event("gamedocs:rooms"));
 
   return {
@@ -106,7 +114,7 @@ export async function loadMessages(sessionId) {
       id: m.id,
       role: m.role === "USER" ? "user" : "ai",
       text: m.content_ko,
-      sources: [],
+      sources: m.retrieved_chunk_ids ?? [],  // 출처 복원
       streaming: false,
       isLoading: false,
     }));

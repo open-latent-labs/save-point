@@ -1,12 +1,10 @@
-import React, { useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import { IconTrash, IconGlobe } from "../components/Icons.jsx";
-import {
-  loadPending, savePending, loadRejected, saveRejected,
-  loadApproved, saveApproved,
-  MOCK_DOCS, CATEGORY_OPTIONS, formatSize,
-} from "../data/upload.js";
+import { CATEGORY_OPTIONS, formatSize } from "../data/upload.js";
+import { adminApprovalList, adminApproveDocument, adminRejectDocument, adminCancelPending } from "../api/admin.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const extColors = {
   pdf: "#E08A8A", md: "#36E0A1", txt: "#8A93FF", docx: "#5BC8FF", doc: "#5BC8FF",
@@ -16,34 +14,52 @@ const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]
 
 export default function Approval() {
   const { onMenu, onProfile } = useOutletContext();
-  const [pendingIds, setPendingIds] = useState(() => loadPending());
-  const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
-  const [approvedIds, setApprovedIds] = useState(() => loadApproved());
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [pendingDocs, setPendingDocs] = useState([]);
+  const [approvalCount, setApprovalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const pendingDocs = MOCK_DOCS.filter((d) => pendingIds.includes(d.id));
+  useEffect(() => {
+    if (user && user.role !== "ADMIN") {
+      alert("접근 권한이 없습니다.");
+      navigate(-1);
+      return;
+    }
+    adminApprovalList(currentPage).then((data) => {
+      if (data && Array.isArray(data.items)) {
+        setPendingDocs(data.items);
+        setApprovalCount(data.total);
+        setTotalPages(data.total_pages);
+      }
+    });
+  }, [user, currentPage]);
 
-  const cancelPending = (id) => {
-    const next = pendingIds.filter((p) => p !== id);
-    setPendingIds(next);
-    savePending(next);
+  const refreshList = () => {
+    adminApprovalList(currentPage).then((data) => {
+      if (data && Array.isArray(data.items)) {
+        setPendingDocs(data.items);
+        setApprovalCount(data.total);
+        setTotalPages(data.total_pages);
+        window.dispatchEvent(new Event("gamedocs:approval-count"));
+      }
+    });
   };
 
-  const rejectDoc = (id) => {
-    const nextPending = pendingIds.filter((p) => p !== id);
-    const nextRejected = [...new Set([...rejectedIds, id])];
-    setPendingIds(nextPending);
-    setRejectedIds(nextRejected);
-    savePending(nextPending);
-    saveRejected(nextRejected);
+  const approveDoc = async (id) => {
+    try { await adminApproveDocument(id); } catch (e) { console.error(e); }
+    refreshList();
   };
 
-  const approveDoc = (id) => {
-    const nextPending = pendingIds.filter((p) => p !== id);
-    const nextApproved = [...new Set([...approvedIds, id])];
-    setPendingIds(nextPending);
-    setApprovedIds(nextApproved);
-    savePending(nextPending);
-    saveApproved(nextApproved);
+  const rejectDoc = async (id) => {
+    try { await adminRejectDocument(id); } catch (e) { console.error(e); }
+    refreshList();
+  };
+
+  const cancelPending = async (id) => {
+    try { await adminCancelPending(id); } catch (e) { console.error(e); }
+    refreshList();
   };
 
   return (
@@ -69,29 +85,33 @@ export default function Approval() {
             <>
               <div className="gd-mydocs-head" style={{ marginBottom: 12 }}>
                 <span className="gd-mydocs-title">대기 목록</span>
-                <span className="gd-mydocs-count">{pendingDocs.length}건</span>
+                <span className="gd-mydocs-count">{approvalCount}건</span>
               </div>
               <div className="gd-doclist">
                 {pendingDocs.map((doc) => (
-                  <div key={doc.id} className="gd-docitem">
-                    <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
-                      {doc.ext.toUpperCase()}
+                  <div key={doc.document_id} className="gd-docitem" onClick={() => navigate(`/docs/${doc.document_id}`)} style={{ cursor: "pointer" }}>
+                    <div className="gd-docitem-ext" style={{ background: extColors[doc.extension] || "var(--dim)" }}>
+                      {doc.extension?.toUpperCase()}
                     </div>
 
                     <div className="gd-docitem-body">
-                      <div className="gd-docitem-name" title={doc.name}>
-                        {doc.name}
-                        <span className={"gd-vis-badge " + (doc.isPublic ? "public" : "private")}>
-                          {doc.isPublic ? "PUBLIC" : "PRIVATE"}
+                      <div className="gd-docitem-name" title={doc.filename}>
+                        {doc.filename}
+                        <span className={"gd-vis-badge " + (doc.access_type === "PUBLIC" ? "public" : "private")}>
+                          {doc.access_type === "PUBLIC" ? "PUBLIC" : "PRIVATE"}
                         </span>
                       </div>
                       <div className="gd-docitem-meta">
-                        <span className="gd-cat-dot" style={{ background: catColor[doc.category] }} />
-                        <span className="gd-cat-name">{catLabel[doc.category] || doc.category}</span>
+                        {doc.category && (
+                          <>
+                            <span className="gd-cat-dot" style={{ background: catColor[doc.category] }} />
+                            <span className="gd-cat-name">{catLabel[doc.category] || doc.category}</span>
+                            <span className="gd-meta-sep">·</span>
+                          </>
+                        )}
+                        <span>{formatSize(doc.file_size)}</span>
                         <span className="gd-meta-sep">·</span>
-                        <span>{formatSize(doc.size)}</span>
-                        <span className="gd-meta-sep">·</span>
-                        <span>{doc.date}</span>
+                        <span>{doc.created_at}</span>
                         <span className="gd-meta-sep">·</span>
                         <span className="gd-public-badge">
                           <IconGlobe width="10" height="10" />
@@ -100,24 +120,24 @@ export default function Approval() {
                       </div>
                     </div>
 
-                    <div className="gd-docitem-actions">
+                    <div className="gd-docitem-actions" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="gd-approval-approve-btn"
-                        onClick={() => approveDoc(doc.id)}
+                        onClick={() => approveDoc(doc.document_id)}
                         title="승인"
                       >
                         승인
                       </button>
                       <button
                         className="gd-approval-reject-btn"
-                        onClick={() => rejectDoc(doc.id)}
+                        onClick={() => rejectDoc(doc.document_id)}
                         title="반려"
                       >
                         반려
                       </button>
                       <button
                         className="gd-docitem-del"
-                        onClick={() => cancelPending(doc.id)}
+                        onClick={() => cancelPending(doc.document_id)}
                         aria-label="신청 취소"
                         title="신청 취소"
                       >
@@ -127,6 +147,26 @@ export default function Approval() {
                   </div>
                 ))}
               </div>
+
+              {totalPages > 1 && (
+                <div className="gd-pagination">
+                  <button
+                    className="gd-page-btn"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    이전
+                  </button>
+                  <span className="gd-page-info">{currentPage} / {totalPages}</span>
+                  <button
+                    className="gd-page-btn"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
             </>
           )}
 
