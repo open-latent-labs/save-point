@@ -113,19 +113,24 @@ export default function Sidebar({ isOpen, onNavigate }) {
     try {
       const docs = await publicDocumentList();
       if (!Array.isArray(docs)) return;
+
       const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
+
+      // 카테고리별 그룹핑 → DocTreeNode 트리 구조 생성
       const groups = {};
       docs.forEach((doc) => {
         const cat = doc.category ?? "OTHER";
         if (!groups[cat]) groups[cat] = [];
         groups[cat].push({ id: doc.id, label: doc.filename, type: "file" });
       });
+
       const tree = Object.entries(groups).map(([cat, children]) => ({
         id: `cat_${cat}`,
         label: catMap[cat] ?? cat,
         type: "folder",
         children,
       }));
+
       setPublicTree(tree);
     } catch (e) {
       console.error(e);
@@ -139,6 +144,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
     const syncPins = () => fetchPinnedDocs();
     const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
     const syncApprovalCount = () => fetchApprovalCount();
+    const syncPublicDocs = () => fetchPublicDocs();
     const syncRoomActive = (e) => {
       const roomId = e.detail;
       const today = new Date().toISOString().slice(0, 10);

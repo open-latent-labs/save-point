@@ -6,11 +6,14 @@ from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, literal
 
+from datetime import datetime, timezone
+
 from app.models.document import Document
 from app.models.bookmarked_document import BookmarkedDocument
 from app.models.pinned_document import PinnedDocument
 from app.models.summary_llm_result import SummaryLlmResult
-from app.models.enums import DocumentStatus, DocumentAccess
+from app.models.user import User
+from app.models.enums import DocumentStatus, DocumentAccess, UserRole
 
 from app.schemas.document import ListRequest, SortBy
 
@@ -88,7 +91,7 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
     total_pages = ceil(total / body.size) if total > 0 else 1
 
     result = await db.execute(main_stmt)
-    rows = result.fetchall()
+    rows = result.all()
     documents = [
         {
             "id": doc.id,
@@ -196,7 +199,18 @@ async def request_public(db: AsyncSession, document_id: str, user_id: str):
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
-    doc.status = DocumentStatus.PENDING
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+
+    if user and user.role == UserRole.ADMIN:
+        doc.status = DocumentStatus.APPROVED
+        doc.access_type = DocumentAccess.PUBLIC
+        doc.approved_by_id = user_id
+        doc.approved_at = datetime.now(timezone.utc)
+    else:
+        doc.status = DocumentStatus.PENDING
+
     await db.commit()
     return {"id": document_id}
 
