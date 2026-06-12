@@ -112,11 +112,21 @@ export default function Sidebar({ isOpen, onNavigate }) {
     const syncPins = () => fetchPinnedDocs();
     const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
     const syncApprovalCount = () => fetchApprovalCount();
-    const syncPending = () => setPendingIds(loadPending());
+    const syncRoomActive = (e) => {
+      const roomId = e.detail;
+      const today = new Date().toISOString().slice(0, 10);
+      setRooms((prev) => {
+        const idx = prev.findIndex((r) => r.id === roomId);
+        if (idx < 0) return prev;
+        const updated = { ...prev[idx], date: today };
+        return [updated, ...prev.filter((r) => r.id !== roomId)];
+      });
+    };
 
     window.addEventListener("gamedocs:pins", syncPins);
     window.addEventListener("gamedocs:rooms", syncRooms);
     window.addEventListener("gamedocs:approval-count", syncApprovalCount);
+    window.addEventListener("gamedocs:room-active", syncRoomActive);
 
     // 초기 로드
     loadRooms(user?.id).then((data) => setRooms(data));
@@ -125,6 +135,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
       window.removeEventListener("gamedocs:pins", syncPins);
       window.removeEventListener("gamedocs:rooms", syncRooms);
       window.removeEventListener("gamedocs:approval-count", syncApprovalCount);
+      window.removeEventListener("gamedocs:room-active", syncRoomActive);
     };
   }, [fetchPinnedDocs, fetchApprovalCount, user?.id]);
 
