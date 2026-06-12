@@ -7,8 +7,11 @@ export default function DocTreeNode({ node, level, activeId, onSelect, expandedI
   const isActive = activeId === node.id;
 
   const handleClick = () => {
-    if (hasChildren) onToggle(node.id);
-    onSelect(node.id);
+    if (hasChildren) {
+      onToggle(node.id);
+    } else {
+      onSelect(node.id);
+    }
   };
 
   return (
