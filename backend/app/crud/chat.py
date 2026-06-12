@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.chat_session import ChatSession
 from app.models.chat_message import ChatMessage
 from app.models.enums import ChatRole

@@ -2,6 +2,7 @@ import json
 import time
 from ulid import ULID
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.pipelines.query_pipeline import query
 from app.llm.ollama_client import generate_stream
 from app.crud.chat import save_message, update_session_last_active

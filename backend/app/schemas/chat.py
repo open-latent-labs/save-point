@@ -1,5 +1,11 @@
 from pydantic import BaseModel
 
-# TODO: 요청/응답 스키마 작성
+# 요청 응답 스키마
 class ChatRequest(BaseModel):
-    query: str
+    question: str
+    user_id: str
+    session_id: str
+
+class SessionCreateRequest(BaseModel):
+    user_id: str
+    session_name: str = "새 채팅"

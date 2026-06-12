@@ -1,10 +1,10 @@
 import httpx
-from app.config import get_settings
-from qdrant_client.models import PointStruct, SparseVector
-from FlagEmbedding import BGEM3FlagModel
-from app.db.vector_db import get_qdrant_client
-from app.utils.chunker import ChunkMetadata, ChunkResult
 import uuid
+from qdrant_client.models import PointStruct, SparseVector
+
+from app.config import get_settings
+from app.db.vector_db import get_qdrant_client
+from app.schemas.chunk import ChunkMetadata, ChunkResult
 from app.services.flag_model import get_flag_model
 
 settings = get_settings()

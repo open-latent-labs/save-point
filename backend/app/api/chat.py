@@ -2,27 +2,13 @@ from ulid import ULID
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+
 from app.dependencies import get_db
 from app.services.chat_service import stream_answer
-from app.crud.chat import (
-    create_session, get_sessions, delete_session,
-    save_message, get_messages, update_session_last_active
-)
-from app.models.enums import ChatRole
+from app.crud.chat import create_session, get_sessions, delete_session, get_messages
+from app.schemas.chat import ChatRequest, SessionCreateRequest
 
 router = APIRouter(prefix="/api/v1")
-
-# ── 요청/응답 스키마 ──
-
-class ChatRequest(BaseModel):
-    question: str
-    user_id: str
-    session_id: str
-
-class SessionCreateRequest(BaseModel):
-    user_id: str
-    session_name: str = "새 채팅"
 
 # ── 세션 ──
 

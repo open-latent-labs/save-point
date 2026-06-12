@@ -49,49 +49,51 @@ async def close_qdrant_client() -> None:
 
 # ========================================================
 
+# 벡터에 문서 삭제 상태 칼럼 추가하고 아래 코드 crud에 옮겨야됨
+
 # 문서 삭제
-async def delete_document(document_id: str) -> None:
-    """document_id에 해당하는 벡터 전부 삭제"""
-    client = get_qdrant_client()
-    await client.delete(
-        collection_name=settings.qdrant_collection_name,
-        points_selector=FilterSelector(
-            filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="document_id",
-                        match=MatchValue(value=document_id),
-                    )
-                ]
-            )
-        ),
-    )
+# async def delete_document(document_id: str) -> None:
+#     """document_id에 해당하는 벡터 전부 삭제"""
+#     client = get_qdrant_client()
+#     await client.delete(
+#         collection_name=settings.qdrant_collection_name,
+#         points_selector=FilterSelector(
+#             filter=Filter(
+#                 must=[
+#                     FieldCondition(
+#                         key="document_id",
+#                         match=MatchValue(value=document_id),
+#                     )
+#                 ]
+#             )
+#         ),
+#     )
 
 
 # 문서 상태 업데이트 (승인/거절 시)
-async def update_document_status(
-    document_id: str,
-    new_status: str,
-    new_access_type: str | None = None,
-) -> None:
-    """문서 상태 변경 시 Qdrant payload 동기화"""
-    client = get_qdrant_client()
+# async def update_document_status(
+#     document_id: str,
+#     new_status: str,
+#     new_access_type: str | None = None,
+# ) -> None:
+#     """문서 상태 변경 시 Qdrant payload 동기화"""
+#     client = get_qdrant_client()
 
-    payload = {"status": new_status}
-    if new_access_type is not None:
-        payload["access_type"] = new_access_type
+#     payload = {"status": new_status}
+#     if new_access_type is not None:
+#         payload["access_type"] = new_access_type
 
-    await client.set_payload(
-        collection_name=settings.qdrant_collection_name,
-        payload=payload,
-        points=FilterSelector(
-            filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="document_id",
-                        match=MatchValue(value=document_id),
-                    )
-                ]
-            )
-        ),
-    )
+#     await client.set_payload(
+#         collection_name=settings.qdrant_collection_name,
+#         payload=payload,
+#         points=FilterSelector(
+#             filter=Filter(
+#                 must=[
+#                     FieldCondition(
+#                         key="document_id",
+#                         match=MatchValue(value=document_id),
+#                     )
+#                 ]
+#             )
+#         ),
+#     )
