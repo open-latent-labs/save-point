@@ -23,7 +23,7 @@ from app.models.enums import DocumentAccess, DocumentStatus, JobStatus, JobType
 from app.pipelines.ingest_pipeline import ingest
 from app.services.ocr.pipline import run_ocr
 from app.services.summary_service import summarize_and_classify
-from app.utils.chunker import ChunkMetadata
+from app.schemas.chunk import ChunkMetadata
 from app.utils.minio_client import BUCKET_NAME, upload_file
 
 _ALLOWED_EXT = {".pdf", ".pptx"}

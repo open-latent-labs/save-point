@@ -1,6 +1,16 @@
+from dataclasses import dataclass
+
 from app.config import get_settings
 
 settings = get_settings()
+
+
+@dataclass
+class ChunkResult:
+    chunk_index: int
+    chunk_text: str
+    page_number: int | None
+    vector_point_id: str | None
 
 # (이거 받아서) -> 이거 반환해요 :: 미리 반환값 표시해주는 문법
 def split_into_chunks(raw_text: str) -> list[str]:
