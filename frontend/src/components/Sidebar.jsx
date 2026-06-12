@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { docsTree, defaultExpandedIds } from "../data/docsData.js";
 import DocTreeNode from "./DocTreeNode.jsx";
+import { publicDocumentList } from "../api/document.js";
+import { CATEGORIES } from "../data/mock.js";
 import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
 import { documentPinList } from "../api/document.js";
@@ -81,12 +82,13 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [expandedIds, setExpandedIds] = useState(() => new Set(defaultExpandedIds));
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [showSettings, setShowSettings] = useState(false);
   const [pinnedDocs, setPinnedDocs] = useState([]);
   const [approvalCount, setApprovalCount] = useState(0);
   const [rooms, setRooms] = useState([]);
   const [chatOpen, setChatOpen] = useState(() => location.pathname.startsWith("/chat"));
+  const [publicTree, setPublicTree] = useState([]);
 
   const fetchPinnedDocs = React.useCallback(async () => {
     try {
@@ -107,9 +109,33 @@ export default function Sidebar({ isOpen, onNavigate }) {
     }
   }, [user]);
 
+  const fetchPublicDocs = React.useCallback(async () => {
+    try {
+      const docs = await publicDocumentList();
+      if (!Array.isArray(docs)) return;
+      const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
+      const groups = {};
+      docs.forEach((doc) => {
+        const cat = doc.category ?? "OTHER";
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push({ id: doc.id, label: doc.filename, type: "file" });
+      });
+      const tree = Object.entries(groups).map(([cat, children]) => ({
+        id: `cat_${cat}`,
+        label: catMap[cat] ?? cat,
+        type: "folder",
+        children,
+      }));
+      setPublicTree(tree);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPinnedDocs();
     fetchApprovalCount();
+    fetchPublicDocs();
     const syncPins = () => fetchPinnedDocs();
     const syncRooms = () => loadRooms(user?.id).then((data) => setRooms(data));
     const syncApprovalCount = () => fetchApprovalCount();
@@ -124,21 +150,24 @@ export default function Sidebar({ isOpen, onNavigate }) {
       });
     };
 
+    const syncPublicDocs = () => fetchPublicDocs();
+
     window.addEventListener("gamedocs:pins", syncPins);
     window.addEventListener("gamedocs:rooms", syncRooms);
     window.addEventListener("gamedocs:approval-count", syncApprovalCount);
+    window.addEventListener("gamedocs:public-docs", syncPublicDocs);
     window.addEventListener("gamedocs:room-active", syncRoomActive);
 
-    // 초기 로드
     loadRooms(user?.id).then((data) => setRooms(data));
 
     return () => {
       window.removeEventListener("gamedocs:pins", syncPins);
       window.removeEventListener("gamedocs:rooms", syncRooms);
       window.removeEventListener("gamedocs:approval-count", syncApprovalCount);
+      window.removeEventListener("gamedocs:public-docs", syncPublicDocs);
       window.removeEventListener("gamedocs:room-active", syncRoomActive);
     };
-  }, [fetchPinnedDocs, fetchApprovalCount, user?.id]);
+  }, [fetchPinnedDocs, fetchApprovalCount, fetchPublicDocs, user?.id]);
 
   // 현재 URL에서 docId 추출
   const docMatch = location.pathname.match(/^\/docs\/(.+)/);
@@ -325,17 +354,21 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
         {/* 공용 문서 트리 */}
         <div className="gd-sb-tree-scroll">
-          {docsTree.map((node) => (
-            <DocTreeNode
-              key={node.id}
-              node={node}
-              level={0}
-              activeId={currentDocId}
-              onSelect={handleDocSelect}
-              expandedIds={expandedIds}
-              onToggle={handleToggle}
-            />
-          ))}
+          {publicTree.length === 0 ? (
+            <div className="gd-sb-pinned-empty">승인된 공용 문서가 없습니다</div>
+          ) : (
+            publicTree.map((node) => (
+              <DocTreeNode
+                key={node.id}
+                node={node}
+                level={0}
+                activeId={currentDocId}
+                onSelect={handleDocSelect}
+                expandedIds={expandedIds}
+                onToggle={handleToggle}
+              />
+            ))
+          )}
         </div>
 
         {/* 하단 푸터 */}

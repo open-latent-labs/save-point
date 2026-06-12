@@ -10,7 +10,7 @@ from app.models.document import Document
 from app.models.bookmarked_document import BookmarkedDocument
 from app.models.pinned_document import PinnedDocument
 from app.models.summary_llm_result import SummaryLlmResult
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, DocumentAccess
 
 from app.schemas.document import ListRequest, SortBy
 
@@ -211,6 +211,29 @@ async def cancel_public_request(db: AsyncSession, document_id: str, user_id: str
     doc.status = DocumentStatus.DONE
     await db.commit()
     return {"id": document_id}
+
+
+async def public_list(db: AsyncSession):
+    result = await db.execute(
+        select(Document, SummaryLlmResult)
+        .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+        .where(
+            Document.access_type == DocumentAccess.PUBLIC,
+            Document.status == DocumentStatus.APPROVED,
+            Document.deleted_by_id.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": doc.id,
+            "filename": doc.filename,
+            "extension": doc.extension,
+            "category": summary.category if summary else "OTHER",
+        }
+        for doc, summary in rows
+    ]
 
 
 async def pin_list(db: AsyncSession, user_id: str):

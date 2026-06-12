@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+const BASE = "http://localhost:8000/api";
 
 // FastAPI 에러 응답 {"detail": "..."} 에서 메시지 추출
 function parseError(text) {
