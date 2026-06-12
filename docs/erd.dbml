@@ -32,13 +32,34 @@ enum document_access {
 }
 
 enum category {
-  ENGINE_REFERENCE
-  POSTMORTEM
-  BUG_ANALYSIS
-  ARCHITECTURE
-  TUTORIAL
+  SCRIPTING
+  RENDERING
+  EDITOR
+  PHYSICS
+  MATH
+  UI
+  XR
+  ANIMATION
+  INPUT
+  PERFORMANCE
+  AUDIO
+  NETWORKING
   OTHER
 }
+
+# 아래내용은 프론트 적용하고 나서 지울 예정!
+# - scripting : 스크립팅
+# - rendering : 렌더링
+# - editor : 에디터
+# - physics : 물리
+# - math : 수학
+# - ui : UI
+# - xr : XR
+# - animation : 애니메이션
+# - input : 입력
+# - performance : 성능/최적화
+# - audio : 오디오
+# - networking : 네트워킹
 
 enum ocr_status {
   PENDING

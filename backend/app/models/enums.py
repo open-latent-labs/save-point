@@ -27,20 +27,18 @@ class DocumentAccess(str, enum.Enum):
 
 
 class Category(str, enum.Enum):
-    ENGINE_REFERENCE = "ENGINE_REFERENCE"
-    POSTMORTEM = "POSTMORTEM"
-    BUG_ANALYSIS = "BUG_ANALYSIS"
-    ARCHITECTURE = "ARCHITECTURE"
-    TUTORIAL = "TUTORIAL"
-    OTHER = "OTHER"
-
-
-class DocSubType(str, enum.Enum):
-    UNITY = "UNITY"
-    UNREAL = "UNREAL"
-    GODOT = "GODOT"
-    CUSTOM = "CUSTOM"
-    AUTOMATION = "AUTOMATION"
+    SCRIPTING = "SCRIPTING"
+    RENDERING = "RENDERING"
+    EDITOR = "EDITOR"
+    PHYSICS = "PHYSICS"
+    MATH = "MATH"
+    UI = "UI"
+    XR = "XR"
+    ANIMATION = "ANIMATION"
+    INPUT = "INPUT"
+    PERFORMANCE = "PERFORMANCE"
+    AUDIO = "AUDIO"
+    NETWORKING = "NETWORKING"
     OTHER = "OTHER"
 
 

@@ -14,7 +14,9 @@ class SortBy(str, Enum):
 
 
 class DocumentUploadResponse(BaseModel):
-    pass
+    document_id: str
+    status: str
+    message: str
 
 
 class ListRequest(BaseModel):
