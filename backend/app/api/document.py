@@ -42,7 +42,6 @@ async def delete_pin_document(document_id: str, db: AsyncSession = Depends(get_d
 
 @router.get("/pin/list")
 async def pin_list(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    print(user_id)
     return await pin_list_crud(db, user_id)
 
 
