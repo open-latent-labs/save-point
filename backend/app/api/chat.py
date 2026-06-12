@@ -11,7 +11,7 @@ from app.crud.chat import (
 )
 from app.models.enums import ChatRole
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/v1")
 
 # ── 요청/응답 스키마 ──
 

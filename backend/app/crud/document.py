@@ -91,7 +91,7 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
     total_pages = ceil(total / body.size) if total > 0 else 1
 
     result = await db.execute(main_stmt)
-    rows = result.fetchall()
+    rows = result.all()
     documents = [
         {
             "id": doc.id,
@@ -238,7 +238,7 @@ async def public_list(db: AsyncSession):
         )
         .order_by(Document.created_at.desc())
     )
-    rows = result.fetchall()
+    rows = result.all()
     return [
         {
             "id": doc.id,

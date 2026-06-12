@@ -57,13 +57,13 @@ export const DUMMY_ROOMS = [
   },
 ];
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 export async function loadRooms(userId) {
   console.log("[loadRooms] 호출 userId:", userId);
   if (!userId) return [];
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/users/${userId}/sessions`);
+    const res = await fetch(`${BASE_URL}/v1/users/${userId}/sessions`);
     if (!res.ok) {
       console.error(`[loadRooms] API 오류 ${res.status}:`, await res.text().catch(() => ""));
       return [];
@@ -83,7 +83,7 @@ export async function loadRooms(userId) {
 }
 
 export async function createRoom(userId, sessionName = "새 채팅") {
-  const res = await fetch(`${BASE_URL}/api/v1/sessions`, {
+  const res = await fetch(`${BASE_URL}/v1/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, session_name: sessionName }),
@@ -107,7 +107,7 @@ export async function createRoom(userId, sessionName = "새 채팅") {
 
 export async function loadMessages(sessionId) {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}/messages`);
+    const res = await fetch(`${BASE_URL}/v1/sessions/${sessionId}/messages`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.map((m) => ({
@@ -124,7 +124,7 @@ export async function loadMessages(sessionId) {
 }
 
 export async function deleteRoom(sessionId) {
-  await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}`, {
+  await fetch(`${BASE_URL}/v1/sessions/${sessionId}`, {
     method: "DELETE",
   });
 }

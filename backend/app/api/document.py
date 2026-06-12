@@ -11,7 +11,7 @@ from app.crud.document import public_list as public_list_crud
 from app.schemas.document import DocumentUploadResponse, ListRequest
 from app.services.document_service import run_processing_pipeline, start_upload
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=202)
 async def upload_document(
