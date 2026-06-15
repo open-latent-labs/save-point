@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useOutletContext } from "react-router-dom";
+import { useSearchParams, useOutletContext, useBlocker } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
@@ -38,6 +38,11 @@ export default function Chat() {
 
   const messages = messagesMap[currentRoomId] ?? [];
   const busy = busyRooms.has(currentRoomId);
+
+  // 스트리밍 중 페이지 이탈 차단 (같은 /chat 내 방 전환은 허용)
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    busyRooms.size > 0 && nextLocation.pathname !== currentLocation.pathname
+  );
 
   useEffect(() => {
     currentRoomIdRef.current = currentRoomId;
@@ -310,6 +315,24 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {blocker.state === "blocked" && (
+        <div className="gd-nav-block-overlay">
+          <div className="gd-nav-block-card">
+            <p className="gd-nav-block-msg">
+              지금 페이지를 이동하면 답변을 받을 수 없어요!<br />그래도 이동할까요?
+            </p>
+            <div className="gd-nav-block-actions">
+              <button className="gd-nav-block-wait" onClick={() => blocker.reset()}>
+                답변 대기
+              </button>
+              <button className="gd-nav-block-go" onClick={() => blocker.proceed()}>
+                이동하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
