@@ -17,6 +17,7 @@ dependencies = [
     "python-pptx>=1.0.2",
     "pillow>=10.0.0",
     "python-jose>=3.5.0",
+    "redis==5.0.8",
     "python-multipart>=0.0.32",
     "qdrant-client>=1.18.0",
     "sqlalchemy>=2.0.50",

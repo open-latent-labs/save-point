@@ -5,8 +5,7 @@ import UserDetailSidebar from "../../components/superAdmin/MyInformationSide.jsx
 import MyPageDrawer from "../../components/MyPageDrawer.jsx";
 import { useUserRole } from "../../context/UserRoleContext.jsx";
 import { allUserList, banUser, unbanUser, changeRole, dashboardNum } from "../../api/superAdmin.js";
-
-
+import { usePresence, formatLastSeen } from "../../api/connect.js";
 
 const STATS_TEMPLATE = [
     { key: "total", label: "전체 사용자", sub: "전체 가입 사용자", icon: "users", tone: "green" },
@@ -20,6 +19,30 @@ const STAT_TONES = {
     teal: "bg-[#2dd4bf]/[0.13] text-[#2dd4bf]",
     violet: "bg-[#a78bfa]/[0.14] text-[#a78bfa]",
     red: "bg-[#f87171]/[0.13] text-[#f87171]",
+};
+
+/* ---------- 접속 상태 셀 ---------- */
+const PresenceCell = ({ userId, lastActiveAt, onlineIds }) => {
+    const isOnline = onlineIds.has(userId);
+    if (isOnline) {
+        return (
+            <div className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_6px_rgba(34,197,94,0.7)] shrink-0" />
+                <span className="text-[#22c55e] font-semibold text-[12.5px]">현재 활동 중</span>
+            </div>
+        );
+    }
+    const formatted = formatLastSeen(lastActiveAt);
+    return (
+        <div className="flex flex-col items-center gap-0.5">
+            <div className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#f87171] shrink-0" />
+                <span className="text-[#8a949c] font-semibold text-[12.5px]">
+                    {formatted != null ? `${formatted} 전에 활동` : "접속 기록 없음"}
+                </span>
+            </div>
+        </div>
+    );
 };
 
 /* ---------- 아이콘 (의존성 없는 인라인 SVG) ---------- */
@@ -126,13 +149,8 @@ const mapUser = (u) => ({
     ban: u.ban,
     questions: u.ask_count ?? 0,
     docs: u.upload_file_count ?? 0,
-    favorites: 0,
-    bookmarks: 0,
-    lastSeen: "-",
-    lastSeenAt: "-",
-    lastSeenAgo: "-",
     joinedAt: u.created_at ? u.created_at.slice(0, 10) : "-",
-    online: false,
+    lastActiveAt: u.last_active_at ?? null,
 });
 
 export default function UserManagement() {
@@ -153,6 +171,8 @@ export default function UserManagement() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [statsData, setStatsData] = useState(STATS_TEMPLATE.map((s) => ({ ...s, value: "-" })));
     const { getRole, updateRole } = useUserRole();
+
+    const onlineIds = usePresence();
 
     useEffect(() => {
         const fetchDashboard = async () => {
@@ -268,7 +288,6 @@ export default function UserManagement() {
                             <span className="opacity-50">/</span>
                             <span className="text-[#8a949c]">사용자 관리</span>
                         </nav>
-
                     </div>
                 </header>
 
@@ -317,11 +336,11 @@ export default function UserManagement() {
                                 onChange={(v) => { setRoleFilter(v); setPage(1); }}
                             />
                             <FilterSelect
-                                label="상태"
+                                label="계정 상태"
                                 options={[
                                     { value: "", label: "전체" },
-                                    { value: "true", label: "접속 중" },
-                                    { value: "false", label: "오프라인" },
+                                    { value: "true", label: "활성 계정" },
+                                    { value: "false", label: "비활성 계정" },
                                 ]}
                                 value={statusFilter}
                                 onChange={(v) => { setStatusFilter(v); setPage(1); }}
@@ -343,7 +362,7 @@ export default function UserManagement() {
                                     <th>질문 수</th>
                                     <th>업로드 문서 수</th>
                                     <th>활동 상태</th>
-                                    <th>최근 접속</th>
+                                    <th>접속 상태</th>
                                     <th className="!w-14 !text-center">권한 변경</th>
                                 </tr>
                             </thead>
@@ -403,7 +422,13 @@ export default function UserManagement() {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="text-[#8a949c]">{u.lastSeen}</td>
+                                        <td onClick={(e) => e.stopPropagation()}>
+                                            <PresenceCell
+                                                userId={u.id}
+                                                lastActiveAt={u.lastActiveAt}
+                                                onlineIds={onlineIds}
+                                            />
+                                        </td>
                                         <td className="text-center" onClick={(e) => e.stopPropagation()}>
                                             {getRole(u) !== "ADMIN" ? (
                                                 <button
@@ -429,12 +454,12 @@ export default function UserManagement() {
                                 ))}
                                 {loading && (
                                     <tr>
-                                        <td colSpan={10} className="!text-center text-[#5b656d] !py-10">불러오는 중...</td>
+                                        <td colSpan={9} className="!text-center text-[#5b656d] !py-10">불러오는 중...</td>
                                     </tr>
                                 )}
                                 {!loading && filtered.length === 0 && (
                                     <tr>
-                                        <td colSpan={10} className="!text-center text-[#5b656d] !py-10">검색 결과가 없습니다.</td>
+                                        <td colSpan={9} className="!text-center text-[#5b656d] !py-10">검색 결과가 없습니다.</td>
                                     </tr>
                                 )}
                             </tbody>
