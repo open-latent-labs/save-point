@@ -12,7 +12,7 @@ def get_reranker() -> CrossEncoder:
     global _reranker
     if _reranker is None:
         print("리랭커 모델 로드 중...")
-        _reranker = CrossEncoder(settings.reranker_model_path)
+        _reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
         print("리랭커 모델 로드 완료")
     return _reranker
 
