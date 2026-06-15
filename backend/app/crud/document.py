@@ -166,6 +166,11 @@ async def pin(db: AsyncSession, document_id: str, user_id: str):
         await db.delete(existing)
         is_pinned = False
     else:
+        count_result = await db.execute(
+            select(func.count()).select_from(PinnedDocument).where(PinnedDocument.user_id == user_id)
+        )
+        if count_result.scalar_one() >= 3:
+            raise HTTPException(status_code=400, detail="고정 문서는 최대 3개까지 가능합니다.")
         await db.execute(
             insert(PinnedDocument),
             {"document_id": document_id, "user_id": user_id},
