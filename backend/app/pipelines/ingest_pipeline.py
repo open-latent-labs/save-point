@@ -1,4 +1,3 @@
-# ingest_pipeline.py
 from app.utils.chunker import split_into_chunks
 from app.schemas.chunk import ChunkMetadata, ChunkResult
 from app.services.embed_service import embed_dense, embed_sparse, store_vectors

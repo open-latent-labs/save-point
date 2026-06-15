@@ -1,9 +1,9 @@
-# app/pipelines/query_pipeline.py
 from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
 from app.llm.chat_prompt import build_prompt, none_source_build_prompt
 from app.services.reranker import rerank
-from app.utils.profiler import profile
+from app.utils.profiler import profile # 리소스 확인용
 
+# 채팅 파이프라인
 async def query(question: str, user_id: str) -> dict:
 
     dense_vector = await embed_query_dense(question)
@@ -18,11 +18,12 @@ async def query(question: str, user_id: str) -> dict:
 
     reranked_results = await rerank(question, search_results, top_k=5)
 
-    # 리랭킹 후에도 없으면 none_source 프롬프트로
+    # 리랭킹 후에도 없으면(15번에서 오류로 못 걸러졌거나, 리랭킹으로 인해 문서 전부 걸러짐)
     if not reranked_results:
         prompt = none_source_build_prompt(question)
         return {"prompt": prompt, "sources": []}
 
+    # 정상 프롬프트
     prompt = build_prompt(question, reranked_results)
 
     sources = [

@@ -8,6 +8,9 @@ from app.llm.ollama_client import generate_stream
 from app.crud.chat import save_message, update_session_last_active
 from app.models.enums import ChatRole
 from app.db.rdb import AsyncSessionLocal
+from app.config import get_settings
+
+settings = get_settings()
 
 async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncSession):
     # 질문 저장
@@ -47,8 +50,10 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
         full_answer += token
         yield f"data: {token}\n\n"
 
-    # 답변 저장 — HTTP 연결이 이미 끊겼을 수 있으므로 새 독립 세션 사용
+    # 답변 저장 — LLM 스트리밍 중 asyncpg 연결이 idle timeout으로
+    # PostgreSQL에 의해 끊길 수 있으므로 새 독립 세션 사용
     latency_ms = int((time.time() - start) * 1000)
+
     async with AsyncSessionLocal() as save_db:
         await save_message(
             db=save_db,
@@ -57,7 +62,7 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
             role=ChatRole.ASSISTANT,
             content_ko=full_answer,
             retrieved_chunk_ids=result["sources"],
-            model_name="bge-m3",
+            model_name=settings.embed_model,
             latency_ms=latency_ms,
         )
         await update_session_last_active(save_db, session_id)
