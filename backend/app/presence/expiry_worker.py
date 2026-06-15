@@ -14,11 +14,11 @@ from app.presence import keys
 async def _flush_offline(user_id: str) -> None:
     r = get_redis()
 
-    # 마지막 heartbeat 시각 확보 (없으면 현재 시각)
-    raw = await r.get(keys.last_seen_key(user_id))
-    last_active = (
-        datetime.fromtimestamp(float(raw), tz=timezone.utc) if raw else datetime.now(timezone.utc)
-    )
+    raw = await r.getdel(keys.last_seen_key(user_id))
+    if not raw:
+        return  # 이미 다른 경로(ExpiryWatcher 등)에서 처리됨
+
+    last_active = datetime.fromtimestamp(float(raw), tz=timezone.utc)
 
     async with AsyncSessionLocal() as db:
         await db.execute(
@@ -26,7 +26,6 @@ async def _flush_offline(user_id: str) -> None:
         )
         await db.commit()
 
-    await r.delete(keys.last_seen_key(user_id))
     await r.publish(
         keys.EVENTS_CHANNEL,
         json.dumps({"user_id": user_id, "status": "offline", "ts": last_active.timestamp()}),
