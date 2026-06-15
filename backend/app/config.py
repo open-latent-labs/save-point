@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     chunk_overlap: int
 
     # Ollama
-    ollama_base_url: str = "http://localhost:11434"
-    summary_model: str = "gemma2:9b"
-    chat_model: str = "gemma2:9b"
+    ollama_base_url: str = "http://192.168.0.157:11434"
+    summary_model: str = "gemma2:2b"
+    chat_model: str = "gemma2:2b"
 
     algorithm: str
     access_token_expire_minutes: int

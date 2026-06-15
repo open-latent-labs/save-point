@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext(null);
 
-const BASE = "http://localhost:8000/api";
+const BASE = "/api";
 
 // 앱 시작 시 현재 로그인 상태 확인
 // access token 만료 시 refresh token으로 재발급 후 재시도

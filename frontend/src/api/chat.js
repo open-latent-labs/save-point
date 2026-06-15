@@ -39,7 +39,7 @@ export function streamChat(question, userId, sessionId, onToken, onSources, onDo
     try {
       // /api/v1/chat에 POST 요청 보내기
       // 스트림(세션)을 여기서 열고, 이후 누가 DONE을 보내기 전까지 영원히 열려있음.
-      const response = await fetch(`/api/v1/chat`, {
+      const response = await fetch(`/api/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

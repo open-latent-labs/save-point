@@ -20,7 +20,9 @@ from app.models.ocr_result import OcrResult
 from app.models.processing_job import ProcessingJob
 from app.models.summary_llm_result import SummaryLlmResult
 from app.schemas.extraction import DocumentExtractionResult, ExtractionMethod
-from app.utils.chunker import ChunkResult
+from app.schemas.chunk import ChunkResult
+
+# 
 
 def _generate_id() -> str:
     alphabet = string.ascii_uppercase + string.digits
