@@ -1,10 +1,8 @@
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Distance, VectorParams,SparseVectorParams, SparseIndexParams
 from app.config import get_settings
-from qdrant_client.models import Filter, FieldCondition, MatchValue, FilterSelector
 
 # https://qdrant.tech/documentation/
-
 # config 설정값 불러오기 + qdrant 클라이언트 변수 전역 설정
 settings = get_settings()
 _qdrant_client: AsyncQdrantClient | None = None

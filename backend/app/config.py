@@ -27,13 +27,17 @@ class Settings(BaseSettings):
     chunk_overlap: int
 
     # Ollama
-    ollama_base_url: str = "http://192.168.0.157:11434"
+    ollama_base_url: str
     summary_model: str = "gemma2:2b"
-    chat_model: str = "gemma2:2b"
+    chat_model: str
 
     algorithm: str
     access_token_expire_minutes: int
     refresh_token_expire_days: int
+
+    # Hugging Face 
+    flag_model: str
+    rerank_model: str
 
     # ── App ──────────────────────────────────────────────────────────────────
     app_name: str

@@ -1,6 +1,8 @@
 # services/reranker.py
 import asyncio
 from sentence_transformers import CrossEncoder
+from app.config import get_settings
+settings = get_settings()
 
 _reranker = None
 RERANK_SCORE_THRESHOLD = 0.01 # 리랭킹 임계값
@@ -10,7 +12,7 @@ def get_reranker() -> CrossEncoder:
     global _reranker
     if _reranker is None:
         print("리랭커 모델 로드 중...")
-        _reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
+        _reranker = CrossEncoder(settings.rerank_model)
         print("리랭커 모델 로드 완료")
     return _reranker
 
