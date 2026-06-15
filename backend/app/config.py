@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     minio_root_password: str
     minio_use_ssl: bool
 
+    # ── Redis ────────────────────────────────────────────────────────────────
+    redis_url: str
+    presence_ttl: int
+    heartbeat_interval: int
+
     # ── Google OAuth ──────────────────────────────────────────────────────────
     google_client_id: str 
     google_client_secret: str
