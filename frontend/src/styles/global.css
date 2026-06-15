@@ -3255,3 +3255,70 @@ a {
   font-size: 14px;
   padding: 48px 0;
 }
+
+/* 스트리밍 중 이탈 경고 모달 */
+.gd-nav-block-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gd-nav-block-card {
+  background: var(--elev2);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 28px 28px 22px;
+  max-width: 340px;
+  width: calc(100% - 40px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+}
+
+.gd-nav-block-msg {
+  margin: 0 0 24px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.gd-nav-block-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.gd-nav-block-wait {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--dim);
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: color .13s;
+}
+
+.gd-nav-block-wait:hover {
+  color: var(--text);
+}
+
+.gd-nav-block-go {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--mint);
+  color: #000;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: opacity .13s;
+}
+
+.gd-nav-block-go:hover {
+  opacity: .82;
+}

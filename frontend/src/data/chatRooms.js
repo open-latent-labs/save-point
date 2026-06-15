@@ -127,7 +127,7 @@ export async function deleteRoom(sessionId) {
 }
 
 export async function renameRoom(sessionId, name) {
-  const res = await fetch(`${BASE_URL}/api/v1/sessions/${sessionId}`, {
+  const res = await fetch(`${BASE_URL}/v1/sessions/${sessionId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_name: name }),
