@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { CATEGORY_OPTIONS, formatSize, loadFavs, loadPins } from "../data/upload.js";
+import { CATEGORY_OPTIONS, formatSize, loadFavs } from "../data/upload.js";
 import { IconClose, IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
 import { getLinkedOAuth, unlinkOAuth } from "../api/auth.js";
-import { document_list } from "../api/document.js";
+import { document_list, documentPinList } from "../api/document.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 
@@ -46,8 +46,8 @@ export default function MyPageDrawer({ open, onClose }) {
   const { user, logout } = useAuth();
 
   const [myDocs, setMyDocs] = useState([]);
+  const [pinCount, setPinCount] = useState(0);
   const favCount = loadFavs().length;
-  const pinCount = loadPins().length;
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
   const [streaming, setStreaming] = useState(true);
@@ -71,6 +71,9 @@ export default function MyPageDrawer({ open, onClose }) {
         })));
       })
       .catch(() => { });
+    documentPinList()
+      .then((data) => setPinCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => setPinCount(0));
   }, [open]);
 
   useEffect(() => {
@@ -208,7 +211,6 @@ export default function MyPageDrawer({ open, onClose }) {
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {PROVIDERS.map(({ key, label, Icon }) => {
                       const linked = linkedProviders.includes(key);
-                      const isNaver = false;
                       return (
                         <div
                           key={key}
@@ -242,14 +244,13 @@ export default function MyPageDrawer({ open, onClose }) {
                             <button
                               style={{
                                 fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                border: "none", background: isNaver ? "var(--dim)" : "var(--accent)",
-                                color: "#fff", cursor: isNaver ? "not-allowed" : "pointer"
+                                border: "none", background: "var(--accent)",
+                                color: "#fff", cursor: "pointer"
                               }}
-                              disabled={isNaver || oauthLoading}
-                              title={isNaver ? "준비 중" : undefined}
-                              onClick={() => !isNaver && handleLink(key)}
+                              disabled={oauthLoading}
+                              onClick={() => handleLink(key)}
                             >
-                              {isNaver ? "준비 중" : "연결하기"}
+                              연결하기
                             </button>
                           )}
                         </div>

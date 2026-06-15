@@ -151,6 +151,10 @@ async def _get_or_create_oauth_user(
         if user:
             logger.info(f"{provider} 기존 연동 계정 로그인 — user_id={user.user_id}")
             return user
+        # oauth_row는 있지만 연결된 유저가 삭제된 경우 → 고아 행 제거 후 재생성
+        await db.delete(oauth_row)
+        await db.flush()
+        oauth_row = None
 
     # ② 이메일로 기존 유저 조회 (자동 연동)
     user = None
@@ -185,14 +189,14 @@ async def _get_or_create_oauth_user(
         await db.flush()
         logger.success(f"{provider} 신규 사용자 생성 — email={fallback_email}, user_id={user.user_id}")
 
-    # oauth_account 행 추가 (없는 경우만)
-    db.add(UserOAuthAccount(
-        user_id=user.id,
-        provider=provider,
-        provider_user_id=provider_user_id,
-        email=email,
-    ))
-    await db.flush()
+    if not oauth_row:
+        db.add(UserOAuthAccount(
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            email=email,
+        ))
+        await db.flush()
 
     return user
 
