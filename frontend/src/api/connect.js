@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const SSE_URL = `${import.meta.env.VITE_API_URL}/auth/stream`;
+const SSE_URL = `api/auth/stream`;
 
 export function useHeartbeat() {
     useEffect(() => {
