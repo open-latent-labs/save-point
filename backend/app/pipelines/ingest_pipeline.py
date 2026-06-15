@@ -1,6 +1,7 @@
 from app.utils.chunker import split_into_chunks
 from app.schemas.chunk import ChunkMetadata, ChunkResult
-from app.services.embed_service import embed_dense, embed_sparse, store_vectors
+from app.services.embed_service import embed_dense, embed_sparse
+from app.crud.vector_docs import store_vectors
 
 async def ingest(raw_text: str, metadata: ChunkMetadata) -> list[ChunkResult]:
     # 추출본 -> (청킹) -> 청크

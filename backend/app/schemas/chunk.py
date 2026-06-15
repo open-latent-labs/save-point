@@ -8,6 +8,7 @@ class ChunkMetadata(BaseModel):
     page_number: int
     chunk_index: int
     chunk_text: str
+    # deleted_file: str
 
 
 class ChunkInput(BaseModel):
