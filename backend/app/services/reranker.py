@@ -17,7 +17,6 @@ def get_reranker() -> CrossEncoder:
     return _reranker
 
 
-
 async def rerank(question: str, search_results: list[dict], top_k: int = 5) -> list[dict]:
     if not search_results:
         return []

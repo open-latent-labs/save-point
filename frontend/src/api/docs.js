@@ -5,7 +5,7 @@ export async function document_content(id) {
 }
 
 export async function document_delete(document_id) {
-    return apiFetch(`/summary/${document_id}/summary`, {
+    return apiFetch(`/summary/delete/${document_id}`, {
         method: "DELETE",
     });
 }

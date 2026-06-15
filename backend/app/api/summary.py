@@ -7,7 +7,7 @@ from app.dependencies import get_db, get_current_user_id
 
 router = APIRouter(prefix="/summary", tags=["summary"])
 
-@router.delete("/{document_id}/summary")
+@router.delete("/delete/{document_id}")
 async def delete_document(document_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
     result = await crud_delete_document(db, document_id, user_id)
     if result is None:
