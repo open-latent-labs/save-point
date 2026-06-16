@@ -56,6 +56,10 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
     # DB 필터
     search_filter = Filter(
         # https://qdrant.tech/documentation/search/filtering/
+        # 삭제된 문서 제외
+        must_not=[
+            FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+        ],
         # 내 문서이거나 공용문서(인데 내꺼 아닌거) 탐색
         should=[
             # 내 문서
@@ -64,11 +68,10 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
                     FieldCondition(key="user_id", match=MatchValue(value=user_id))
                 ]
             ),
-            # 공용 문서 (APPROVED 상태), 그리고 내 문서 아닌거
+            # 공용 문서 (access_type이 PUBLIC인 것 = 승인된 것), 그리고 내 문서 아닌거
             Filter(
                 must=[
                     FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")),
-                    FieldCondition(key="status", match=MatchValue(value="APPROVED")),
                 ],
                 must_not=[
                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),

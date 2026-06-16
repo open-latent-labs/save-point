@@ -1,11 +1,10 @@
-# services/reranker.py
 import asyncio
 from sentence_transformers import CrossEncoder
 from app.config import get_settings
 settings = get_settings()
 
 _reranker = None
-RERANK_SCORE_THRESHOLD = 0.01 # 리랭킹 임계값
+RERANK_SCORE_THRESHOLD = 0.7 # 리랭킹 임계값
 
 # 싱글톤 구조
 def get_reranker() -> CrossEncoder:

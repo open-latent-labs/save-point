@@ -35,7 +35,7 @@ async def store_vectors(
                 "page_number": metadata.page_number,
                 "chunk_index": i,
                 "chunk_text": chunk,
-                "deleted_file": "none",
+                "deleted_file": metadata.deleted_file,
             },
         )
         for i, (point_id, chunk, dense_vector, sparse) in enumerate(
@@ -58,7 +58,7 @@ async def store_vectors(
         for i, (point_id, chunk) in enumerate(zip(point_ids, chunks))
     ]
 
-# 상태 업데이튼
+# 상태 업데이트
 async def update_document_payload(document_id: str, *, access_type: str | None = None, deleted_file: str | None = None,) -> None:
     payload: dict = {}
     if access_type is not None:
