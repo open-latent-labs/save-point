@@ -33,6 +33,15 @@ async def get_document(db: AsyncSession, document_id: str) -> Document:
     return result.scalar_one()
 
 
+async def get_processing_jobs(db: AsyncSession, document_id: str) -> list[ProcessingJob]:
+    result = await db.execute(
+        select(ProcessingJob)
+        .where(ProcessingJob.document_id == document_id)
+        .order_by(ProcessingJob.queued_at)
+    )
+    return list(result.scalars().all())
+
+
 async def create_document_record(
     db: AsyncSession,
     user_id: str,

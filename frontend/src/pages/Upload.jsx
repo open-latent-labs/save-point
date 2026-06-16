@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
-// import UploadCompleteModal from "../components/UploadCompleteModal.jsx";
 import { IconUpload, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
 import {
   ACCEPT, validateFile, extOf, guessCategory, formatSize,
@@ -156,15 +155,10 @@ export default function Upload() {
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
   const [dragging, setDragging] = useState(false);
-  // const [showModal, setShowModal] = useState(false);
-  // const [modalStats, setModalStats] = useState([
-  //   { value: 1, label: "처리 문서", iconType: "document" },
-  //   { value: "6,842", label: "요약 토큰", iconType: "lines" },
-  //   { value: "게임 프로그래밍", label: "분류 카테고리", iconType: "tag" },
-  // ]);
   const inputRef = useRef(null);
   const xhrRef = useRef({});
-  const prevUploadingRef = useRef(false);
+  const esRef = useRef({});
+  const notifiedItemIds = useRef(new Set());
 
   // ── 내 문서 state ──
   const [myDocs, setMyDocs] = useState([]);
@@ -334,17 +328,82 @@ export default function Upload() {
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it)));
-        setPage(1);
-        setRefreshKey((k) => k + 1);
+        try {
+          const res = JSON.parse(xhr.responseText);
+          const documentId = res.document_id;
+
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === id ? { ...it, status: "processing", progress: 100, documentId } : it
+            )
+          );
+          setPage(1);
+          setRefreshKey((k) => k + 1);
+
+          if (documentId) {
+            const es = new EventSource(
+              `/api/documents/${documentId}/status/stream`,
+              { withCredentials: true }
+            );
+            esRef.current[id] = es;
+
+            const finish = () => {
+              es.close();
+              delete esRef.current[id];
+              setItems((prev) =>
+                prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
+              );
+              setPage(1);
+              setRefreshKey((k) => k + 1);
+              // 3초 후 항목 자동 제거 (문서 목록에 반영됨)
+              setTimeout(
+                () => setItems((prev) => prev.filter((it) => it.id !== id)),
+                3000
+              );
+            };
+
+            es.addEventListener("status", (e) => {
+              const data = JSON.parse(e.data);
+              setItems((prev) =>
+                prev.map((it) =>
+                  it.id === id
+                    ? { ...it, processingJobs: data.jobs, documentStatus: data.document_status }
+                    : it
+                )
+              );
+              if (["DONE", "PENDING", "APPROVED"].includes(data.document_status)) finish();
+            });
+
+            es.addEventListener("failed", () => finish());
+            es.addEventListener("timeout", () => finish());
+            es.onerror = () => finish();
+          }
+        } catch {
+          // JSON 파싱 실패 시 업로드 성공으로 처리
+          setItems((prev) =>
+            prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
+          );
+          setPage(1);
+          setRefreshKey((k) => k + 1);
+          setTimeout(
+            () => setItems((prev) => prev.filter((it) => it.id !== id)),
+            3000
+          );
+        }
       } else {
-        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "error", error: `서버 오류 (${xhr.status})` } : it)));
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === id ? { ...it, status: "error", error: `서버 오류 (${xhr.status})` } : it
+          )
+        );
       }
       delete xhrRef.current[id];
     };
 
     xhr.onerror = () => {
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "error", error: "네트워크 오류" } : it)));
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, status: "error", error: "네트워크 오류" } : it))
+      );
       delete xhrRef.current[id];
     };
 
@@ -372,6 +431,8 @@ export default function Upload() {
           progress: 0,
           error,
           file: f,
+          documentId: null,
+          processingJobs: [],
         };
       });
       setItems((prev) => [...prev, ...created]);
@@ -389,49 +450,61 @@ export default function Upload() {
   const removeItem = (id) => {
     xhrRef.current[id]?.abort();
     delete xhrRef.current[id];
+    esRef.current[id]?.close();
+    delete esRef.current[id];
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
+
   const setCategory = (id, category) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, category } : it)));
 
-  useEffect(() => () => { Object.values(xhrRef.current).forEach((xhr) => xhr.abort()); }, []);
+  // 언마운트 시 진행 중인 모든 XHR·EventSource 정리
+  useEffect(() => () => {
+    Object.values(xhrRef.current).forEach((xhr) => xhr.abort());
+    Object.values(esRef.current).forEach((es) => es.close());
+  }, []);
 
-  const doneCount = items.filter((i) => i.status === "done").length;
+  const processingItems = items.filter((i) => i.status === "processing" || i.status === "done");
   const errorItems = items.filter((i) => i.status === "error");
   const uploading = items.some((i) => i.status === "uploading");
-  const overallProgress = items.length > 0
-    ? Math.round(items.reduce((sum, i) => sum + i.progress, 0) / items.length)
+  const uploadingItems = items.filter((i) => i.status === "uploading");
+  const overallProgress = uploadingItems.length > 0
+    ? Math.round(uploadingItems.reduce((sum, i) => sum + i.progress, 0) / uploadingItems.length)
     : 0;
-  // 업로드 완료 → 요약 완료 알림 (Notification API)
+
+  // 처리 완료 알림 (Notification API)
   useEffect(() => {
-    if (prevUploadingRef.current && !uploading && doneCount > 0) {
-      const doneItems = items.filter((i) => i.status === "done");
-      const catCounts = doneItems.reduce((acc, i) => { acc[i.category] = (acc[i.category] || 0) + 1; return acc; }, {});
-      const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "기타";
-      const docNames = doneItems.map((i) => i.name).join(", ");
+    const newlyDone = items.filter(
+      (i) => i.status === "done" && !notifiedItemIds.current.has(i.id)
+    );
+    if (!newlyDone.length) return;
 
-      // const [모달 비활성]
-      // setModalStats([...]);
-      // setTimeout(() => setShowModal(true), 400);
+    newlyDone.forEach((i) => notifiedItemIds.current.add(i.id));
 
-      const showNotification = async () => {
-        const icon = await makeSquareIcon("/logo.png");
-        new Notification("문서 요약 완료", {
-          body: `${docNames} · ${catLabel[topCat] || topCat}`,
-          icon,
-        });
-      };
+    const catCounts = newlyDone.reduce((acc, i) => {
+      const cat = i.category || "기타";
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+    const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "기타";
+    const docNames = newlyDone.map((i) => i.name).join(", ");
 
-      if (Notification.permission === "granted") {
-        setTimeout(showNotification, 400);
-      } else if (Notification.permission !== "denied") {
-        Notification.requestPermission().then((p) => {
-          if (p === "granted") setTimeout(showNotification, 400);
-        });
-      }
+    const showNotification = async () => {
+      const icon = await makeSquareIcon("/logo.png");
+      new Notification("문서 처리 완료", {
+        body: `${docNames} · ${catLabel[topCat] || topCat}`,
+        icon,
+      });
+    };
+
+    if (Notification.permission === "granted") {
+      setTimeout(showNotification, 400);
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((p) => {
+        if (p === "granted") setTimeout(showNotification, 400);
+      });
     }
-    prevUploadingRef.current = uploading;
-  }, [uploading, doneCount, items]);
+  }, [items]);
 
   return (
     <div className="gd-page">
@@ -487,7 +560,7 @@ export default function Upload() {
                   }} />
                 </div>
                 <span style={{ fontSize: 12, color: "var(--dim)" }}>
-                  {overallProgress}% 업로드 중 · {doneCount} / {items.length} 완료
+                  {overallProgress}% 업로드 중 · {uploadingItems.length}개 남음
                 </span>
               </div>
             )}
@@ -502,13 +575,28 @@ export default function Upload() {
             />
           </div>
 
+          {/* ── AI 처리 중인 항목 ── */}
+          {processingItems.length > 0 && (
+            <div className="gd-up-list">
+              <div className="gd-up-listhead">
+                <span>
+                  AI 처리 중 {processingItems.filter((i) => i.status === "processing").length}개
+                </span>
+              </div>
+              {processingItems.map((it) => (
+                <UploadItem key={it.id} item={it} onRemove={removeItem} onCategory={setCategory} />
+              ))}
+            </div>
+          )}
+
+          {/* ── 업로드 오류 항목 ── */}
           {errorItems.length > 0 && (
             <div className="gd-up-list">
               <div className="gd-up-listhead">
                 <span>오류 {errorItems.length}개</span>
                 <button
                   className="gd-up-clear"
-                  onClick={() => { items.forEach((i) => clearTimeout(timersRef.current[i.id])); timersRef.current = {}; setItems([]); }}
+                  onClick={() => setItems((prev) => prev.filter((i) => i.status !== "error"))}
                 >
                   전체 비우기
                 </button>
