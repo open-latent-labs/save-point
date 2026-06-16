@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
-import { document_content, document_delete, document_update_access } from "../api/docs.js";
+import { document_content, document_original, document_delete, document_update_access } from "../api/docs.js";
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
@@ -9,33 +9,36 @@ export default function Docs() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [docData, setDocData] = useState(() => {
-    const saved = localStorage.getItem(`gamedocs_edited_${docId}`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return null;
-  });
+  const isOriginalView = location.pathname.includes("/original");
+
+  const [docData, setDocData] = useState(null);
+  const [originalData, setOriginalData] = useState(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem(`gamedocs_edited_${docId}`);
-    if (saved) {
-      try {
-        setDocData(JSON.parse(saved));
+    if (isOriginalView) {
+      document_original(docId).then((data) => setOriginalData(data));
+    } else {
+      const saved = localStorage.getItem(`gamedocs_edited_${docId}`);
+      if (saved) {
+        try {
+          setDocData(JSON.parse(saved));
+          setIsEditing(false);
+          return;
+        } catch (e) { console.error(e); }
+      }
+      document_content(docId).then((data) => {
+        setDocData(data);
         setIsEditing(false);
-        return;
-      } catch (e) { console.error(e); }
+      });
     }
-    document_content(docId).then((data) => {
-      setDocData(data);
-      setIsEditing(false);
-    });
-  }, [docId]);
+  }, [docId, isOriginalView]);
 
-  if (!docData) {
+  const activeData = isOriginalView ? originalData : docData;
+
+  if (!activeData) {
     return (
       <div className="gd-page">
         <Topbar onMenu={onMenu} onProfile={onProfile} />
@@ -50,7 +53,7 @@ export default function Docs() {
     );
   }
 
-  const normalizedDesc = docData.summary?.summary || "";
+  const normalizedDesc = docData?.summary?.summary || "";
   const isEmpty = !normalizedDesc;
 
   const handleEditStart = () => {
@@ -89,6 +92,8 @@ export default function Docs() {
     boxSizing: "border-box",
   };
 
+  const btnStyle = "flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--mint-strong)]/40 text-[var(--mint)]/70 bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--mint)] hover:text-[var(--mint)]";
+
   return (
     <div className="gd-page">
       <Topbar onMenu={onMenu} onProfile={onProfile} />
@@ -96,7 +101,7 @@ export default function Docs() {
         <div className="gd-doc-wrap">
           <div className="gd-doc-card">
             {/* 브레드크럼 */}
-            {docData.summary?.category && (
+            {!isOriginalView && docData?.summary?.category && (
               <nav className="gd-breadcrumb">
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="gd-breadcrumb-item">{docData.summary.category}</span>
@@ -106,11 +111,18 @@ export default function Docs() {
 
             {/* 제목 */}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h1 className="gd-doc-title" style={{ margin: 0 }}>{docData.document.filename}</h1>
-              {!location.pathname.includes("original") && (
+              <h1 className="gd-doc-title" style={{ margin: 0 }}>{activeData.document.filename}</h1>
+              {isOriginalView ? (
+                <button
+                  onClick={() => navigate(location.pathname.replace("/original", ""))}
+                  className={btnStyle}
+                >
+                  요약내용 보기
+                </button>
+              ) : (
                 <button
                   onClick={() => navigate(location.pathname.replace(/\/$/, "") + "/original")}
-                  className="flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--mint-strong)]/40 text-[var(--mint)]/70 bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--mint)] hover:text-[var(--mint)]"
+                  className={btnStyle}
                 >
                   원문내용 보기
                 </button>
@@ -124,69 +136,87 @@ export default function Docs() {
             </div>
 
             {/* 메타 */}
-            {docData.document?.created_at && (
-              <p className="gd-doc-meta">{docData.document.created_at}</p>
+            {activeData.document?.created_at && (
+              <p className="gd-doc-meta">{activeData.document.created_at}</p>
             )}
 
-            {/* 전체 요약 영역 */}
-            <div style={{ marginTop: 16, marginBottom: 24 }}>
-              {isEditing ? (
-                <div>
-                  <textarea
-                    value={draftDesc}
-                    onChange={(e) => setDraftDesc(e.target.value)}
-                    placeholder="요약 내용을 입력해주세요."
-                    style={textareaStyle}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "var(--mint)";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(54, 224, 161, .12)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "var(--border-strong)";
-                      e.target.style.boxShadow = "none";
-                    }}
-                    autoFocus
-                  />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={handleSave}
-                      style={{ padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: "var(--mint-strong)", color: "var(--mint-deep)", border: "none", cursor: "pointer" }}
-                    >
-                      저장
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      style={{ padding: "6px 16px", borderRadius: 6, fontSize: 12, border: "1px solid var(--border)", color: "var(--dim)", background: "transparent", cursor: "pointer" }}
-                    >
-                      취소
-                    </button>
+            {/* 원문 내용 */}
+            {isOriginalView ? (
+              <div style={{ marginTop: 16, marginBottom: 24 }}>
+                {originalData?.raw_text ? (
+                  <div
+                    className="gd-doc-desc"
+                    style={{ margin: "0 0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "var(--font-mono, monospace)", fontSize: "13px", lineHeight: 1.8 }}
+                  >
+                    {originalData.raw_text}
                   </div>
-                </div>
-              ) : (
-                <div>
-                  {isEmpty ? (
-                    <p style={{ color: "var(--faint)", fontSize: "13.5px", margin: "0 0 12px" }}>
-                      요약 내용이 비어 있습니다.
-                    </p>
-                  ) : (
-                    <div
-                      className="gd-doc-desc"
-                      style={{ margin: "0 0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-                    >
-                      {normalizedDesc}
+                ) : (
+                  <p style={{ color: "var(--faint)", fontSize: "13.5px", margin: "0 0 12px" }}>
+                    원문 내용이 없습니다.
+                  </p>
+                )}
+              </div>
+            ) : (
+              /* 요약 영역 */
+              <div style={{ marginTop: 16, marginBottom: 24 }}>
+                {isEditing ? (
+                  <div>
+                    <textarea
+                      value={draftDesc}
+                      onChange={(e) => setDraftDesc(e.target.value)}
+                      placeholder="요약 내용을 입력해주세요."
+                      style={textareaStyle}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = "var(--mint)";
+                        e.target.style.boxShadow = "0 0 0 3px rgba(54, 224, 161, .12)";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = "var(--border-strong)";
+                        e.target.style.boxShadow = "none";
+                      }}
+                      autoFocus
+                    />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={handleSave}
+                        style={{ padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: "var(--mint-strong)", color: "var(--mint-deep)", border: "none", cursor: "pointer" }}
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        style={{ padding: "6px 16px", borderRadius: 6, fontSize: 12, border: "1px solid var(--border)", color: "var(--dim)", background: "transparent", cursor: "pointer" }}
+                      >
+                        취소
+                      </button>
                     </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button
-                      onClick={handleEditStart}
-                      className="px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
-                    >
-                      전체 수정
-                    </button>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div>
+                    {isEmpty ? (
+                      <p style={{ color: "var(--faint)", fontSize: "13.5px", margin: "0 0 12px" }}>
+                        요약 내용이 비어 있습니다.
+                      </p>
+                    ) : (
+                      <div
+                        className="gd-doc-desc"
+                        style={{ margin: "0 0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                      >
+                        {normalizedDesc}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={handleEditStart}
+                        className="px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
+                      >
+                        전체 수정
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
