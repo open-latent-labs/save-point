@@ -3,6 +3,7 @@ import { useSearchParams, useOutletContext, useBlocker } from "react-router-dom"
 import Topbar from "../components/Topbar.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
+import DocSelectModal from "../components/DocSelectModal.jsx";
 import { SUGGESTIONS } from "../data/mock.js";
 import { pushHistory } from "../data/history.js";
 import { streamChat } from "../api/chat.js";
@@ -27,6 +28,10 @@ export default function Chat() {
   const [roomTitle, setRoomTitle] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+
+  // 문서 선택 모달
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [selectedDocs, setSelectedDocs] = useState([]); // [{ id, filename }]
 
   const scrollRef = useRef(null);
   const titleInputRef = useRef(null);
@@ -198,11 +203,13 @@ export default function Chat() {
           });
           abortMapRef.current.delete(capturedRoomId);
         }
+      ,
+        selectedDocs.map((d) => d.id)
       );
 
       abortMapRef.current.set(roomToUse, abort);
     },
-    [busyRooms, currentRoomId, setSearchParams]
+    [busyRooms, currentRoomId, setSearchParams, selectedDocs]
   );
 
   // URL ?q= 첫 메시지 자동 전송
@@ -302,19 +309,49 @@ export default function Chat() {
 
       <div className="gd-chat-bottom">
         <div className="gd-chat-bottom-inner">
-          <SearchBar
-            value={input}
-            onChange={setInput}
-            onSubmit={onSubmit}
-            placeholder="질문을 입력하세요"
-            variant="send"
-            disabled={busy}
-          />
+          {/* 선택된 문서 칩 */}
+          {selectedDocs.length > 0 && (
+            <div className="gd-doc-chips">
+              {selectedDocs.map((d) => (
+                <span key={d.id} className="gd-doc-chip">
+                  {d.filename}
+                  <button
+                    className="gd-doc-chip-remove"
+                    onClick={() => setSelectedDocs((prev) => prev.filter((x) => x.id !== d.id))}
+                  >✕</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="gd-composer-row">
+            <button
+              className="gd-doc-add-btn"
+              onClick={() => setShowDocModal(true)}
+              title="RAG 문서 선택"
+              disabled={busy}
+            >+</button>
+            <SearchBar
+              value={input}
+              onChange={setInput}
+              onSubmit={onSubmit}
+              placeholder="질문을 입력하세요"
+              variant="send"
+              disabled={busy}
+            />
+          </div>
           <div className="gd-composer-hint">
-            <kbd>Enter</kbd> 전송 · GameDocs.AI 는 mock 데이터로 동작하는 데모입니다
+            <kbd>Enter</kbd> 전송 · {selectedDocs.length > 0 ? `${selectedDocs.length}개 문서로 RAG 검색 중` : "전체 문서 자동 검색"}
           </div>
         </div>
       </div>
+
+      {showDocModal && (
+        <DocSelectModal
+          initialSelected={selectedDocs}
+          onConfirm={(docs) => { setSelectedDocs(docs); setShowDocModal(false); }}
+          onClose={() => setShowDocModal(false)}
+        />
+      )}
 
       {blocker.state === "blocked" && (
         <div className="gd-nav-block-overlay">

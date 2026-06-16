@@ -12,7 +12,7 @@ from app.config import get_settings
 
 settings = get_settings()
 
-async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncSession):
+async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncSession, selected_document_ids: list[str] = []):
     # 질문 저장
     await save_message(
         db=db,
@@ -23,7 +23,7 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     )
 
     # 질문, id -> query_pipeline -> [프롬프트, 출처] 받기
-    result = await query(question, user_id)
+    result = await query(question, user_id, selected_document_ids)
 
     ''' 
     # query에서 관련 문서를 찾지 못해 prompt가 None으로 넘어온 경우에 쓰려고 적은건데 이제 그럴 일 없음
@@ -48,7 +48,7 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     start = time.time()
     async for token in generate_stream(result["prompt"]):
         full_answer += token
-        yield f"data: {token}\n\n"
+        yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
 
     # 답변 저장 — LLM 스트리밍 중 asyncpg 연결이 idle timeout으로
     # PostgreSQL에 의해 끊길 수 있으므로 새 독립 세션 사용

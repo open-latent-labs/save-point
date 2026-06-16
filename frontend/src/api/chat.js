@@ -29,7 +29,7 @@ SSE -> GET만 가능, 커스텀 헤더 불가 / 데이터 형식 자동 파싱, 
  * @returns {() => void} abort 함수 (중지 버튼용)
  */
 // 이벤트 핸들러 네이밍 컨벤션 -> [ON + 이벤트명] 형태는 ~할때 실행되는 함수라는 암묵적 의미
-export function streamChat(question, userId, sessionId, onToken, onSources, onDone) {
+export function streamChat(question, userId, sessionId, onToken, onSources, onDone, selectedDocumentIds = []) {
   // 스트리밍 도중에 강제 중지할 수 있는 컨트롤러
   // 브라우저 내장 WEB API.
   const controller = new AbortController();
@@ -43,7 +43,7 @@ export function streamChat(question, userId, sessionId, onToken, onSources, onDo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ question, user_id: userId, session_id: sessionId }),
+        body: JSON.stringify({ question, user_id: userId, session_id: sessionId, selected_document_ids: selectedDocumentIds }),
         // 이후 [controller.abort()] 함수의 말을 듣게 미리 명령. controller.signal과 controller.abort()는 쌍
         signal: controller.signal,
       });
@@ -78,7 +78,7 @@ export function streamChat(question, userId, sessionId, onToken, onSources, onDo
           }
 
           //위 두 케이스(종료, 출처)가 아니면 일반 데이터임으로 받아서 화면에 렌더
-          onToken(data);
+          onToken(JSON.parse(data));
         }
       }
     } catch (err) {
