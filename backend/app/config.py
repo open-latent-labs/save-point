@@ -27,13 +27,17 @@ class Settings(BaseSettings):
     chunk_overlap: int
 
     # Ollama
-    ollama_base_url: str = "http://localhost:11434"
-    summary_model: str = "gemma2:9b"
-    chat_model: str = "gemma2:9b"
+    ollama_base_url: str
+    summary_model: str = "gemma2:2b"
+    chat_model: str
 
     algorithm: str
     access_token_expire_minutes: int
     refresh_token_expire_days: int
+
+    # Hugging Face 
+    flag_model: str
+    rerank_model: str
 
     # ── App ──────────────────────────────────────────────────────────────────
     app_name: str
@@ -48,6 +52,11 @@ class Settings(BaseSettings):
     minio_root_user: str
     minio_root_password: str
     minio_use_ssl: bool
+
+    # ── Redis ────────────────────────────────────────────────────────────────
+    redis_url: str
+    presence_ttl: int
+    heartbeat_interval: int
 
     # ── Google OAuth ──────────────────────────────────────────────────────────
     google_client_id: str 

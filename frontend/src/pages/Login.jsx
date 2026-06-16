@@ -7,7 +7,7 @@ import { validateLogin } from "../data/validate.js";
 import { loginApi } from "../api/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "/api";
 
 export default function Login() {
   // authLoading: 앱 시작 시 /auth/me 검증 완료 여부

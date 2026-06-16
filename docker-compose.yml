@@ -1,13 +1,13 @@
-version: '3.8'
-
 services:
   save-point:
     build: .
     container_name: save-point-allinone
+    env_file:
+      - ./backend/.env
     ports:
       - "0.0.0.0:8000:8000"   # FastAPI
       - "0.0.0.0:5432:5432"   # PostgreSQL
-      - "0.0.0.0:6379:6379"   # Redis
+      - "0.0.0.0:6380:6379"   # Redis (host 6380 → container 6379)
       - "0.0.0.0:9000:9000"   # MinIO API
       - "0.0.0.0:9001:9001"   # MinIO Console
       - "0.0.0.0:6333:6333"   # Qdrant REST

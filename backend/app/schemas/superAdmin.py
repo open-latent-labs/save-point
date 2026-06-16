@@ -33,6 +33,7 @@ class UserResponse(BaseModel):
     img_url: str | None = None
     created_at: datetime
     updated_at: datetime
+    last_active_at: datetime | None = None
 
 
 class UserListResponse(BaseModel):

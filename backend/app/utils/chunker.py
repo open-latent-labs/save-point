@@ -1,27 +1,16 @@
-from pydantic import BaseModel
+from dataclasses import dataclass
+
 from app.config import get_settings
 
 settings = get_settings()
 
-class ChunkMetadata(BaseModel):
-    document_id: str
-    user_id: str
-    access_type: str
-    filename: str
-    page_number: int
+
+@dataclass
+class ChunkResult:
     chunk_index: int
     chunk_text: str
-
-
-class ChunkInput(BaseModel):
-    raw_text: str
-    metadata: ChunkMetadata
-
-class ChunkResult(BaseModel):
-    vector_point_id: str
-    chunk_index: int
-    chunk_text: str
-    page_number: int
+    page_number: int | None
+    vector_point_id: str | None
 
 # (이거 받아서) -> 이거 반환해요 :: 미리 반환값 표시해주는 문법
 def split_into_chunks(raw_text: str) -> list[str]:

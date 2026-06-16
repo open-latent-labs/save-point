@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -8,11 +7,7 @@ from app.db.rdb import Base
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
-
-    __table_args__ = (
-        Index("idx_chat_sessions_user", "user_id"),
-    )
-
+    __table_args__ = (Index("idx_chat_sessions_user", "user_id"),)
     id: Mapped[str] = mapped_column(String(26), primary_key=True)
 
     user_id: Mapped[str] = mapped_column(

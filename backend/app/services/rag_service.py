@@ -1,4 +1,3 @@
-# rag_service.py
 import httpx
 import asyncio
 from qdrant_client.models import Filter, FieldCondition, MatchValue, SparseVector, FusionQuery, Fusion, Prefetch
@@ -21,9 +20,9 @@ async def embed_query_dense(query: str) -> list[float]:
 # SPARSE :: 키워드 기반 
 # 질문을 임베딩(숫자 리스트)로 변경
 def _run_sparse(query: str) -> dict:
-    # 같은 bge 모델을 사용하는데 왜 SPARSE 모드로 사용하겠다고 따로 모드를 불러와야하는가?
+    # 같은 bge 모델을 사용하는데 왜 SPARSE 모드로 사용하겠다고 따로 모델을 불러와야하는가?
     # 설정만 변경하면 되는게 아닌지?
-    # -> 올라마는 dense 벡터만 반환하기 때문에.
+    # -> 올라마는 dense 벡터만 반환하기 때문에.(과일 가게긴 한데 여긴 망고만 팔지 애플 망고는 안 판다는 소리)
     # sparse는 bge-m3의 lexical_weights를 직접 뽑아야 하는데, 이건 FlagEmbedding 라이브러리를 통해서만 접근 가능
     # = 올라마가 쓰려는 모드를 지원 안해서 다른 루트로 모델 가져온다는 뜻
     model = get_flag_model()
@@ -57,6 +56,10 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
     # DB 필터
     search_filter = Filter(
         # https://qdrant.tech/documentation/search/filtering/
+        # 삭제된 문서 제외
+        must_not=[
+            FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+        ],
         # 내 문서이거나 공용문서(인데 내꺼 아닌거) 탐색
         should=[
             # 내 문서
@@ -65,11 +68,10 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
                     FieldCondition(key="user_id", match=MatchValue(value=user_id))
                 ]
             ),
-            # 공용 문서 (APPROVED 상태), 그리고 내 문서 아닌거
+            # 공용 문서 (access_type이 PUBLIC인 것 = 승인된 것), 그리고 내 문서 아닌거
             Filter(
                 must=[
                     FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")),
-                    FieldCondition(key="status", match=MatchValue(value="APPROVED")),
                 ],
                 must_not=[
                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),

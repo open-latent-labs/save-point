@@ -9,6 +9,7 @@ import MyPageDrawer from "./MyPageDrawer.jsx";
 import MergeConfirmModal from "./MergeConfirmModal.jsx";
 import { useSidebar } from "../hooks/useSidebar.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
+import { useHeartbeat } from "../api/connect.js";
 
 const EASE = [0.4, 0, 0.2, 1];
 
@@ -24,6 +25,7 @@ function FrozenOutlet({ context }) {
 }
 
 export default function Shell() {
+  useHeartbeat();
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useSidebar();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();

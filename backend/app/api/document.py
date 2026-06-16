@@ -10,15 +10,17 @@ from app.crud.document import bookmark as bookmark_crud, bookmark_delete as book
 from app.crud.document import cancel_public_request as cancel_public_request_crud
 from app.crud.document import list as list_crud
 from app.crud.document import pin as pin_crud, pin_delete as pin_delete_crud, pin_list as pin_list_crud
-from app.crud.document import request_public as request_public_crud
 from app.crud.upload_document import get_document, get_processing_jobs
 from app.db.rdb import AsyncSessionLocal
 from app.dependencies import get_current_user_id, get_db
 from app.models.enums import DocumentStatus, JobStatus
+from app.crud.document import request_public as request_public_crud, cancel_public_request as cancel_public_request_crud
+from app.crud.document import public_list as public_list_crud
+
 from app.schemas.document import DocumentUploadResponse, ListRequest
 from app.services.document_service import run_processing_pipeline, start_upload
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"])
 
 _TERMINAL_STATUSES = {DocumentStatus.DONE, DocumentStatus.PENDING, DocumentStatus.APPROVED}
 _POLL_INTERVAL = 3.0
@@ -104,6 +106,9 @@ async def stream_processing_status(
 
     return EventSourceResponse(generate())
 
+@router.get("/public")
+async def public_list(db: AsyncSession = Depends(get_db)):
+    return await public_list_crud(db)
 
 @router.post("/list")
 async def list(body: ListRequest, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
@@ -128,7 +133,6 @@ async def delete_pin_document(document_id: str, db: AsyncSession = Depends(get_d
 
 @router.get("/pin/list")
 async def pin_list(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    print(user_id)
     return await pin_list_crud(db, user_id)
 
 

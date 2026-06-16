@@ -1,18 +1,23 @@
 import re
 import secrets
 import string
+import asyncio
+import json
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, Request
+from fastapi.responses import RedirectResponse, StreamingResponse
 from loguru import logger
 from passlib.context import CryptContext
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.presence import service
+from app.presence.pubsub import manager
+
 from app.config import settings
-from app.dependencies import get_db, require_auth
+from app.dependencies import get_db, require_auth, get_current_user_id
 from app.models.bookmarked_document import BookmarkedDocument
 from app.models.chat_session import ChatSession
 from app.models.document import Document
@@ -151,6 +156,10 @@ async def _get_or_create_oauth_user(
         if user:
             logger.info(f"{provider} 기존 연동 계정 로그인 — user_id={user.user_id}")
             return user
+        # oauth_row는 있지만 연결된 유저가 삭제된 경우 → 고아 행 제거 후 재생성
+        await db.delete(oauth_row)
+        await db.flush()
+        oauth_row = None
 
     # ② 이메일로 기존 유저 조회 (자동 연동)
     user = None
@@ -185,14 +194,14 @@ async def _get_or_create_oauth_user(
         await db.flush()
         logger.success(f"{provider} 신규 사용자 생성 — email={fallback_email}, user_id={user.user_id}")
 
-    # oauth_account 행 추가 (없는 경우만)
-    db.add(UserOAuthAccount(
-        user_id=user.id,
-        provider=provider,
-        provider_user_id=provider_user_id,
-        email=email,
-    ))
-    await db.flush()
+    if not oauth_row:
+        db.add(UserOAuthAccount(
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            email=email,
+        ))
+        await db.flush()
 
     return user
 
@@ -247,6 +256,7 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
 
     payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(payload), create_refresh_token(payload))
+    await service.heartbeat(user.id)
     return TokenResponse(user=_user_info(user))
 
 
@@ -276,9 +286,13 @@ async def refresh(response: Response, sp_refresh: str = Cookie(None), db: AsyncS
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, payload: dict = Depends(require_auth)):
+    try:
+        await service.go_offline(payload["sub"])
+    except Exception as e:
+        logger.warning(f"[logout] presence 정리 실패 (무시하고 진행) user={payload['sub']}: {e}")
     _clear_auth_cookies(response)
-    return {"message": "로그아웃 되었습니다."}
+    return {"status": "offline", "message": "로그아웃 되었습니다."}
 
 
 @router.get("/me", response_model=UserInfo)
@@ -785,3 +799,51 @@ async def merge_cancel(response: Response):
     response.delete_cookie("sp_merge_drop", path="/", samesite="lax")
     response.delete_cookie("sp_link_uid",   path="/", samesite="lax")
     return {"ok": True}
+
+
+@router.get("/stream")
+async def stream(request: Request, user_id: str = Depends(get_current_user_id)):
+    """SSE. 연결 시 online 마킹 + 초기 스냅샷 전송 후, 로컬 큐를 통해 실시간 이벤트 수신."""
+    try:
+        await service.heartbeat(user_id)
+    except Exception as e:
+        logger.warning(f"[stream] heartbeat 실패 (Redis 연결 불가): {e}")
+
+    queue = await manager.subscribe()
+
+    async def event_generator():
+        try:
+            # 1) 초기 스냅샷
+            try:
+                snapshot = await service.online_user_ids()
+            except Exception:
+                snapshot = []
+            yield f"event: snapshot\ndata: {json.dumps({'online': snapshot})}\n\n"
+
+            # 2) 실시간 이벤트 + keep-alive
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"event: presence\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    # keep-alive 겸 TTL 연장
+                    try:
+                        await service.heartbeat(user_id)
+                    except Exception:
+                        pass
+                    yield ": keep-alive\n\n"
+        finally:
+            await manager.unsubscribe(queue)
+            try:
+                await service.go_offline(user_id)
+            except Exception as e:
+                logger.warning(f"[stream] go_offline 실패: {e}")
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",  # Nginx 버퍼링 비활성화 (SSE 필수)
+    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)

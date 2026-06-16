@@ -167,6 +167,7 @@ export default function Upload() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [favIds, setFavIds] = useState(() => loadFavs());
   const [pinIds, setPinIds] = useState(() => loadPins());
+  const [pinError, setPinError] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [visFilter, setVisFilter] = useState("all");
@@ -255,7 +256,8 @@ export default function Upload() {
   const togglePin = async (id) => {
     const isCurrentlyPinned = pinIds.includes(id);
     if (!isCurrentlyPinned && pinIds.length >= 3) {
-      alert("고정 문서는 최대 3개까지 설정할 수 있습니다.");
+      setPinError("고정 문서는 최대 3개까지 설정할 수 있습니다.");
+      setTimeout(() => setPinError(""), 3000);
       return;
     }
     const next = isCurrentlyPinned ? pinIds.filter((p) => p !== id) : [...pinIds, id];
@@ -267,10 +269,15 @@ export default function Upload() {
       } else {
         await documentPin(id, true);
       }
+      window.dispatchEvent(new Event("gamedocs:pins"));
     } catch (e) {
       console.error(e);
       setPinIds(pinIds);
       savePins(pinIds);
+      if (e.message?.includes("3개")) {
+        setPinError("고정 문서는 최대 3개까지 설정할 수 있습니다.");
+        setTimeout(() => setPinError(""), 3000);
+      }
     }
   };
 
@@ -503,6 +510,18 @@ export default function Upload() {
     <div className="gd-page">
       <Topbar onMenu={onMenu} onProfile={onProfile} />
 
+      {/* <UploadCompleteModal isOpen={showModal} onClose={() => setShowModal(false)} stats={modalStats} /> */}
+      {pinError && (
+        <div style={{
+          position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)",
+          background: "rgba(255,77,79,.15)", border: "1px solid rgba(255,77,79,.6)",
+          color: "#ff8080", padding: "12px 20px", borderRadius: 10,
+          zIndex: 9999, fontSize: 13, fontWeight: 600, fontFamily: "var(--font-sans)",
+          boxShadow: "0 8px 32px rgba(255,77,79,.15)", whiteSpace: "nowrap",
+        }}>
+          ⚠ {pinError}
+        </div>
+      )}
       <div className="gd-page-scroll">
         <div className="gd-up-wrap" style={{ paddingTop: "0px" }}>
 
