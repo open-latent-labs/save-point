@@ -4,12 +4,15 @@ from app.services.reranker import rerank
 from app.utils.profiler import profile # 리소스 확인용
 
 # 채팅 파이프라인
-async def query(question: str, user_id: str) -> dict:
+async def query(question: str, user_id: str, selected_document_ids: list[str] = []) -> dict:
 
     dense_vector = await embed_query_dense(question)
     sparse_vector = await embed_query_sparse(question)
 
-    search_results = await search_vectors(dense_vector, sparse_vector, user_id)
+    search_results = await search_vectors(
+        dense_vector, sparse_vector, user_id,
+        document_ids=selected_document_ids if selected_document_ids else None,
+    )
 
     # 문서 못 찾으면 none_source 프롬프트로 LLM에 질문
     if not search_results:

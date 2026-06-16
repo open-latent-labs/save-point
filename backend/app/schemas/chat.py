@@ -5,6 +5,7 @@ class ChatRequest(BaseModel):
     question: str
     user_id: str
     session_id: str
+    selected_document_ids: list[str] = []
 
 class SessionCreateRequest(BaseModel):
     user_id: str

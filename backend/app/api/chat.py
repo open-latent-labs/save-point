@@ -54,6 +54,6 @@ async def get_chat_messages(session_id: str, db: AsyncSession = Depends(get_db))
 @router.post("/chat")
 async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
     return StreamingResponse(
-        stream_answer(req.question, req.user_id, req.session_id, db),
+        stream_answer(req.question, req.user_id, req.session_id, db, req.selected_document_ids),
         media_type="text/event-stream" # SSE 형식임을 클라이언트에 알려주는 MIME 타입
     )

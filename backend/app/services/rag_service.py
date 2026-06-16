@@ -1,6 +1,6 @@
 import httpx
 import asyncio
-from qdrant_client.models import Filter, FieldCondition, MatchValue, SparseVector, FusionQuery, Fusion, Prefetch
+from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny, SparseVector, FusionQuery, Fusion, Prefetch
 from app.config import get_settings
 from app.db.vector_db import get_qdrant_client
 from app.services.flag_model import get_flag_model
@@ -50,35 +50,41 @@ async def embed_query_sparse(query: str) -> dict:
 
 
 # 질문을 덴스 임베딩, 스파스 임베딩 한걸 가져와서 벡터 db에 검색
-async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id: str, limit: int = 20) -> list[dict]:
+async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id: str, limit: int = 20, document_ids: list[str] | None = None) -> list[dict]:
     client = get_qdrant_client()
 
-    # DB 필터
-    search_filter = Filter(
-        # https://qdrant.tech/documentation/search/filtering/
-        # 삭제된 문서 제외
-        must_not=[
-            FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
-        ],
-        # 내 문서이거나 공용문서(인데 내꺼 아닌거) 탐색
-        should=[
-            # 내 문서
-            Filter(
-                must=[
-                    FieldCondition(key="user_id", match=MatchValue(value=user_id))
-                ]
-            ),
-            # 공용 문서 (access_type이 PUBLIC인 것 = 승인된 것), 그리고 내 문서 아닌거
-            Filter(
-                must=[
-                    FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")),
-                ],
-                must_not=[
-                    FieldCondition(key="user_id", match=MatchValue(value=user_id)),
-                ]
-            ),
-        ]
-    )
+    if document_ids:
+        # 사용자가 직접 선택한 문서만 검색
+        search_filter = Filter(
+            must=[
+                FieldCondition(key="document_id", match=MatchAny(any=document_ids)),
+            ],
+            must_not=[
+                FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+            ],
+        )
+    else:
+        # 기존 방식: 내 문서 + 승인된 공용 문서 전체 검색
+        search_filter = Filter(
+            must_not=[
+                FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+            ],
+            should=[
+                Filter(
+                    must=[
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id))
+                    ]
+                ),
+                Filter(
+                    must=[
+                        FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")),
+                    ],
+                    must_not=[
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                    ]
+                ),
+            ]
+        )
 
     # 위에서 필터된 문서에서
     # 
