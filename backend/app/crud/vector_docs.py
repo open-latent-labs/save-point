@@ -32,7 +32,6 @@ async def store_vectors(
                 "user_id": metadata.user_id,
                 "access_type": metadata.access_type,
                 "filename": metadata.filename,
-                "page_number": metadata.page_number,
                 "chunk_index": i,
                 "chunk_text": chunk,
                 "deleted_file": metadata.deleted_file,

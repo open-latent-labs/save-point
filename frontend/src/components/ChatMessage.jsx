@@ -59,10 +59,10 @@ export default function ChatMessage({ message }) {
         {!streaming && !thinking && !isLoading && sources?.length > 0 && (
           <div className="gd-msg-sources">
             <div className="gd-sources-label">출처</div>
-            {sources.map((s, i) => (
-              <a key={i} className="gd-source" href={`/docs/${s.document_id}`} target="_blank" rel="noreferrer">
+            {[...new Map(sources.map((s) => [s.document_id, s])).values()].map((s, i) => (
+              <a key={s.document_id} className="gd-source" href={`/docs/${s.document_id}`} target="_blank" rel="noreferrer">
                 <span className="num">{String(i + 1).padStart(2, "0")}</span>
-                {s.filename} {s.page_number}p
+                {s.filename}
               </a>
             ))}
           </div>

@@ -33,7 +33,7 @@ async def rerank(question: str, search_results: list[dict], top_k: int = 5) -> l
     # 결과 확인용(터미널)
     print(f"\n[리랭킹 결과]")
     for score, result in reranked:
-        print(f"  score: {score:.4f} | {result['filename']} p.{result['page_number']} chunk_{result['chunk_index']}")
+        print(f"  score: {score:.4f} | {result['filename']} chunk_{result['chunk_index']}")
     print()
 
     return [result for _, result in reranked[:top_k]]

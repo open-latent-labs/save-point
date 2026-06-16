@@ -113,7 +113,7 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
     # 찾은 문서 확인용 (터미널)
     print(f"\n[벡터 검색 결과]")
     for r in results.points:
-        print(f"  score: {r.score:.4f} | {r.payload['filename']} p.{r.payload['page_number']} chunk_{r.payload['chunk_index']}")
+        print(f"  score: {r.score:.4f} | {r.payload['filename']} chunk_{r.payload['chunk_index']}")
     print()
 
     return [
@@ -122,7 +122,6 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
             "chunk_text": r.payload["chunk_text"],
             "document_id": r.payload["document_id"],
             "filename": r.payload["filename"],
-            "page_number": r.payload["page_number"],
             "chunk_index": r.payload["chunk_index"],
         }
         for r in results.points
