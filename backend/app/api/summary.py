@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.summary import delete_documnet as crud_delete_document, document_update_access as crud_update_summary_content
-from app.crud.summary import document_content as crud_document_content
+from app.crud.summary import document_content as crud_document_content, document_original as crud_document_original
 from app.schemas.summary import SummaryUpdate
 from app.dependencies import get_db, get_current_user_id
 
@@ -18,6 +18,14 @@ async def delete_document(document_id: str, db: AsyncSession = Depends(get_db), 
 @router.put("/{document_id}/content")
 async def update_summary_content(document_id: str, body: SummaryUpdate, db: AsyncSession = Depends(get_db)):
     result = await crud_update_summary_content(db, document_id, body.content)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return result
+
+
+@router.get("/docs/{id}/original")
+async def document_original(id: str, db: AsyncSession = Depends(get_db)):
+    result = await crud_document_original(db, id)
     if result is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return result

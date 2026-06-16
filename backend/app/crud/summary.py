@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, literal
 
 from app.models.document import Document
+from app.models.ocr_result import OcrResult
 from app.models.summary_llm_result import SummaryLlmResult
 
 
@@ -47,6 +48,29 @@ async def delete_documnet(db: AsyncSession, document_id: str,user_id: str):
     
     await db.commit()
     return {"deleted": True}
+
+async def document_original(db: AsyncSession, document_id: str):
+    result = await db.execute(
+        select(Document, OcrResult)
+        .outerjoin(OcrResult, OcrResult.document_id == Document.id)
+        .where(Document.id == document_id)
+    )
+    row = result.one_or_none()
+    if row is None:
+        return None
+    doc, ocr = row
+    return {
+        "document": {
+            "id": doc.id,
+            "filename": doc.filename,
+            "extension": doc.extension,
+            "file_size": doc.file_size,
+            "access_type": doc.access_type,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        },
+        "raw_text": ocr.raw_text if ocr else "",
+    }
+
 
 async def document_update_access(db: AsyncSession, document_id: str, content: str):
     result = await db.execute(

@@ -4,6 +4,10 @@ export async function document_content(id) {
     return apiFetch(`/summary/docs/${id}`);
 }
 
+export async function document_original(id) {
+    return apiFetch(`/summary/docs/${id}/original`);
+}
+
 export async function document_delete(document_id) {
     return apiFetch(`/summary/delete/${document_id}`, {
         method: "DELETE",

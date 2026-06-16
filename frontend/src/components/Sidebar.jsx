@@ -340,7 +340,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
               <button
                 key={doc.document_id}
                 className="gd-sb-pinned-item"
-                onClick={() => go(`/chat?q=${encodeURIComponent((doc.filename ?? "") + " 요약해줘")}`)}
+                onClick={() => go(`/docs/${doc.document_id}`)}
                 title={doc.filename}
               >
                 <IconFile width="13" height="13" className="gd-sb-pinned-ic" />
