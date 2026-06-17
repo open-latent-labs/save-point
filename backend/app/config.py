@@ -1,10 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+import os
 
+_env = os.getenv("APP_ENV", "dev") # runpod 서버 사용 원할시 dev -> prod로 수정!
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=f"env/.env.{_env}",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -27,8 +29,9 @@ class Settings(BaseSettings):
     chunk_overlap: int
 
     # Ollama
-    ollama_base_url: str
-    summary_model: str = "gemma2:2b"
+    ollama_generate_url: str
+    ollama_embed_url: str
+    summary_model: str
     chat_model: str
 
     algorithm: str

@@ -12,7 +12,7 @@ async def generate_stream(prompt: str):
     async with httpx.AsyncClient(timeout=180) as client:
         async with client.stream(
             "POST",
-            f"{settings.ollama_base_url}/api/generate",
+            f"{settings.ollama_generate_url}",
             json={
                 "model": settings.chat_model,
                 "prompt": prompt,
@@ -42,7 +42,7 @@ async def generate(
 
     async with httpx.AsyncClient(timeout=180) as client:
         response = await client.post(
-            f"{settings.ollama_base_url}/api/generate",
+            f"{settings.ollama_generate_url}",
             json=payload,
         )
         data = response.json()
