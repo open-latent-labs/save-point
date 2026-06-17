@@ -33,7 +33,6 @@ async def query(question: str, user_id: str, selected_document_ids: list[str] = 
         {
             "document_id": r["document_id"],
             "filename": r["filename"],
-            "page_number": r["page_number"],
         }
         for r in reranked_results
     ]
