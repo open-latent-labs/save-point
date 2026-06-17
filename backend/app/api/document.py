@@ -106,7 +106,7 @@ async def stream_processing_status(
 
     return EventSourceResponse(generate())
 
-@router.get("/public")
+@router.get("/public/list")
 async def public_list(db: AsyncSession = Depends(get_db)):
     return await public_list_crud(db)
 
@@ -136,11 +136,8 @@ async def pin_list(db: AsyncSession = Depends(get_db), user_id: str = Depends(ge
     return await pin_list_crud(db, user_id)
 
 
-@router.post("/{document_id}/request-public")
+@router.post("/request-public/{document_id}")
 async def request_public(document_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
     return await request_public_crud(db, document_id, user_id)
 
 
-@router.delete("/{document_id}/request-public")
-async def cancel_public_request(document_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    return await cancel_public_request_crud(db, document_id, user_id)

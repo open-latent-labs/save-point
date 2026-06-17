@@ -10,7 +10,7 @@ export async function document_original(id) {
 
 export async function document_delete(document_id) {
     return apiFetch(`/summary/delete/${document_id}`, {
-        method: "DELETE",
+        method: "POST",
     });
 }
 

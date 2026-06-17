@@ -5,7 +5,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user_id, require_admin
-from app.crud.admin import admin_approval_list, admin_approval_count, admin_publish_document, admin_reject_document, admin_cancel_pending
+from app.crud.admin import admin_approval_list, admin_approval_count, admin_approved_docs, admin_rejected_docs, admin_cancel_pending
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -23,16 +23,29 @@ async def approval_count(db: AsyncSession = Depends(get_db), _: dict = Depends(r
     return await admin_approval_count(db)
 
 
-@router.post("/documents/{document_id}/publish")
+@router.post("/documents/approve/{document_id}")
 async def publish_document(document_id: str, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_admin)):
-    return await admin_publish_document(db, document_id, payload["sub"])
+    admin_id = payload["sub"]
+    logger.info(f"[Admin] Document approve requested | document_id={document_id}, admin_id={admin_id}")
+    result = await admin_approved_docs(db, document_id, admin_id)
+    logger.info(f"[Admin] Document approved | document_id={document_id}, admin_id={admin_id}")
+    return result
 
 
-@router.post("/documents/{document_id}/reject")
-async def reject_document(document_id: str, db: AsyncSession = Depends(get_db), _: dict = Depends(require_admin)):
-    return await admin_reject_document(db, document_id)
+@router.post("/documents/reject/{document_id}")
+async def reject_document(document_id: str, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_admin)):
+    admin_id = payload["sub"]
+    logger.info(f"[Admin] Document reject requested | document_id={document_id}, admin_id={admin_id}")
+    result = await admin_rejected_docs(db, document_id, admin_id)
+    logger.info(f"[Admin] Document rejected | document_id={document_id}, admin_id={admin_id}")
+    return result
 
 
-@router.post("/documents/{document_id}/cancel-pending")
-async def cancel_pending_document(document_id: str, db: AsyncSession = Depends(get_db), _: dict = Depends(require_admin)):
+@router.post("/documents/cancel-pending/{document_id}")
+async def cancel_pending_document(document_id: str, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_admin)):
+    admin_id = payload["sub"]
+    logger.info(f"[Admin] Document cancel-pending requested | document_id={document_id}, admin_id={admin_id}")
+    result = await admin_cancel_pending(db, document_id, admin_id)
+    logger.info(f"[Admin] Document cancel-pending | document_id={document_id}, admin_id={admin_id}")
+    return result
     return await admin_cancel_pending(db, document_id)
