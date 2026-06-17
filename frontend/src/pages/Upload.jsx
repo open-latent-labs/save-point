@@ -165,6 +165,7 @@ export default function Upload() {
   const [myDocs, setMyDocs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiTotalPages, setApiTotalPages] = useState(1);
+  const [apiTotalCount, setApiTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [favIds, setFavIds] = useState(() => loadFavs());
   const [pinIds, setPinIds] = useState(() => loadPins());
@@ -203,8 +204,10 @@ export default function Upload() {
         const data = await document_list(page, {
           sort: sortBy,
           ...(catFilter !== "all" && { category: catFilter }),
-          ...(visFilter === "public"  && { access_type: "PUBLIC" }),
-          ...(visFilter === "private" && { access_type: "PRIVATE" }),
+          ...(visFilter === "public"   && { access_type: "PUBLIC" }),
+          ...(visFilter === "private"  && { access_type: "PRIVATE" }),
+          ...(visFilter === "fav"      && { is_bookmarked: true }),
+          ...(visFilter === "pending"  && { status: "PENDING" }),
         });
         if (cancelled) return;
         const docs = Array.isArray(data) ? data : (data?.documents ?? []);
@@ -221,6 +224,7 @@ export default function Upload() {
         setFavIds(docs.filter((d) => d.is_bookmarked).map((d) => d.id));
         setPinIds(docs.filter((d) => d.is_pinned).map((d) => d.id));
         if (data?.total_pages) setApiTotalPages(data.total_pages);
+        if (data?.total_count !== undefined) setApiTotalCount(data.total_count);
       } catch (e) {
         console.error(e);
       } finally {
@@ -314,13 +318,8 @@ export default function Upload() {
     }
   };
 
-  // category / sort / public / private 는 서버에서 처리
-  // fav / pending 은 로컬 상태 기반이므로 클라이언트에서만 필터링
-  const filteredDocs = myDocs.filter((d) => {
-    if (visFilter === "fav")     return favIds.includes(d.id);
-    if (visFilter === "pending") return d.status === "PENDING";
-    return true;
-  });
+  // 모든 필터(fav, pending 포함)는 서버에서 처리하므로 클라이언트 필터링 불필요
+  const filteredDocs = myDocs;
 
   // ── 실제 업로드 ──
   const startUpload = useCallback((id, file) => {
@@ -620,7 +619,7 @@ export default function Upload() {
           <div className="gd-mydocs">
             <div className="gd-mydocs-head">
               <span className="gd-mydocs-title">내 문서</span>
-              <span className="gd-mydocs-count">{filteredDocs.length}개</span>
+              <span className="gd-mydocs-count">{apiTotalCount}개</span>
             </div>
 
             {/* 필터 바 — 콤보 + 상태 탭 한 줄 */}
