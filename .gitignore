@@ -37,6 +37,8 @@ __pycache__/
 .venv/
 venv/
 env/
+.env.dev
+.env.prod
 
 uploads/
 *.pdf

@@ -22,7 +22,7 @@ async def embed_dense(chunks: list[str]) -> list[list[float]]:
             for attempt in range(1, _MAX_RETRIES + 1):
                 try:
                     response = await client.post(
-                        f"{settings.ollama_base_url}/api/embed",
+                        f"{settings.ollama_embed_url}",
                         json={"model": settings.embed_model, "input": batch},
                     )
                     response.raise_for_status()
