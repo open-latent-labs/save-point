@@ -41,15 +41,20 @@ async def embed_dense(chunks: list[str]) -> list[list[float]]:
 # Sparse 임베딩 (FlagEmbedding)
 def embed_sparse(chunks: list[str]) -> list[dict]:
     model = get_flag_model()
-    output = model.encode(
-        chunks,
-        return_dense=False,
-        return_sparse=True,
-        return_colbert_vecs=False,
-    )
+    total = len(chunks)
     sparse_vectors = []
-    for lexical_weights in output["lexical_weights"]:
-        indices = [int(k) for k in lexical_weights.keys()]
-        values = [float(v) for v in lexical_weights.values()]
-        sparse_vectors.append({"indices": indices, "values": values})
+    for batch_start in range(0, total, _LOG_INTERVAL):
+        batch = chunks[batch_start:batch_start + _LOG_INTERVAL]
+        output = model.encode(
+            batch,
+            return_dense=False,
+            return_sparse=True,
+            return_colbert_vecs=False,
+        )
+        for lexical_weights in output["lexical_weights"]:
+            indices = [int(k) for k in lexical_weights.keys()]
+            values = [float(v) for v in lexical_weights.values()]
+            sparse_vectors.append({"indices": indices, "values": values})
+        processed = min(batch_start + _LOG_INTERVAL, total)
+        logger.info(f"[Sparse 임베딩] {processed}/{total} 완료")
     return sparse_vectors
