@@ -1,4 +1,5 @@
 from math import ceil
+from loguru import logger
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -8,6 +9,7 @@ from sqlalchemy import func, literal
 from app.models.document import Document
 from app.models.ocr_result import OcrResult
 from app.models.summary_llm_result import SummaryLlmResult
+from app.crud.vector_docs import update_document_payload
 
 
 async def document_content(db: AsyncSession, document_id: str):
@@ -46,7 +48,15 @@ async def delete_documnet(db: AsyncSession, document_id: str,user_id: str):
     row.deleted_by_id = user_id
     row.deleted_at = func.now()
     
-    await db.commit()
+    try:
+        await update_document_payload(document_id, deleted_file="yes")
+        logger.info("삭제 플래그 업데이트 성공")
+        await db.commit()
+        logger.info("DB 저장 성공")
+    except Exception:
+        await db.rollback()
+        logger.error("document delete failed: document_id=%s, user_id=%s", document_id, user_id, exc_info=True)
+        raise
     return {"deleted": True}
 
 async def document_original(db: AsyncSession, document_id: str):

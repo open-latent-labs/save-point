@@ -10,6 +10,7 @@ import {
   CATEGORY_OPTIONS,
 } from "../data/upload.js";
 import { document_list, documentBookmark, documentBookmarkDelete, documentPin, documentPinDelete, requestPublicDocument } from "../api/document.js";
+import { document_delete } from "../api/docs.js";
 import { adminPublishDocument } from "../api/admin.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -281,8 +282,15 @@ export default function Upload() {
     }
   };
 
-  // ── 문서 삭제 (더미) ──
-  const deleteDoc = (id) => setMyDocs((prev) => prev.filter((d) => d.id !== id));
+  // ── 문서 삭제 ──
+  const deleteDoc = async (id) => {
+    try {
+      await document_delete(id);
+      setMyDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ── 공용 문서 등록 신청 ──
   const requestPublic = async (id) => {
