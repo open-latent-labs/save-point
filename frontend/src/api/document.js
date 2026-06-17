@@ -67,13 +67,15 @@ export async function documentPinList() {
 }
 
 export async function requestPublicDocument(document_id) {
-    return await apiFetch(`/documents/${document_id}/request-public`, { method: "POST" });
+    return await apiFetch(`/documents/request-public/${document_id}`, { method: "POST" });
 }
 
-export async function cancelPublicRequest(document_id) {
-    return await apiFetch(`/documents/${document_id}/request-public`, { method: "DELETE" });
-}
 
 export async function publicDocumentList() {
-    return apiFetch("/documents/public", { method: "GET" });
+    return apiFetch("/documents/public/list", { method: "GET" });
+}
+
+
+export async function documentDelete(document_id) {
+    return apiFetch(`/summary/delete/${document_id}`, { method: "POST" });
 }

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.presence import service
 from app.presence.pubsub import manager
+from app.utils.redis_client import get_redis
 
 from app.config import settings
 from app.dependencies import get_db, require_auth, get_current_user_id
@@ -809,9 +810,30 @@ async def stream(request: Request, user_id: str = Depends(get_current_user_id)):
     except Exception as e:
         logger.warning(f"[stream] heartbeat 실패 (Redis 연결 불가): {e}")
 
-    queue = await manager.subscribe()
+    presence_queue = await manager.subscribe()
+    unified_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+
+    async def _forward_presence():
+        while True:
+            data = await presence_queue.get()
+            await unified_queue.put(("presence", data))
+
+    async def _forward_notifications():
+        r = get_redis()
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"user:{user_id}:notifications")
+        try:
+            async for msg in pubsub.listen():
+                if msg["type"] != "message":
+                    continue
+                await unified_queue.put(("notification", msg["data"]))
+        finally:
+            await pubsub.unsubscribe(f"user:{user_id}:notifications")
+            await pubsub.aclose()
 
     async def event_generator():
+        presence_task = asyncio.create_task(_forward_presence())
+        notif_task = asyncio.create_task(_forward_notifications())
         try:
             # 1) 초기 스냅샷
             try:
@@ -825,17 +847,18 @@ async def stream(request: Request, user_id: str = Depends(get_current_user_id)):
                 if await request.is_disconnected():
                     break
                 try:
-                    data = await asyncio.wait_for(queue.get(), timeout=15.0)
-                    yield f"event: presence\ndata: {data}\n\n"
+                    event_type, data = await asyncio.wait_for(unified_queue.get(), timeout=15.0)
+                    yield f"event: {event_type}\ndata: {data}\n\n"
                 except asyncio.TimeoutError:
-                    # keep-alive 겸 TTL 연장
                     try:
                         await service.heartbeat(user_id)
                     except Exception:
                         pass
                     yield ": keep-alive\n\n"
         finally:
-            await manager.unsubscribe(queue)
+            presence_task.cancel()
+            notif_task.cancel()
+            await manager.unsubscribe(presence_queue)
             try:
                 await service.go_offline(user_id)
             except Exception as e:

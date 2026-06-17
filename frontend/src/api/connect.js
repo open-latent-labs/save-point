@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 
 const SSE_URL = `api/auth/stream`;
 
+function showBrowserNotification(message) {
+    const show = () => new Notification("새 알림", { body: message, icon: "/logo.png" });
+    if (Notification.permission === "granted") {
+        show();
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((p) => { if (p === "granted") show(); });
+    }
+}
+
 export function useHeartbeat() {
     useEffect(() => {
         let es = null;
@@ -9,6 +18,16 @@ export function useHeartbeat() {
 
         function connect() {
             es = new EventSource(SSE_URL, { withCredentials: true });
+
+            es.addEventListener("notification", (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    showBrowserNotification(data.message || "새 알림이 도착했습니다.");
+                } catch {
+                    showBrowserNotification("새 알림이 도착했습니다.");
+                }
+            });
+
             es.onerror = () => {
                 es.close();
                 es = null;
