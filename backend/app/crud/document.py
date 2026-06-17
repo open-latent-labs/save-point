@@ -57,6 +57,16 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
         doc_conditions.append(Document.status == body.status)
     if body.access_type:
         doc_conditions.append(Document.access_type == body.access_type)
+    if body.is_bookmarked:
+        doc_conditions.append(
+            select(literal(1))
+            .select_from(BookmarkedDocument)
+            .where(
+                BookmarkedDocument.document_id == Document.id,
+                BookmarkedDocument.user_id == user_id,
+            )
+            .exists()
+        )
 
     # category 필터 유무에 따라 SummaryLlmResult JOIN 방식 분기
     if body.category:
@@ -108,7 +118,7 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
         for doc, summary, bookmarked, pinned in rows
     ]
 
-    return {"documents": documents, "total_pages": total_pages}
+    return {"documents": documents, "total_pages": total_pages, "total_count": total}
 
 
 async def bookmark(db: AsyncSession, document_id: str, user_id: str):
