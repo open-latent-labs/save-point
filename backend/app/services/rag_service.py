@@ -12,7 +12,7 @@ settings = get_settings()
 async def embed_query_dense(query: str) -> list[float]:
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
-            f"{settings.ollama_base_url}/api/embed",
+            f"{settings.ollama_embed_url}",
             json={"model": settings.embed_model, "input": query},
         )
         return response.json()["embeddings"][0]
