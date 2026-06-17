@@ -15,6 +15,7 @@ from app.api.chat import router as chat_router
 from app.api.superAdmin import router as superAdmin_router
 from app.api.admin import router as admin_router
 from app.api.summary import router as summary_router
+from app.api.notification import router as notification_router
 from app.services.flag_model import get_flag_model
 from app.services.reranker import get_reranker
 from app.config import settings
@@ -105,6 +106,7 @@ app.include_router(auth_router)
 app.include_router(superAdmin_router)
 app.include_router(admin_router)
 app.include_router(summary_router)
+app.include_router(notification_router)
 
 # @app.exception_handler(Exception)
 # async def unhandled_exception_handler(_request: Request, exc: Exception):
