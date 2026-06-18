@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import os
 
-_env = os.getenv("APP_ENV", "dev") # runpod 서버 사용 원할시 dev -> prod로 수정!
+_env = os.getenv("APP_ENV", "prod") # runpod 서버 사용 원할시 dev -> prod로 수정!
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -38,9 +38,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int
     refresh_token_expire_days: int
 
-    # Hugging Face 
+    # Hugging Face
     flag_model: str
     rerank_model: str
+    rerank_url: str = ""  # prod: RunPod 엔드포인트, dev: 빈 문자열 (로컬 모델 사용)
 
     # ── App ──────────────────────────────────────────────────────────────────
     app_name: str
