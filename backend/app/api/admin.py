@@ -5,7 +5,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user_id, require_admin
-from app.crud.admin import admin_approval_list, admin_approval_count, admin_approved_docs, admin_rejected_docs, admin_cancel_pending
+from app.crud.admin import admin_approval_list, admin_approval_count, admin_approved_docs, admin_rejected_docs, admin_cancel_pending, admin_publish_docs
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -49,3 +49,13 @@ async def cancel_pending_document(document_id: str, db: AsyncSession = Depends(g
     logger.info(f"[Admin] Document cancel-pending | document_id={document_id}, admin_id={admin_id}")
     return result
     return await admin_cancel_pending(db, document_id)
+
+
+# admin 계정 공인 문서 승인x
+@router.put("/documents/publish/{document_id}")
+async def admin_publish_document(document_id: str, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_admin)):
+    admin_id = payload["sub"]
+    logger.info(f"[Admin] Document publish requested | document_id={document_id}, admin_id={admin_id}")
+    result = await admin_publish_docs(db, document_id, admin_id)
+    logger.info(f"[Admin] Document published | document_id={document_id}, admin_id={admin_id}")
+    return result
