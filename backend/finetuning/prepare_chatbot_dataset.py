@@ -1,26 +1,3 @@
-"""
-build_rag_sft_dataset.py
-------------------------------------------------------------------------------
-RAG 챗봇 SFT 데이터셋 생성 파이프라인.
-
-  teacher (데이터 생성)  : qwen3.5:9b  (Ollama, 로컬)
-  student (파인튜닝 대상): Qwen2.5-Coder-7B-Instruct
-  목표 I/O 포맷          : KO 시스템 프롬프트 + EN topK 컨텍스트 + KO 질문 -> KO 근거기반 답변(+인용)
-
-핵심 설계 원칙
-  - 학습 컨텍스트는 "정답이 든 gold 청크"가 아니라 "실제 retriever가 뽑은 topK"를 쓴다.
-    (추론 시점과 동일한 분포로 학습해야 실전에서 무너지지 않음)
-  - teacher 출력을 그대로 믿지 말고 faithfulness 필터로 거른 뒤에만 학습에 넣는다.
-
-출력: chat 포맷 JSONL (trl / axolotl / unsloth 가 바로 먹는 형식)
-  {"messages": [{"role":"system",...},{"role":"user",...},{"role":"assistant",...}]}
-
-사용 전 할 일
-  1) `retrieve_topk()` 안을 본인의 BGE-M3 + Qdrant(+ ko-reranker) 검색 코드로 교체
-  2) `load_chunks()` 를 본인 PostgreSQL `document_chunks` 로더로 교체
-  3) `ollama serve` 가 떠 있고 `ollama pull qwen3.5:9b` 가 끝나 있어야 함
-"""
-
 import json
 import random
 import re
@@ -77,9 +54,6 @@ log = logging.getLogger("dataset")
 _loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_loop)
 
-# ---------------------------------------------------------------------------
-# 설정
-# ---------------------------------------------------------------------------
 OLLAMA_URL = "https://7qg9fb67sdbvif-11434.proxy.runpod.net/api/chat"
 TEACHER = "qwen3.5:9b"
 TOP_K = 4                 # 컨텍스트로 넣을 청크 수 (추론 때와 동일하게)
@@ -89,7 +63,7 @@ OUT_PATH = "rag_sft_dataset.jsonl"
 TMP_PATH = "rag_sft_dataset.tmp.jsonl"   # 완료 전 중간 저장용
 CKPT_PATH = "rag_sft_dataset.ckpt.json"  # 진행 상황 체크포인트
 SEED = 42
-TARGET_USER_ID = "LGOUVRQP6ERBO3JZXH255LK91H"
+TARGET_USER_ID = "{user_id}"
 random.seed(SEED)
 
 SYSTEM_PROMPT = (
@@ -105,10 +79,6 @@ SYSTEM_PROMPT = (
     "'제공된 문서에서 해당 내용을 찾을 수 없습니다. 질문과 관련하여 참고가 될만한 문서를 찾아서 업로드 해주세요'"
 )
 
-
-# ---------------------------------------------------------------------------
-# Ollama 호출 유틸
-# ---------------------------------------------------------------------------
 def ollama_chat(messages: List[Dict], temperature: float = 0.3, think: bool = False) -> str:
     """Ollama /api/chat 호출. thinking 흔적은 제거한 최종 텍스트만 반환."""
     payload = {
@@ -147,10 +117,6 @@ def parse_json_array(text: str) -> list:
                 return []
         return []
 
-
-# ---------------------------------------------------------------------------
-# 언어 안전장치
-# ---------------------------------------------------------------------------
 def _has_japanese(s: str) -> bool:
     """히라가나·카타카나 포함 여부 (일본어 판정)."""
     return bool(re.search(r'[぀-ヿ]', s))
@@ -164,10 +130,6 @@ def _has_chinese(s: str) -> bool:
 def _is_non_korean(s: str) -> bool:
     return _has_japanese(s) or _has_chinese(s)
 
-
-# ---------------------------------------------------------------------------
-# 데이터 소스
-# ---------------------------------------------------------------------------
 async def _load_chunks_async() -> List[Dict]:
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -217,7 +179,6 @@ async def _retrieve_topk_async(question: str, k: int) -> List[Dict]:
     dense_vector = await embed_query_dense(question)
     sparse_vector = await embed_query_sparse(question)
 
-    # load_chunks와 동일한 범위: TARGET_USER_ID가 업로드한 문서만 검색
     user_filter = Filter(
         must=[
             FieldCondition(key="user_id", match=MatchValue(value=TARGET_USER_ID)),
