@@ -19,8 +19,8 @@ router = APIRouter(
 )
 
 @router.post("/change_role")
-async def change_role(body: ChangeRoleRequest, db: AsyncSession = Depends(get_db)):
-    return await crud_change_role(db, body)
+async def change_role(body: ChangeRoleRequest, db: AsyncSession = Depends(get_db), user_id: str = Depends(require_super_admin)):
+    return await crud_change_role(db,user_id ,body)
 
 @router.post("/ban_user")
 async def ban_user(body: ChangeBanRequest, db: AsyncSession = Depends(get_db)):

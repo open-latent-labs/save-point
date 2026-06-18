@@ -5,10 +5,11 @@ from fastapi import HTTPException
 
 from app.models.user import User
 from app.models.enums import UserRole, UserBan
+from app.models.user_role_log import UserRoleLog
 from app.schemas.superAdmin import ChangeRoleRequest, ChangeBanRequest, UserResponse, UserListQuery
 
 
-async def change_role(db: AsyncSession, body: ChangeRoleRequest):
+async def change_role(db: AsyncSession, body: ChangeRoleRequest, user_id: str):
     result = await db.execute(select(User).where(User.id == body.id))
     user = result.scalar_one_or_none()
 
@@ -17,8 +18,30 @@ async def change_role(db: AsyncSession, body: ChangeRoleRequest):
 
     if body.role == "ADMIN":
         user.role = UserRole.USER
+
+        user_role_log = UserRoleLog(
+            target_user_id = body.id,
+            changed_by_user_id = user_id,
+            before_role = UserRole.ADMIN,
+            after_role = UserRole.USER,
+            reason = "ADMIN에서 USER로 변경",
+        )
+        db.add(user_role_log)
+        await db.flush()  # DB가 approval_log.id(BIGINT Identity)를 할당하도록
+
+
     else:
         user.role = UserRole.ADMIN
+
+        user_role_log = UserRoleLog(
+            target_user_id = body.id,
+            changed_by_user_id = user_id,
+            before_role = UserRole.USER,
+            after_role = UserRole.ADMIN,
+            reason = "USER에서 ADMIN으로 변경",
+        )
+        db.add(user_role_log)
+        await db.flush()
 
     await db.commit()
     await db.refresh(user)

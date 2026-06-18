@@ -19,9 +19,10 @@ from app.models.document import Document
 from app.models.notification import Notification
 from app.models.approval_log import ApprovalLog
 from app.models.enums import DocumentAccess, DocumentStatus
-from app.models.summary_llm_result import SummaryLlmResult
-from app.models.enums import NotificationType
+from app.crud.vector_docs import update_document_payload
+from app.models.enums import NotificationType   
 from app.models.enums import ApprovalAction
+
 
 
 from app.config import settings
@@ -74,12 +75,21 @@ async def admin_approved_docs(db: AsyncSession, document_id: str, admin_id: str)
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
+    # Step 1: documents 테이블 업데이트 + update_document_payload 원자적 처리
     doc.access_type = DocumentAccess.PUBLIC
     doc.status = DocumentStatus.APPROVED
     doc.approved_by_id = admin_id
     doc.approved_at = datetime.now(timezone.utc)
 
-    # approval log 테이블에도 저장
+    try:
+        await update_document_payload(document_id, access_type="PUBLIC")
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+    # Step 2: approval_log 기록
     approval_log = ApprovalLog(
         document_id=document_id,
         action=ApprovalAction.APPROVED,
@@ -88,7 +98,9 @@ async def admin_approved_docs(db: AsyncSession, document_id: str, admin_id: str)
     )
     db.add(approval_log)
     await db.flush()  # DB가 approval_log.id(BIGINT Identity)를 할당하도록
+    await db.commit()
 
+    # Step 3: notification 기록
     notification = Notification(
         id=_generate_id(),
         user_id=doc.uploaded_by_id,
@@ -168,4 +180,23 @@ async def admin_publish_docs(db: AsyncSession, document_id: str, admin_id: str):
     doc.access_type = DocumentAccess.PUBLIC
     await db.commit()
     await db.refresh(doc)
+
+    approval_log = ApprovalLog(
+        document_id=document_id,
+        action=ApprovalAction.APPROVED,
+        actor_id=admin_id,
+        reason="공인 문서 승인",
+    )
+    db.add(approval_log)
+    
+
+    try:
+        await update_document_payload(document_id, access_type="PUBLIC")
+        await db.flush()  # DB가 approval_log.id(BIGINT Identity)를 할당하도록
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+
     return {"id": document_id}
