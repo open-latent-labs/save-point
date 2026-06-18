@@ -80,7 +80,7 @@ export default function Login() {
         />
         <div className="gd-field-headrow">
           <label className="gd-field-label" htmlFor="login-pw">비밀번호</label>
-          <a className="gd-auth-mini" href="#" onClick={(e) => e.preventDefault()}>비밀번호 찾기</a>
+          <Link className="gd-auth-mini" to="/forgot-password">비밀번호 찾기</Link>
         </div>
         <AuthField
           id="login-pw"

@@ -76,3 +76,25 @@ export async function cancelMerge() {
         credentials: "include",
     });
 }
+
+export async function checkIdentity({ user_id, email }) {
+    return authFetch(`${BASE}/auth/check-identity`, { user_id, email });
+}
+
+export async function resetPassword({ user_id, email, new_password }) {
+    return authFetch(`${BASE}/auth/reset-password`, { user_id, email, new_password });
+}
+
+export async function setPrimaryEmail(email) {
+    const res = await fetch(`${BASE}/auth/set-primary-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(parseError(text));
+    }
+    return res.json();
+}

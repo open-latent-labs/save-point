@@ -7,13 +7,14 @@ import Chat from "./pages/Chat.jsx";
 import ChatHistory from "./pages/ChatHistory.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Upload from "./pages/Upload.jsx";
 import Approval from "./pages/Approval.jsx";
 import Docs from "./pages/Docs.jsx";
 import SuperAdmin from "./pages/superAdmin/Dashboard.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
-const AUTH_PATHS = ["/login", "/signup"];
+const AUTH_PATHS = ["/login", "/signup", "/forgot-password"];
 
 function PrivateRoute({ children, superAdminOnly = false }) {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ export const router = createBrowserRouter(
         },
         { path: "login", element: <Login /> },
         { path: "signup", element: <Signup /> },
+        { path: "forgot-password", element: <ForgotPassword /> },
       ],
     },
   ],
