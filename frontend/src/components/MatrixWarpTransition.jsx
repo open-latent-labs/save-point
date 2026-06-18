@@ -1,8 +1,22 @@
 import { useRef, useEffect } from "react";
 
-// 배경 애니메이션 전용 (항상 idle 흐름, 워프 없음)
-export default function MatrixWarpTransition({ color = "#36E0A1", idleSpeed = 1.4 }) {
+function getColors() {
+  const style = getComputedStyle(document.documentElement);
+  const mintRgb = style.getPropertyValue("--mint-rgb").trim() || "54, 224, 161";
+  const strongRgb = style.getPropertyValue("--mint-strong-rgb").trim() || "17, 185, 129";
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  return { mintRgb, strongRgb, isLight };
+}
+
+export default function MatrixWarpTransition({ idleSpeed = 1.4 }) {
   const canvasRef = useRef(null);
+  const colorsRef = useRef(getColors());
+
+  useEffect(() => {
+    const sync = () => { colorsRef.current = getColors(); };
+    window.addEventListener("gamedocs:theme", sync);
+    return () => window.removeEventListener("gamedocs:theme", sync);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -10,9 +24,6 @@ export default function MatrixWarpTransition({ color = "#36E0A1", idleSpeed = 1.
     const ctx = canvas.getContext("2d");
 
     const chars = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹ메에0123456789Z:.=*+-<>";
-    const hex = color.replace("#", "");
-    const n = parseInt(hex.length === 3 ? hex.split("").map(c => c + c).join("") : hex, 16);
-    const rgbStr = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 
     let W = 0, H = 0, cx = 0, cy = 0;
     let stars = [];
@@ -45,11 +56,12 @@ export default function MatrixWarpTransition({ color = "#36E0A1", idleSpeed = 1.
     };
 
     const frame = () => {
-      // 잔상: 앱 배경색 rgba로 덮기
-      ctx.fillStyle = "rgba(7,9,10,0.38)";
+      const { mintRgb, strongRgb, isLight } = colorsRef.current;
+
+      // 잔상: 테마 배경색으로 덮기
+      ctx.fillStyle = isLight ? "rgba(244,246,245,0.38)" : "rgba(7,9,10,0.38)";
       ctx.fillRect(0, 0, W, H);
       ctx.textAlign = "center";
-      ctx.font = `bold 13px 'IBM Plex Mono', ui-monospace, monospace`;
 
       for (const s of stars) {
         s.pz = s.z;
@@ -58,19 +70,20 @@ export default function MatrixWarpTransition({ color = "#36E0A1", idleSpeed = 1.
 
         const sx = cx + (s.x / s.z) * W;
         const sy = cy + (s.y / s.z) * H;
-
         if (sx < 0 || sx > W || sy < 0 || sy > H) { Object.assign(s, spawn(W)); continue; }
 
         const k = Math.max(0, 1 - s.z / W);
-        const fs = 9 + k * 22;
-        ctx.font = `${fs}px 'IBM Plex Mono', ui-monospace, monospace`;
+        ctx.font = `${9 + k * 22}px 'IBM Plex Mono', ui-monospace, monospace`;
 
         if (k > 0.85) {
-          ctx.fillStyle = `rgba(200,255,230,${k})`;
-          ctx.shadowColor = `rgba(${rgbStr},0.9)`;
-          ctx.shadowBlur = 8;
+          // 가장 가까운 별: 다크=밝은 민트, 라이트=진한 강조색
+          ctx.fillStyle = isLight
+            ? `rgba(${strongRgb},${k})`
+            : `rgba(200,255,230,${k})`;
+          ctx.shadowColor = `rgba(${mintRgb},${isLight ? 0.45 : 0.9})`;
+          ctx.shadowBlur = isLight ? 5 : 8;
         } else {
-          ctx.fillStyle = `rgba(${rgbStr},${0.25 + k * 0.75})`;
+          ctx.fillStyle = `rgba(${mintRgb},${isLight ? 0.12 + k * 0.45 : 0.25 + k * 0.75})`;
           ctx.shadowBlur = 0;
         }
 
@@ -95,7 +108,7 @@ export default function MatrixWarpTransition({ color = "#36E0A1", idleSpeed = 1.
       window.removeEventListener("resize", resize);
       ro.disconnect();
     };
-  }, [color, idleSpeed]);
+  }, [idleSpeed]);
 
   return (
     <canvas

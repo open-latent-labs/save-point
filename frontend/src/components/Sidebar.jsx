@@ -12,7 +12,10 @@ import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function AnimSegment({ value, onChange }) {
-  const opts = [{ v: "0", label: "끄기" }, { v: "1", label: "1" }, { v: "2", label: "2" }];
+  const opts = [
+    { v: "0", label: "끄기" },
+    { v: "1", label: "1" }, { v: "2", label: "2" }, { v: "3", label: "3" },
+  ];
   return (
     <div className="gd-anim-segment">
       {opts.map((o) => (
@@ -28,6 +31,11 @@ function AnimSegment({ value, onChange }) {
   );
 }
 
+const THEMES = [
+  { id: "mint",  label: "민트",   color: "#36E0A1", bg: "#07090A", textColor: "#EAF0EC" },
+  { id: "light", label: "라이트", color: "#059669", bg: "#F4F6F5", textColor: "#111827" },
+];
+
 function SettingsModal({ onClose }) {
   const [streaming, setStreaming] = useState(true);
   const [korean, setKorean] = useState(true);
@@ -35,11 +43,21 @@ function SettingsModal({ onClose }) {
   const [animType, setAnimTypeState] = useState(
     () => localStorage.getItem("gamedocs_anim") ?? "1"
   );
+  const [theme, setThemeState] = useState(
+    () => localStorage.getItem("gamedocs_theme") ?? "mint"
+  );
 
   const setAnimType = (val) => {
     setAnimTypeState(val);
     localStorage.setItem("gamedocs_anim", val);
     window.dispatchEvent(new Event("gamedocs:anim"));
+  };
+
+  const applyTheme = (val) => {
+    setThemeState(val);
+    localStorage.setItem("gamedocs_theme", val);
+    document.documentElement.setAttribute("data-theme", val);
+    window.dispatchEvent(new Event("gamedocs:theme"));
   };
 
   const Row = ({ label, desc, on, set }) => (
@@ -62,6 +80,30 @@ function SettingsModal({ onClose }) {
       <div className="gd-modal" onClick={(e) => e.stopPropagation()}>
         <h3>설정</h3>
         <p className="sub">데모용 설정 패널입니다. (mock)</p>
+        <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+          <div className="lbl">테마</div>
+          <div style={{ display: "flex", gap: 8, width: "100%" }}>
+            {THEMES.map(({ id, label, color, bg, textColor }) => {
+              const active = theme === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => applyTheme(id)}
+                  style={{
+                    flex: 1, display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", border: `1px solid ${active ? color : "var(--border-strong)"}`,
+                    borderRadius: 9, background: bg, cursor: "pointer",
+                    boxShadow: active ? `0 0 0 2px ${color}40` : "none",
+                    transition: "border-color .15s, box-shadow .15s",
+                  }}
+                >
+                  <span style={{ width: 14, height: 14, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: active ? `0 0 7px ${color}` : "none" }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: textColor, fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <Row label="스트리밍 응답" desc="AI 답변을 타이핑 애니메이션으로 표시" on={streaming} set={setStreaming} />
         <Row label="한국어 우선" desc="답변을 한국어로 우선 생성" on={korean} set={setKorean} />
         <Row label="출처 표시" desc="답변 하단에 참고 문서 링크 노출" on={sources} set={setSources} />

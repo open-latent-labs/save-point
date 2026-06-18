@@ -45,7 +45,7 @@ const PresenceCell = ({ userId, lastActiveAt, onlineIds }) => {
     );
 };
 
-/* ---------- 아이콘 (의존성 없는 인라인 SVG) ---------- */
+/* ---------- 아이콘 ---------- */
 const Icon = ({ name, size = 20, className = "" }) => {
     const common = {
         width: size, height: size, viewBox: "0 0 24 24", fill: "none",
@@ -68,7 +68,7 @@ const Icon = ({ name, size = 20, className = "" }) => {
     }
 };
 
-/* ---------- 아바타 (이니셜 + 결정적 색상) ---------- */
+/* ---------- 아바타 ---------- */
 const AVATAR_COLORS = [
     ["#2dd4bf", "#0d9488"], ["#60a5fa", "#2563eb"], ["#f472b6", "#db2777"],
     ["#fbbf24", "#d97706"], ["#a78bfa", "#7c3aed"], ["#34d399", "#059669"],
@@ -92,14 +92,9 @@ const Avatar = ({ name, status }) => {
 
 /* ---------- 배지 ---------- */
 const BADGE_BASE = "inline-flex items-center text-[11.5px] font-semibold px-2.5 py-1 rounded-md tracking-wide";
-const ROLE_STYLES = {
-    USER: "bg-white/5 text-[#8a949c] border border-white/10",
-    ADMIN: "bg-[#a78bfa]/[0.15] text-[#a78bfa] border border-[#a78bfa]/25",
-};
-const RoleBadge = ({ role }) => <span className={`${BADGE_BASE} ${ROLE_STYLES[role]}`}>{role}</span>;
 
 /* ---------- 셀렉트(필터) ---------- */
-const FilterSelect = ({ label, options = [], value, onChange, className = "" }) => {
+const FilterSelect = ({ label, options = [], value, onChange, className = "", lt }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -116,19 +111,31 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "" }) 
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="inline-flex items-center justify-between gap-2 bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#8a949c] border border-white/[0.08] rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2] transition-all duration-150 w-full"
+                className={`inline-flex items-center justify-between gap-2 border rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] transition-all duration-150 w-full ${
+                    lt
+                    ? "bg-white text-[#6B7280] border-black/[0.10] hover:border-black/[0.20] hover:text-[#111827] shadow-sm"
+                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#8a949c] border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2]"
+                }`}
             >
-                <span className={value ? "text-[#c3ccd2]" : ""}>{displayLabel}</span>
+                <span className={value ? (lt ? "text-[#111827]" : "text-[#c3ccd2]") : ""}>{displayLabel}</span>
                 <Icon name="chevron-down" size={14} className={`opacity-50 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
             </button>
             {open && options.length > 0 && (
-                <div className="absolute top-full mt-1.5 right-0 min-w-full bg-[#151b20] border border-white/[0.1] rounded-[10px] shadow-xl z-50 overflow-hidden py-1">
+                <div className={`absolute top-full mt-1.5 right-0 min-w-full border rounded-[10px] shadow-xl z-50 overflow-hidden py-1 ${
+                    lt ? "bg-white border-black/[0.10]" : "bg-[#151b20] border-white/[0.1]"
+                }`}>
                     {options.map((opt) => (
                         <button
                             key={opt.value}
                             type="button"
                             onClick={() => { onChange(opt.value); setOpen(false); }}
-                            className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors whitespace-nowrap ${value === opt.value ? "text-[#22c55e] bg-[#22c55e]/[0.08]" : "text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.04]"}`}
+                            className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors whitespace-nowrap ${
+                                value === opt.value
+                                ? "text-[#22c55e] bg-[#22c55e]/[0.08]"
+                                : lt
+                                    ? "text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.04]"
+                                    : "text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.04]"
+                            }`}
                         >
                             {opt.label}
                         </button>
@@ -171,17 +178,23 @@ export default function UserManagement() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [statsData, setStatsData] = useState(STATS_TEMPLATE.map((s) => ({ ...s, value: "-" })));
     const { getRole, updateRole } = useUserRole();
-
     const onlineIds = usePresence();
+
+    const [theme, setTheme] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
+    const lt = theme === "light";
+
+    useEffect(() => {
+        const sync = () => setTheme(localStorage.getItem("gamedocs_theme") ?? "mint");
+        window.addEventListener("gamedocs:theme", sync);
+        return () => window.removeEventListener("gamedocs:theme", sync);
+    }, []);
 
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
                 const data = await dashboardNum();
                 setStatsData(STATS_TEMPLATE.map((s) => ({ ...s, value: data[s.key] ?? "-" })));
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         };
         fetchDashboard();
     }, []);
@@ -214,23 +227,16 @@ export default function UserManagement() {
         try {
             await changeRole({ id: user.id, role: current });
             updateRole(user.id, next);
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     const toggleSuspend = async (e, user) => {
         e.stopPropagation();
         try {
-            if (user.ban === "BAN") {
-                await unbanUser({ id: user.id });
-            } else {
-                await banUser({ id: user.id });
-            }
+            if (user.ban === "BAN") { await unbanUser({ id: user.id }); }
+            else { await banUser({ id: user.id }); }
             setRefreshKey((k) => k + 1);
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     const filtered = useMemo(() => {
@@ -261,9 +267,10 @@ export default function UserManagement() {
         });
 
     const checkboxCls =
-        "appearance-none w-4 h-4 rounded-[5px] border-[1.5px] border-white/[0.12] bg-[#0a0d0c] cursor-pointer align-middle relative " +
-        "checked:bg-[#22c55e] checked:border-[#22c55e] " +
-        "after:content-[''] after:absolute after:hidden checked:after:block after:left-[4.5px] after:top-[1.5px] after:w-1 after:h-2 after:border-[#06210f] after:border-solid after:border-r-2 after:border-b-2 after:rotate-45";
+        `appearance-none w-4 h-4 rounded-[5px] border-[1.5px] cursor-pointer align-middle relative ` +
+        `checked:bg-[#22c55e] checked:border-[#22c55e] ` +
+        `after:content-[''] after:absolute after:hidden checked:after:block after:left-[4.5px] after:top-[1.5px] after:w-1 after:h-2 after:border-[#06210f] after:border-solid after:border-r-2 after:border-b-2 after:rotate-45 ` +
+        (lt ? "border-black/[0.15] bg-white" : "border-white/[0.12] bg-[#0a0d0c]");
 
     const visiblePages = useMemo(() => {
         const delta = 2;
@@ -272,21 +279,27 @@ export default function UserManagement() {
         return Array.from({ length: right - left + 1 }, (_, i) => left + i);
     }, [page, apiTotalPages]);
 
+    const roleBadgeCls = (role) => {
+        if (role === "ADMIN") return `${BADGE_BASE} bg-[#a78bfa]/[0.15] text-[#a78bfa] border border-[#a78bfa]/25`;
+        return `${BADGE_BASE} ${lt ? "bg-black/5 text-[#6B7280] border border-black/[0.10]" : "bg-white/5 text-[#8a949c] border border-white/10"}`;
+    };
+
     return (
-        <div className="w-full min-h-full bg-[#0a0d0c] text-[#e7ecef] font-sans [font-feature-settings:'tnum']">
+        <div className={`w-full min-h-full font-sans [font-feature-settings:'tnum'] ${lt ? "bg-[#F4F6F5] text-[#111827]" : "bg-[#0a0d0c] text-[#e7ecef]"}`}>
             <Topbar onMenu={onMenu} onProfile={() => setMyPageOpen(true)} />
             <div className={`transition-[padding-left] duration-[280ms] [transition-timing-function:cubic-bezier(0.2,0.7,0.2,1)] pl-4 pr-4 sm:pr-8 py-[18px] sm:pt-7 sm:pb-10 ${sbVisible ? 'min-[861px]:pl-[264px]' : ''}`}>
+
                 {/* 헤더 */}
                 <header className="flex flex-col sm:flex-row sm:justify-between items-start gap-6 mb-6">
                     <div>
                         <h1 className="text-[26px] font-extrabold m-0 mb-1.5 tracking-[-0.5px]">사용자 관리</h1>
-                        <p className="text-[13.5px] text-[#8a949c] m-0">플랫폼에 등록된 사용자 정보를 관리하고 역할과 권한을 설정할 수 있습니다.</p>
+                        <p className={`text-[13.5px] m-0 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>플랫폼에 등록된 사용자 정보를 관리하고 역할과 권한을 설정할 수 있습니다.</p>
                     </div>
                     <div className="flex flex-col items-start sm:items-end gap-3.5">
-                        <nav className="text-[13px] text-[#5b656d] flex gap-2 items-center">
+                        <nav className={`text-[13px] flex gap-2 items-center ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>
                             <span>홈</span>
                             <span className="opacity-50">/</span>
-                            <span className="text-[#8a949c]">사용자 관리</span>
+                            <span className={lt ? "text-[#6B7280]" : "text-[#8a949c]"}>사용자 관리</span>
                         </nav>
                     </div>
                 </header>
@@ -296,55 +309,43 @@ export default function UserManagement() {
                     {statsData.map((s) => (
                         <div
                             key={s.key}
-                            className="flex items-center gap-4 bg-gradient-to-b from-[#151b20] to-[#11161a] border border-white/[0.07] rounded-2xl px-[22px] py-5 hover:border-white/[0.12] hover:-translate-y-0.5 transition-[border-color,transform]"
+                            className={`flex items-center gap-4 border rounded-2xl px-[22px] py-5 transition-[border-color,transform] hover:-translate-y-0.5 ${
+                                lt
+                                ? "bg-white border-black/[0.07] hover:border-black/[0.14] shadow-sm"
+                                : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.07] hover:border-white/[0.12]"
+                            }`}
                         >
                             <div className={`w-12 h-12 rounded-[13px] flex items-center justify-center shrink-0 ${STAT_TONES[s.tone]}`}>
                                 <Icon name={s.icon} size={22} />
                             </div>
                             <div>
-                                <div className="text-[13px] text-[#8a949c] mb-1">{s.label}</div>
+                                <div className={`text-[13px] mb-1 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>{s.label}</div>
                                 <div className="text-[28px] font-extrabold leading-[1.05] tracking-[-0.5px]">{s.value}</div>
-                                <div className="text-[11.5px] text-[#5b656d] mt-1.5">{s.sub} <span className="text-[#22c55e]">›</span></div>
+                                <div className={`text-[11.5px] mt-1.5 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{s.sub} <span className="text-[#22c55e]">›</span></div>
                             </div>
                         </div>
                     ))}
                 </section>
 
                 {/* 메인 패널 */}
-                <section className="bg-[#11161a] border border-white/[0.07] rounded-2xl overflow-hidden">
+                <section className={`border rounded-2xl overflow-hidden ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.07]"}`}>
                     {/* 검색 + 필터 */}
                     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-[18px]">
-                        <div className="flex items-center gap-2.5 flex-1 min-w-[220px] max-w-[420px] bg-[#0a0d0c] border border-white/[0.07] rounded-[10px] px-3.5 py-2.5 text-[#5b656d] focus-within:border-[#22c55e]/50">
+                        <div className={`flex items-center gap-2.5 flex-1 min-w-[220px] max-w-[420px] border rounded-[10px] px-3.5 py-2.5 focus-within:border-[#22c55e]/50 ${
+                            lt ? "bg-[#F9FAFB] border-black/[0.08] text-[#9CA3AF]" : "bg-[#0a0d0c] border-white/[0.07] text-[#5b656d]"
+                        }`}>
                             <Icon name="search" size={18} />
                             <input
                                 type="text"
                                 placeholder="이름, 이메일 검색"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                className="flex-1 bg-transparent border-none outline-none text-[#e7ecef] text-[13.5px] placeholder:text-[#5b656d]"
+                                className={`flex-1 bg-transparent border-none outline-none text-[13.5px] placeholder:opacity-60 ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}
                             />
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                            <FilterSelect
-                                label="권한"
-                                options={[
-                                    { value: "", label: "전체" },
-                                    { value: "USER", label: "USER" },
-                                    { value: "ADMIN", label: "ADMIN" },
-                                ]}
-                                value={roleFilter}
-                                onChange={(v) => { setRoleFilter(v); setPage(1); }}
-                            />
-                            <FilterSelect
-                                label="계정 상태"
-                                options={[
-                                    { value: "", label: "전체" },
-                                    { value: "true", label: "활성 계정" },
-                                    { value: "false", label: "비활성 계정" },
-                                ]}
-                                value={statusFilter}
-                                onChange={(v) => { setStatusFilter(v); setPage(1); }}
-                            />
+                            <FilterSelect lt={lt} label="권한" options={[{ value: "", label: "전체" }, { value: "USER", label: "USER" }, { value: "ADMIN", label: "ADMIN" }]} value={roleFilter} onChange={(v) => { setRoleFilter(v); setPage(1); }} />
+                            <FilterSelect lt={lt} label="계정 상태" options={[{ value: "", label: "전체" }, { value: "true", label: "활성 계정" }, { value: "false", label: "비활성 계정" }]} value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} />
                         </div>
                     </div>
 
@@ -352,26 +353,32 @@ export default function UserManagement() {
                     <div className="overflow-x-auto">
                         <table className="w-full border-collapse min-w-[1020px]">
                             <thead>
-                                <tr className="[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:text-[#5b656d] [&>th]:px-3.5 [&>th]:py-3 [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.07] [&>th]:bg-white/[0.012] [&>th]:whitespace-nowrap">
+                                <tr className={`[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:px-3.5 [&>th]:py-3 [&>th]:whitespace-nowrap ${
+                                    lt
+                                    ? "[&>th]:text-[#9CA3AF] [&>th]:border-t [&>th]:border-b [&>th]:border-black/[0.07] [&>th]:bg-black/[0.02]"
+                                    : "[&>th]:text-[#5b656d] [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.07] [&>th]:bg-white/[0.012]"
+                                }`}>
                                     <th className="!w-11">
                                         <input type="checkbox" className={checkboxCls} checked={allChecked} onChange={toggleAll} aria-label="전체 선택" />
                                     </th>
-                                    <th>사용자</th>
-                                    <th>이메일</th>
-                                    <th>권한</th>
-                                    <th>질문 수</th>
-                                    <th>업로드 문서 수</th>
-                                    <th>활동 상태</th>
-                                    <th>접속 상태</th>
+                                    <th>사용자</th><th>이메일</th><th>권한</th>
+                                    <th>질문 수</th><th>업로드 문서 수</th>
+                                    <th>활동 상태</th><th>접속 상태</th>
                                     <th className="!w-14 !text-center">권한 변경</th>
                                 </tr>
                             </thead>
-                            <tbody className="[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:border-b [&>tr>td]:border-white/[0.07] [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0">
+                            <tbody className={`[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0 ${
+                                lt ? "[&>tr>td]:border-b [&>tr>td]:border-black/[0.06]" : "[&>tr>td]:border-b [&>tr>td]:border-white/[0.07]"
+                            }`}>
                                 {filtered.map((u) => (
                                     <tr
                                         key={u.id}
                                         onClick={() => setDetailUser(u)}
-                                        className={`cursor-pointer transition-colors ${selected.has(u.id) ? "bg-[#22c55e]/[0.05]" : "hover:bg-white/[0.025]"}`}
+                                        className={`cursor-pointer transition-colors ${
+                                            selected.has(u.id)
+                                            ? "bg-[#22c55e]/[0.05]"
+                                            : lt ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.025]"
+                                        }`}
                                     >
                                         <td onClick={(e) => e.stopPropagation()}>
                                             <input type="checkbox" className={checkboxCls} checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} aria-label={`${u.name} 선택`} />
@@ -381,71 +388,45 @@ export default function UserManagement() {
                                                 <Avatar name={u.name} status={u.status} />
                                                 <div className="flex flex-col gap-px">
                                                     <span className="font-semibold text-[13.5px]">{u.name}</span>
-                                                    <span className="text-xs text-[#5b656d]">{u.user_id}</span>
+                                                    <span className={`text-xs ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{u.user_id}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="text-[#8a949c]">{u.email}</td>
-                                        <td><RoleBadge role={getRole(u)} /></td>
-                                        <td className="font-semibold text-[#e7ecef]">{u.questions.toLocaleString()}</td>
-                                        <td className="font-semibold text-[#e7ecef]">{u.docs.toLocaleString()}</td>
+                                        <td className={lt ? "text-[#6B7280]" : "text-[#8a949c]"}>{u.email}</td>
+                                        <td><span className={roleBadgeCls(getRole(u))}>{getRole(u)}</span></td>
+                                        <td className="font-semibold">{u.questions.toLocaleString()}</td>
+                                        <td className="font-semibold">{u.docs.toLocaleString()}</td>
                                         <td onClick={(e) => e.stopPropagation()}>
                                             {(() => {
                                                 const isSuspended = u.ban === "BAN";
                                                 return (
                                                     <div className="inline-flex gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            aria-label="활동 정지"
-                                                            onClick={(e) => { if (!isSuspended) toggleSuspend(e, u); }}
-                                                            disabled={isSuspended}
+                                                        <button type="button" aria-label="활동 정지" onClick={(e) => { if (!isSuspended) toggleSuspend(e, u); }} disabled={isSuspended}
                                                             className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isSuspended
                                                                 ? "bg-[#fb923c]/[0.12] text-[#fb923c] border-[#fb923c]/25 cursor-pointer hover:bg-[#fb923c]/[0.22]"
-                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                                }`}
-                                                        >
-                                                            활동 정지
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            aria-label="활동 재개"
-                                                            onClick={(e) => { if (isSuspended) toggleSuspend(e, u); }}
-                                                            disabled={!isSuspended}
+                                                                : lt ? "bg-black/[0.03] text-[#9CA3AF] border-black/[0.06] cursor-not-allowed" : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                            }`}>활동 정지</button>
+                                                        <button type="button" aria-label="활동 재개" onClick={(e) => { if (isSuspended) toggleSuspend(e, u); }} disabled={!isSuspended}
                                                             className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isSuspended
                                                                 ? "bg-[#22c55e]/[0.12] text-[#22c55e] border-[#22c55e]/25 cursor-pointer hover:bg-[#22c55e]/[0.22]"
-                                                                : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                                }`}
-                                                        >
-                                                            활동 재개
-                                                        </button>
+                                                                : lt ? "bg-black/[0.03] text-[#9CA3AF] border-black/[0.06] cursor-not-allowed" : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
+                                                            }`}>활동 재개</button>
                                                     </div>
                                                 );
                                             })()}
                                         </td>
                                         <td onClick={(e) => e.stopPropagation()}>
-                                            <PresenceCell
-                                                userId={u.id}
-                                                lastActiveAt={u.lastActiveAt}
-                                                onlineIds={onlineIds}
-                                            />
+                                            <PresenceCell userId={u.id} lastActiveAt={u.lastActiveAt} onlineIds={onlineIds} />
                                         </td>
                                         <td className="text-center" onClick={(e) => e.stopPropagation()}>
                                             {getRole(u) !== "ADMIN" ? (
-                                                <button
-                                                    type="button"
-                                                    aria-label="승급"
-                                                    onClick={(e) => toggleRole(e, u)}
-                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]"
-                                                >
+                                                <button type="button" aria-label="승급" onClick={(e) => toggleRole(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]">
                                                     승급
                                                 </button>
                                             ) : (
-                                                <button
-                                                    type="button"
-                                                    aria-label="강등"
-                                                    onClick={(e) => toggleRole(e, u)}
-                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]"
-                                                >
+                                                <button type="button" aria-label="강등" onClick={(e) => toggleRole(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]">
                                                     강등
                                                 </button>
                                             )}
@@ -453,49 +434,51 @@ export default function UserManagement() {
                                     </tr>
                                 ))}
                                 {loading && (
-                                    <tr>
-                                        <td colSpan={9} className="!text-center text-[#5b656d] !py-10">불러오는 중...</td>
-                                    </tr>
+                                    <tr><td colSpan={9} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>불러오는 중...</td></tr>
                                 )}
                                 {!loading && filtered.length === 0 && (
-                                    <tr>
-                                        <td colSpan={9} className="!text-center text-[#5b656d] !py-10">검색 결과가 없습니다.</td>
-                                    </tr>
+                                    <tr><td colSpan={9} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>검색 결과가 없습니다.</td></tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
                     {/* 푸터 / 페이지네이션 */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-t border-white/[0.07]">
-                        <span className="text-[13px] text-[#8a949c]">전체 {apiTotal.toLocaleString()}명</span>
+                    <div className={`flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-t ${lt ? "border-black/[0.07]" : "border-white/[0.07]"}`}>
+                        <span className={`text-[13px] ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>전체 {apiTotal.toLocaleString()}명</span>
                         <div className="flex items-center gap-1.5">
-                            <button type="button" aria-label="이전" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors disabled:opacity-30">
+                            <button type="button" aria-label="이전" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
                                 <Icon name="chevron-left" size={16} />
                             </button>
                             {visiblePages[0] > 1 && (
                                 <>
-                                    <button type="button" onClick={() => setPage(1)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 1 ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>1</button>
-                                    {visiblePages[0] > 2 && <span className="text-[#5b656d] px-1">…</span>}
+                                    <button type="button" onClick={() => setPage(1)}
+                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 1 ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>1</button>
+                                    {visiblePages[0] > 2 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>…</span>}
                                 </>
                             )}
                             {visiblePages.map((p) => (
-                                <button key={p} type="button" onClick={() => setPage(p)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{p}</button>
+                                <button key={p} type="button" onClick={() => setPage(p)}
+                                    className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{p}</button>
                             ))}
                             {visiblePages[visiblePages.length - 1] < apiTotalPages && (
                                 <>
-                                    {visiblePages[visiblePages.length - 1] < apiTotalPages - 1 && <span className="text-[#5b656d] px-1">…</span>}
-                                    <button type="button" onClick={() => setPage(apiTotalPages)} className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === apiTotalPages ? "bg-[#22c55e] text-[#06210f] font-bold" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{apiTotalPages}</button>
+                                    {visiblePages[visiblePages.length - 1] < apiTotalPages - 1 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>…</span>}
+                                    <button type="button" onClick={() => setPage(apiTotalPages)}
+                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === apiTotalPages ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{apiTotalPages}</button>
                                 </>
                             )}
-                            <button type="button" aria-label="다음" onClick={() => setPage((p) => Math.min(apiTotalPages, p + 1))} disabled={page === apiTotalPages} className="min-w-8 h-8 px-2 rounded-lg text-[#8a949c] inline-flex items-center justify-center hover:bg-white/[0.06] hover:text-[#e7ecef] transition-colors disabled:opacity-30">
+                            <button type="button" aria-label="다음" onClick={() => setPage((p) => Math.min(apiTotalPages, p + 1))} disabled={page === apiTotalPages}
+                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
                                 <Icon name="chevron-right" size={16} />
                             </button>
                         </div>
-                        <span className="text-[13px] text-[#5b656d]">{page} / {apiTotalPages} 페이지</span>
+                        <span className={`text-[13px] ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{page} / {apiTotalPages} 페이지</span>
                     </div>
                 </section>
             </div>
+
             <UserDetailSidebar
                 user={detailUser}
                 open={!!detailUser}
