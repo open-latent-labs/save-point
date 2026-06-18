@@ -28,10 +28,15 @@ async def rerank(question: str, search_results: list[dict], top_k: int = 5) -> l
 
 async def _rerank_local(question: str, search_results: list[dict], top_k: int) -> list[dict]:
     reranker = get_reranker()
+
+    # 리랭커 용 질문-문서 쌍 포장
     pairs = [(question, r["chunk_text"]) for r in search_results]
     scores = await asyncio.to_thread(reranker.predict, pairs)
+
+    # 높은 순서대로 정렬
     reranked = sorted(zip(scores, search_results), key=lambda x: x[0], reverse=True)
 
+    # 결과 확인용(터미널)
     print(f"\n[리랭킹 결과 - 로컬]")
     for score, result in reranked:
         print(f"  score: {score:.4f} | {result['filename']} chunk_{result['chunk_index']}")
@@ -55,8 +60,10 @@ async def _rerank_remote(question: str, search_results: list[dict], top_k: int) 
         )
         response.raise_for_status()
 
+    # 높은 순서대로 정렬
     ranked = sorted(response.json(), key=lambda x: x["score"], reverse=True)
 
+    # 결과 확인용(터미널)
     print(f"\n[리랭킹 결과 - RunPod]")
     for item in ranked:
         result = search_results[item["index"]]
