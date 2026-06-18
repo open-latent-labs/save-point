@@ -159,3 +159,13 @@ async def admin_cancel_pending(db: AsyncSession, document_id: str):
 
     
     return {"id": document_id}
+
+async def admin_publish_docs(db: AsyncSession, document_id: str, admin_id: str):
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        return None
+    doc.access_type = DocumentAccess.PUBLIC
+    await db.commit()
+    await db.refresh(doc)
+    return {"id": document_id}

@@ -17,7 +17,7 @@ export async function adminApprovalCount() {
 }
 
 export async function adminPublishDocument(document_id) {
-    return apiFetch(`/admin/documents/${document_id}/publish`, { method: "POST", credentials: "include" });
+    return apiFetch(`/admin/documents/publish/${document_id}`, { method: "PUT", credentials: "include" });
 }
 
 export async function adminApproveDocument(document_id) {
