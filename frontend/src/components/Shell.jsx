@@ -5,6 +5,10 @@ import Sidebar from "./Sidebar.jsx";
 import SidebarToggle from "./SidebarToggle.jsx";
 import MintCascades from "./MintCascades.jsx";
 import MatrixWarpTransition from "./MatrixWarpTransition.jsx";
+import LightNetwork from "./LightNetwork.jsx";
+import InkDrop from "./anim/InkDrop.jsx";
+import Circuit from "./anim/Circuit.jsx";
+import Firefly from "./anim/Firefly.jsx";
 import MyPageDrawer from "./MyPageDrawer.jsx";
 import MergeConfirmModal from "./MergeConfirmModal.jsx";
 import { useSidebar } from "../hooks/useSidebar.js";
@@ -33,6 +37,9 @@ export default function Shell() {
   const [animType, setAnimType] = useState(
     () => localStorage.getItem("gamedocs_anim") ?? "1"
   );
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("gamedocs_theme") ?? "mint"
+  );
   const [myPageOpen, setMyPageOpen] = useState(false);
 
   const mergeProvider = searchParams.get("merge_confirm");
@@ -48,6 +55,12 @@ export default function Shell() {
     const sync = () => setAnimType(localStorage.getItem("gamedocs_anim") ?? "1");
     window.addEventListener("gamedocs:anim", sync);
     return () => window.removeEventListener("gamedocs:anim", sync);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setTheme(localStorage.getItem("gamedocs_theme") ?? "mint");
+    window.addEventListener("gamedocs:theme", sync);
+    return () => window.removeEventListener("gamedocs:theme", sync);
   }, []);
 
   useEffect(() => {
@@ -71,8 +84,12 @@ export default function Shell() {
         animate={{ marginLeft: sidebarOpen && !isMobile ? 260 : 0 }}
         transition={{ duration: 0.3, ease: EASE }}
       >
-        {animType === "1" && <MintCascades />}
-        {animType === "2" && <MatrixWarpTransition />}
+        {animType === "1" && theme === "light" && <LightNetwork />}
+        {animType === "2" && theme === "light" && <InkDrop />}
+        {animType === "3" && theme === "light" && <Circuit />}
+        {animType === "1" && theme !== "light" && <MintCascades />}
+        {animType === "2" && theme !== "light" && <MatrixWarpTransition />}
+        {animType === "3" && theme !== "light" && <Firefly />}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}

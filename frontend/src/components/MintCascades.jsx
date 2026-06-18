@@ -1,7 +1,28 @@
 import { useEffect, useRef } from "react";
 
+function getThemeColors() {
+  const style = getComputedStyle(document.documentElement);
+  const mintRgb = style.getPropertyValue("--mint-rgb").trim() || "54, 224, 161";
+  const strongRgb = style.getPropertyValue("--mint-strong-rgb").trim() || "17, 185, 129";
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  const [mr, mg, mb] = mintRgb.split(",").map(s => parseInt(s.trim(), 10));
+  const [sr, sg, sb] = strongRgb.split(",").map(s => parseInt(s.trim(), 10));
+  // head: 30% theme color + 70% white
+  const hr = Math.round(mr * 0.3 + 255 * 0.7);
+  const hg = Math.round(mg * 0.3 + 255 * 0.7);
+  const hb = Math.round(mb * 0.3 + 255 * 0.7);
+  return { mr, mg, mb, sr, sg, sb, hr, hg, hb, isLight };
+}
+
 export default function MintCascades() {
   const canvasRef = useRef(null);
+  const colorsRef = useRef(getThemeColors());
+
+  useEffect(() => {
+    const sync = () => { colorsRef.current = getThemeColors(); };
+    window.addEventListener("gamedocs:theme", sync);
+    return () => window.removeEventListener("gamedocs:theme", sync);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,6 +128,7 @@ export default function MintCascades() {
       const dt = Math.min((timestamp - (lastTime || timestamp)) / 1000, 0.05);
       lastTime = timestamp;
       const time = timestamp / 1000;
+      const { mr, mg, mb, sr, sg, sb, hr, hg, hb, isLight } = colorsRef.current;
 
       ctx.clearRect(0, 0, width, height);
 
@@ -169,7 +191,6 @@ export default function MintCascades() {
         }
       }
 
-      // Draw columns — mint color scheme
       ctx.font = `${FONT_SIZE}px "IBM Plex Mono", "Fira Code", monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
@@ -191,32 +212,43 @@ export default function MintCascades() {
             brightness *= Math.max(0, distToWater / (FONT_SIZE * 3));
           }
           brightness *= col.opacity;
+          if (isLight) brightness *= 0.55;
           if (brightness < 0.02) continue;
 
-          // head: near-white mint → mid: #36E0A1 → tail: #11B981
           let r, g, b;
-          if (j === 0) { r = 200; g = 255; b = 230; }
-          else if (j < 3) { r = 54; g = 224; b = 161; }
-          else { r = 17; g = 185; b = 129; }
+          if (isLight) {
+            // 라이트 테마: 어두운 색이 배경과 대비됨, 헤드도 진한 색 사용
+            if (j === 0) { r = sr; g = sg; b = sb; }
+            else if (j < 3) { r = mr; g = mg; b = mb; }
+            else { r = mr; g = mg; b = mb; }
+          } else {
+            if (j === 0) { r = hr; g = hg; b = hb; }
+            else if (j < 3) { r = mr; g = mg; b = mb; }
+            else { r = sr; g = sg; b = sb; }
+          }
 
           ctx.fillStyle = `rgba(${r},${g},${b},${brightness})`;
           if (j === 0) {
-            ctx.shadowColor = "rgba(54, 224, 161, 0.7)";
-            ctx.shadowBlur = 10;
+            ctx.shadowColor = `rgba(${mr},${mg},${mb},${isLight ? 0.35 : 0.7})`;
+            ctx.shadowBlur = isLight ? 6 : 10;
           }
           ctx.fillText(col.chars[j % col.chars.length].char, col.x + FONT_SIZE * 0.5, charY);
           if (j === 0) ctx.shadowBlur = 0;
         }
       }
 
-      // Water surface overlay
       const waterGrad = ctx.createLinearGradient(0, waterSurface, 0, height);
-      waterGrad.addColorStop(0, "rgba(4, 19, 14, 0.65)");
-      waterGrad.addColorStop(1, "rgba(7, 9, 10, 0.97)");
+      if (isLight) {
+        waterGrad.addColorStop(0,   "rgba(244,246,245,0.10)");
+        waterGrad.addColorStop(0.4, "rgba(244,246,245,0.70)");
+        waterGrad.addColorStop(1,   "rgba(244,246,245,0.97)");
+      } else {
+        waterGrad.addColorStop(0, "rgba(4, 19, 14, 0.65)");
+        waterGrad.addColorStop(1, "rgba(7, 9, 10, 0.97)");
+      }
       ctx.fillStyle = waterGrad;
       ctx.fillRect(0, waterSurface - 2, width, height - waterSurface + 2);
 
-      // Waterline
       ctx.beginPath();
       for (let x = 0; x <= width; x += WAVE_RESOLUTION) {
         const idx = Math.floor(x / WAVE_RESOLUTION);
@@ -225,11 +257,10 @@ export default function MintCascades() {
         const py = waterSurface + waveY + ambient;
         x === 0 ? ctx.moveTo(x, py) : ctx.lineTo(x, py);
       }
-      ctx.strokeStyle = "rgba(54, 224, 161, 0.22)";
+      ctx.strokeStyle = `rgba(${mr},${mg},${mb},${isLight ? 0.18 : 0.22})`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Ripple rings
       for (const r of ripples) {
         const alpha = r.life * 0.3;
         for (let ring = 0; ring < 3; ring++) {
@@ -237,7 +268,7 @@ export default function MintCascades() {
           if (ringRadius <= 0) continue;
           ctx.beginPath();
           ctx.ellipse(r.x, r.y + ring * 2, ringRadius, ringRadius * 0.3, 0, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(54, 224, 161, ${alpha * (1 - ring * 0.3)})`;
+          ctx.strokeStyle = `rgba(${mr},${mg},${mb},${alpha * (1 - ring * 0.3)})`;
           ctx.lineWidth = 1 - ring * 0.2;
           ctx.stroke();
         }
@@ -263,6 +294,7 @@ export default function MintCascades() {
   return (
     <canvas
       ref={canvasRef}
+      className="gd-cascade-canvas"
       style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 0 }}
     />
   );

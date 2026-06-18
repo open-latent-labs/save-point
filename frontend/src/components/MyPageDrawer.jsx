@@ -27,6 +27,11 @@ const PROVIDERS = [
 
 const TABS = ["내 정보", "내 문서", "설정"];
 
+const THEMES = [
+  { id: "mint",  label: "민트",   sub: "기본 다크",  color: "#36E0A1", bg: "#07090A", textColor: "#EAF0EC" },
+  { id: "light", label: "라이트", sub: "밝은 화면",  color: "#059669", bg: "#F4F6F5", textColor: "#111827" },
+];
+
 function Avatar({ name }) {
   const [a, b] = AVATAR_BG[(name?.charCodeAt(0) ?? 0) % AVATAR_BG.length];
   return (
@@ -50,6 +55,7 @@ export default function MyPageDrawer({ open, onClose }) {
   const favCount = loadFavs().length;
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
+  const [theme, setThemeState] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
   const [streaming, setStreaming] = useState(true);
   const [korean, setKorean] = useState(true);
   const [sources, setSources] = useState(true);
@@ -114,6 +120,13 @@ export default function MyPageDrawer({ open, onClose }) {
     setAnimTypeState(val);
     localStorage.setItem("gamedocs_anim", val);
     window.dispatchEvent(new Event("gamedocs:anim"));
+  };
+
+  const applyTheme = (val) => {
+    setThemeState(val);
+    localStorage.setItem("gamedocs_theme", val);
+    document.documentElement.setAttribute("data-theme", val);
+    window.dispatchEvent(new Event("gamedocs:theme"));
   };
 
   return (
@@ -359,11 +372,51 @@ export default function MyPageDrawer({ open, onClose }) {
               {/* ── 설정 ── */}
               {tab === "설정" && (
                 <div className="gd-mypage-settings">
+                  {/* 테마 선택 */}
+                  <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8, paddingBottom: 12 }}>
+                    <div className="lbl">테마</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+                      {THEMES.map(({ id, label, sub, color, bg, textColor }) => {
+                        const active = theme === id;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => applyTheme(id)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              width: "100%", padding: "9px 12px",
+                              border: `1px solid ${active ? color : "var(--border-strong)"}`,
+                              borderRadius: 10, background: bg, cursor: "pointer",
+                              transition: "border-color .15s, box-shadow .15s",
+                              boxShadow: active ? `0 0 0 2px ${color}40` : "none",
+                              textAlign: "left",
+                            }}
+                          >
+                            <span style={{
+                              width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                              background: color,
+                              boxShadow: active ? `0 0 8px ${color}` : "none",
+                            }} />
+                            <span style={{ flex: 1 }}>
+                              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: textColor, fontFamily: "var(--font-sans)" }}>{label}</span>
+                              <span style={{ display: "block", fontSize: 11, color: textColor + "88", fontFamily: "var(--font-mono)" }}>{sub}</span>
+                            </span>
+                            {active && (
+                              <span style={{ fontSize: 10, color, fontFamily: "var(--font-mono)", letterSpacing: ".04em" }}>ACTIVE</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   {/* 애니메이션 세그먼트 */}
                   <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
                     <div className="lbl">애니메이션</div>
                     <div className="gd-anim-segment">
-                      {[{ v: "0", label: "끄기" }, { v: "1", label: "1" }, { v: "2", label: "2" }].map((o) => (
+                      {[
+                        { v: "0", label: "끄기" },
+                        { v: "1", label: "1" }, { v: "2", label: "2" }, { v: "3", label: "3" },
+                      ].map((o) => (
                         <button
                           key={o.v}
                           className={"gd-anim-seg-btn" + (animType === o.v ? " active" : "")}
