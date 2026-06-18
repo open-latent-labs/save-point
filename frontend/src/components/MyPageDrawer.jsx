@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CATEGORY_OPTIONS, formatSize, loadFavs } from "../data/upload.js";
 import { IconClose, IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
-import { getLinkedOAuth, unlinkOAuth } from "../api/auth.js";
+import { getLinkedOAuth, unlinkOAuth, setPrimaryEmail } from "../api/auth.js";
 import { document_list, documentPinList } from "../api/document.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -43,7 +43,7 @@ function Avatar({ name }) {
 export default function MyPageDrawer({ open, onClose }) {
   const [tab, setTab] = useState("내 정보");
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
 
   const [myDocs, setMyDocs] = useState([]);
   const [pinCount, setPinCount] = useState(0);
@@ -54,7 +54,7 @@ export default function MyPageDrawer({ open, onClose }) {
   const [korean, setKorean] = useState(true);
   const [sources, setSources] = useState(true);
 
-  const [linkedProviders, setLinkedProviders] = useState([]);
+  const [linkedAccounts, setLinkedAccounts] = useState([]);
   const [oauthLoading, setOauthLoading] = useState(false);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function MyPageDrawer({ open, onClose }) {
   useEffect(() => {
     if (open && tab === "내 정보") {
       getLinkedOAuth()
-        .then((data) => setLinkedProviders(data.accounts.map((a) => a.provider)))
+        .then((data) => setLinkedAccounts(data.accounts))
         .catch(() => { });
     }
   }, [open, tab]);
@@ -92,7 +92,18 @@ export default function MyPageDrawer({ open, onClose }) {
     setOauthLoading(true);
     try {
       await unlinkOAuth(provider);
-      setLinkedProviders((prev) => prev.filter((p) => p !== provider));
+      setLinkedAccounts((prev) => prev.filter((a) => a.provider !== provider));
+    } catch {
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const handleSetPrimary = async (email) => {
+    setOauthLoading(true);
+    try {
+      const updatedUser = await setPrimaryEmail(email);
+      login(updatedUser);
     } catch {
     } finally {
       setOauthLoading(false);
@@ -210,7 +221,9 @@ export default function MyPageDrawer({ open, onClose }) {
                   <div className="gd-mypage-section-label">연결된 계정</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {PROVIDERS.map(({ key, label, Icon }) => {
-                      const linked = linkedProviders.includes(key);
+                      const account = linkedAccounts.find((a) => a.provider === key);
+                      const linked = !!account;
+                      const isPrimary = account?.email && account.email === user?.email;
                       return (
                         <div
                           key={key}
@@ -228,31 +241,58 @@ export default function MyPageDrawer({ open, onClose }) {
                             <Icon />
                             <span style={{ fontSize: 13, color: "var(--fg)" }}>{label}</span>
                           </div>
-                          {linked ? (
-                            <button
-                              style={{
-                                fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                border: "1px solid var(--border-strong)", background: "transparent",
-                                color: "var(--faint)", cursor: "pointer"
-                              }}
-                              disabled={oauthLoading}
-                              onClick={() => handleUnlink(key)}
-                            >
-                              연결 해제
-                            </button>
-                          ) : (
-                            <button
-                              style={{
-                                fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                border: "none", background: "var(--accent)",
-                                color: "#fff", cursor: "pointer"
-                              }}
-                              disabled={oauthLoading}
-                              onClick={() => handleLink(key)}
-                            >
-                              연결하기
-                            </button>
-                          )}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {linked && account.email && (
+                              isPrimary ? (
+                                <span style={{
+                                  fontSize: 10, padding: "2px 7px", borderRadius: 5,
+                                  background: "rgba(54,224,161,.12)",
+                                  color: "var(--mint)",
+                                  border: "1px solid rgba(54,224,161,.25)",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  대표 이메일
+                                </span>
+                              ) : (
+                                <button
+                                  style={{
+                                    fontSize: 11, padding: "2px 8px", borderRadius: 5,
+                                    border: "1px solid var(--border-strong)", background: "transparent",
+                                    color: "var(--text)", cursor: "pointer", whiteSpace: "nowrap",
+                                  }}
+                                  disabled={oauthLoading}
+                                  onClick={() => handleSetPrimary(account.email)}
+                                >
+                                  대표로 설정
+                                </button>
+                              )
+                            )}
+                            {linked ? (
+                              <button
+                                style={{
+                                  fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                  border: "1px solid var(--border-strong)", background: "transparent",
+                                  color: "var(--faint)", cursor: "pointer"
+                                }}
+                                disabled={oauthLoading}
+                                onClick={() => handleUnlink(key)}
+                              >
+                                연결 해제
+                              </button>
+                            ) : (
+                              <button
+                                style={{
+                                  fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                  border: "none", background: "var(--accent)",
+                                  color: "#fff", cursor: "pointer"
+                                }}
+                                disabled={oauthLoading}
+                                onClick={() => handleLink(key)}
+                              >
+                                연결하기
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

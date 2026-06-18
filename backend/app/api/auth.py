@@ -28,9 +28,12 @@ from app.models.pinned_document import PinnedDocument
 from app.models.user import User
 from app.models.user_oauth_account import UserOAuthAccount
 from app.schemas.user import (
+    CheckIdentityRequest,
     LinkedOAuthResponse,
     LoginRequest,
     OAuthAccountInfo,
+    ResetPasswordRequest,
+    SetPrimaryEmailRequest,
     SignupRequest,
     SignupResponse,
     TokenResponse,
@@ -259,6 +262,69 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
     _set_auth_cookies(response, create_access_token(payload), create_refresh_token(payload))
     await service.heartbeat(user.id)
     return TokenResponse(user=_user_info(user))
+
+
+async def _find_user_by_id_and_email(db: AsyncSession, user_id: str, email: str) -> User | None:
+    """아이디 + 대표 이메일로 유저를 찾는다."""
+    result = await db.execute(
+        select(User).where(User.user_id == user_id, User.email == email)
+    )
+    return result.scalar_one_or_none()
+
+
+@router.post("/check-identity")
+async def check_identity(body: CheckIdentityRequest, db: AsyncSession = Depends(get_db)):
+    """아이디 + 이메일 일치 여부 확인 (비밀번호 찾기 1단계).
+    대표 이메일 또는 연동된 소셜 계정 이메일 중 하나와 일치하면 통과."""
+    user = await _find_user_by_id_and_email(db, body.user_id, body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="아이디 또는 이메일이 일치하지 않습니다.")
+    return {"ok": True}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """아이디 + 이메일 본인 확인 후 새 비밀번호로 변경 (비밀번호 찾기 2단계).
+    대표 이메일 또는 연동된 소셜 계정 이메일 중 하나와 일치하면 통과."""
+    user = await _find_user_by_id_and_email(db, body.user_id, body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="아이디 또는 이메일이 일치하지 않습니다.")
+    user.password = pwd_context.hash(body.new_password)
+    logger.success(f"비밀번호 재설정 완료 — user_id={user.user_id}")
+    return {"ok": True}
+
+
+@router.post("/set-primary-email", response_model=UserInfo)
+async def set_primary_email(
+    body: SetPrimaryEmailRequest,
+    payload: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """연동된 소셜 계정 이메일 중 하나를 대표 이메일로 변경."""
+    user_id = payload["sub"]
+
+    # 요청 이메일이 이 유저의 연동 계정 이메일인지 확인
+    result = await db.execute(
+        select(UserOAuthAccount).where(
+            UserOAuthAccount.user_id == user_id,
+            UserOAuthAccount.email == body.email,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="연동된 계정의 이메일이 아닙니다.")
+
+    # 다른 유저가 이미 사용 중인 이메일인지 확인
+    result = await db.execute(
+        select(User).where(User.email == body.email, User.id != user_id)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="이미 다른 계정에서 사용 중인 이메일입니다.")
+
+    user = await db.get(User, user_id)
+    user.email = body.email
+    await db.flush()
+    logger.success(f"대표 이메일 변경 — user_id={user.user_id}, new_email={body.email}")
+    return _user_info(user)
 
 
 @router.post("/refresh")

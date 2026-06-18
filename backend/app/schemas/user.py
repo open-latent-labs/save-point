@@ -53,3 +53,25 @@ class OAuthAccountInfo(BaseModel):
 
 class LinkedOAuthResponse(BaseModel):
     accounts: list[OAuthAccountInfo]
+
+
+class CheckIdentityRequest(BaseModel):
+    user_id: str
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    user_id: str
+    email: EmailStr
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("비밀번호는 8자 이상이어야 합니다.")
+        return v
+
+
+class SetPrimaryEmailRequest(BaseModel):
+    email: EmailStr

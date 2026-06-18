@@ -9,6 +9,23 @@ export function validateLogin({ user_id, password }) {
   return e;
 }
 
+export function validateForgotStep1({ user_id, email }) {
+  const e = {};
+  if (!user_id?.trim()) e.user_id = "아이디를 입력해 주세요.";
+  if (!email?.trim()) e.email = "이메일을 입력해 주세요.";
+  else if (!isEmail(email)) e.email = "올바른 이메일 형식이 아니에요.";
+  return e;
+}
+
+export function validateForgotStep2({ new_password, confirm }) {
+  const e = {};
+  if (!new_password) e.new_password = "새 비밀번호를 입력해 주세요.";
+  else if (new_password.length < 8) e.new_password = "비밀번호는 8자 이상이어야 해요.";
+  if (!confirm) e.confirm = "비밀번호를 한 번 더 입력해 주세요.";
+  else if (confirm !== new_password) e.confirm = "비밀번호가 일치하지 않아요.";
+  return e;
+}
+
 // 회원가입: user_id 형식은 백엔드 정규식과 동일하게 유지 (^[a-zA-Z0-9_]{4,20}$)
 export function validateSignup({ name, user_id, email, password, confirm }) {
   const e = {};
