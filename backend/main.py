@@ -66,7 +66,10 @@ async def lifespan(_app: FastAPI):
     try:
         print("모델 로드 중...")
         await asyncio.to_thread(get_flag_model)
-        await asyncio.to_thread(get_reranker)
+        if not settings.rerank_url:
+            await asyncio.to_thread(get_reranker)
+        else:
+            print(f"리랭커: RunPod 원격 모드 ({settings.rerank_url})")
         print("모델 로드 완료")
     except asyncio.TimeoutError:
         print("[경고] ML 모델 로드 타임아웃 (검색/리랭킹 기능 비활성화)")
