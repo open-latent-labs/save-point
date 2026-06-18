@@ -155,21 +155,14 @@ export default function Approval() {
 
               {totalPages > 1 && (
                 <div className="gd-pagination">
-                  {totalPages >= 16 ? (
+                  {totalPages > 10 ? (
                     <>
                       <button
                         className="gd-page-btn"
                         onClick={() => setCurrentPage(Math.max(1, groupStart - PAGE_GROUP_SIZE))}
                         disabled={groupStart === 1}
                       >
-                        &laquo;
-                      </button>
-                      <button
-                        className="gd-page-btn"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        이전
+                        {"<<"}
                       </button>
                       {Array.from({ length: groupEnd - groupStart + 1 }, (_, i) => groupStart + i).map((page) => (
                         <button
@@ -186,37 +179,26 @@ export default function Approval() {
                       ))}
                       <button
                         className="gd-page-btn"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        다음
-                      </button>
-                      <button
-                        className="gd-page-btn"
                         onClick={() => setCurrentPage(Math.min(groupStart + PAGE_GROUP_SIZE, totalPages))}
                         disabled={groupEnd === totalPages}
                       >
-                        &raquo;
+                        {">>"}
                       </button>
                     </>
                   ) : (
-                    <>
+                    Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
-                        className="gd-page-btn"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`h-[30px] min-w-[30px] px-1.5 rounded-[7px] border text-[13px] cursor-pointer transition-all duration-150 font-sans
+                          ${page === currentPage
+                            ? "bg-[rgba(54,224,161,0.15)] border-[rgba(54,224,161,0.5)] text-[#36E0A1] font-semibold"
+                            : "bg-transparent border-transparent text-[#aaa] hover:bg-white/6 hover:text-white"
+                          }`}
                       >
-                        이전
+                        {page}
                       </button>
-                      <span className="gd-page-info">{currentPage} / {totalPages}</span>
-                      <button
-                        className="gd-page-btn"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        다음
-                      </button>
-                    </>
+                    ))
                   )}
                 </div>
               )}

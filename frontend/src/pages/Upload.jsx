@@ -660,26 +660,10 @@ export default function Upload() {
               const totalPages = apiTotalPages;
               const pagedDocs = filteredDocs;
 
-              const btn = (label, onClick, active = false, disabled = false) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={onClick}
-                  disabled={disabled}
-                  style={{
-                    minWidth: 32, height: 32, padding: "0 8px", borderRadius: 8,
-                    fontSize: 13, display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    border: "none", cursor: disabled ? "default" : "pointer", transition: "all .15s",
-                    background: active ? "#22c55e" : "transparent",
-                    color: active ? "#06210f" : disabled ? "var(--faint)" : "var(--dim)",
-                    fontWeight: active ? 700 : 400,
-                  }}
-                  onMouseEnter={(e) => { if (!active && !disabled) { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "var(--text)"; } }}
-                  onMouseLeave={(e) => { if (!active && !disabled) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = disabled ? "var(--faint)" : "var(--dim)"; } }}
-                >
-                  {label}
-                </button>
-              );
+              const PAGE_GROUP_SIZE = 10;
+              const pageGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
+              const groupStart = pageGroup * PAGE_GROUP_SIZE + 1;
+              const groupEnd = Math.min(groupStart + PAGE_GROUP_SIZE - 1, totalPages);
 
               return filteredDocs.length === 0 ? (
                 <div className="gd-mydocs-empty">
@@ -707,12 +691,56 @@ export default function Upload() {
                   </div>
 
                   {totalPages > 1 && (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 16 }}>
-                      {btn("‹", () => setPage((p) => Math.max(1, p - 1)), false, page === 1)}
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) =>
-                        btn(p, () => setPage(p), p === page)
+                    <div className="flex items-center justify-center gap-1 mt-4">
+                      {totalPages > 10 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setPage(Math.max(1, groupStart - PAGE_GROUP_SIZE))}
+                            disabled={groupStart === 1}
+                            className="h-[30px] min-w-[30px] px-1.5 rounded-[7px] border text-[13px] transition-all duration-150 font-sans bg-transparent border-transparent text-[#aaa] hover:bg-white/[0.06] hover:text-white disabled:text-[#555] disabled:cursor-default cursor-pointer"
+                          >
+                            {"<<"}
+                          </button>
+                          {Array.from({ length: groupEnd - groupStart + 1 }, (_, i) => groupStart + i).map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setPage(p)}
+                              className={`h-[30px] min-w-[30px] px-1.5 rounded-[7px] border text-[13px] cursor-pointer transition-all duration-150 font-sans
+                                ${p === page
+                                  ? "bg-[rgba(34,197,94,0.15)] border-[rgba(34,197,94,0.5)] text-[#22c55e] font-semibold"
+                                  : "bg-transparent border-transparent text-[#aaa] hover:bg-white/[0.06] hover:text-white"
+                                }`}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setPage(Math.min(groupStart + PAGE_GROUP_SIZE, totalPages))}
+                            disabled={groupEnd === totalPages}
+                            className="h-[30px] min-w-[30px] px-1.5 rounded-[7px] border text-[13px] transition-all duration-150 font-sans bg-transparent border-transparent text-[#aaa] hover:bg-white/[0.06] hover:text-white disabled:text-[#555] disabled:cursor-default cursor-pointer"
+                          >
+                            {">>"}
+                          </button>
+                        </>
+                      ) : (
+                        Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setPage(p)}
+                            className={`h-[30px] min-w-[30px] px-1.5 rounded-[7px] border text-[13px] cursor-pointer transition-all duration-150 font-sans
+                              ${p === page
+                                ? "bg-[rgba(34,197,94,0.15)] border-[rgba(34,197,94,0.5)] text-[#22c55e] font-semibold"
+                                : "bg-transparent border-transparent text-[#aaa] hover:bg-white/[0.06] hover:text-white"
+                              }`}
+                          >
+                            {p}
+                          </button>
+                        ))
                       )}
-                      {btn("›", () => setPage((p) => Math.min(totalPages, p + 1)), false, page === totalPages)}
                     </div>
                   )}
                 </>
