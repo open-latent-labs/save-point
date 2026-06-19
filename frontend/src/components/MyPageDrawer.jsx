@@ -359,13 +359,6 @@ export default function MyPageDrawer({ open, onClose }) {
                     ))
                   )}
 
-                  <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
-                  <button
-                    className="gd-mypage-action mint"
-                    onClick={() => { onClose(); navigate("/upload"); }}
-                  >
-                    + 문서 업로드
-                  </button>
                 </>
               )}
 
@@ -449,6 +442,17 @@ export default function MyPageDrawer({ open, onClose }) {
               )}
 
             </div>
+
+            {tab === "내 문서" && (
+              <div className="gd-mypage-footer">
+                <button
+                  className="gd-mypage-action mint"
+                  onClick={() => { onClose(); navigate("/upload"); }}
+                >
+                  + 문서 업로드
+                </button>
+              </div>
+            )}
           </motion.aside>
         </>
       )}

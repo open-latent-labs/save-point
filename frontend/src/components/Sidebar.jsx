@@ -4,118 +4,13 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import DocTreeNode from "./DocTreeNode.jsx";
 import { publicDocumentList } from "../api/document.js";
 import { CATEGORIES } from "../data/mock.js";
-import { IconSettings, IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
+import { IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
 import { documentPinList } from "../api/document.js";
 import { adminApprovalCount } from "../api/admin.js";
 import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-function AnimSegment({ value, onChange }) {
-  const opts = [
-    { v: "0", label: "끄기" },
-    { v: "1", label: "1" }, { v: "2", label: "2" }, { v: "3", label: "3" },
-  ];
-  return (
-    <div className="gd-anim-segment">
-      {opts.map((o) => (
-        <button
-          key={o.v}
-          className={"gd-anim-seg-btn" + (value === o.v ? " active" : "")}
-          onClick={() => onChange(o.v)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-const THEMES = [
-  { id: "mint",  label: "민트",   color: "#36E0A1", bg: "#07090A", textColor: "#EAF0EC" },
-  { id: "light", label: "라이트", color: "#059669", bg: "#F4F6F5", textColor: "#111827" },
-];
-
-function SettingsModal({ onClose }) {
-  const [streaming, setStreaming] = useState(true);
-  const [korean, setKorean] = useState(true);
-  const [sources, setSources] = useState(true);
-  const [animType, setAnimTypeState] = useState(
-    () => localStorage.getItem("gamedocs_anim") ?? "1"
-  );
-  const [theme, setThemeState] = useState(
-    () => localStorage.getItem("gamedocs_theme") ?? "mint"
-  );
-
-  const setAnimType = (val) => {
-    setAnimTypeState(val);
-    localStorage.setItem("gamedocs_anim", val);
-    window.dispatchEvent(new Event("gamedocs:anim"));
-  };
-
-  const applyTheme = (val) => {
-    setThemeState(val);
-    localStorage.setItem("gamedocs_theme", val);
-    document.documentElement.setAttribute("data-theme", val);
-    window.dispatchEvent(new Event("gamedocs:theme"));
-  };
-
-  const Row = ({ label, desc, on, set }) => (
-    <div className="gd-setting-row">
-      <div>
-        <div className="lbl">{label}</div>
-        <div className="desc">{desc}</div>
-      </div>
-      <button
-        className={"gd-toggle" + (on ? " on" : "")}
-        onClick={() => set(!on)}
-        aria-pressed={on}
-        aria-label={label}
-      />
-    </div>
-  );
-
-  return (
-    <div className="gd-modal-wrap" onClick={onClose}>
-      <div className="gd-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>설정</h3>
-        <p className="sub">데모용 설정 패널입니다. (mock)</p>
-        <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-          <div className="lbl">테마</div>
-          <div style={{ display: "flex", gap: 8, width: "100%" }}>
-            {THEMES.map(({ id, label, color, bg, textColor }) => {
-              const active = theme === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => applyTheme(id)}
-                  style={{
-                    flex: 1, display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 12px", border: `1px solid ${active ? color : "var(--border-strong)"}`,
-                    borderRadius: 9, background: bg, cursor: "pointer",
-                    boxShadow: active ? `0 0 0 2px ${color}40` : "none",
-                    transition: "border-color .15s, box-shadow .15s",
-                  }}
-                >
-                  <span style={{ width: 14, height: 14, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: active ? `0 0 7px ${color}` : "none" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: textColor, fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <Row label="스트리밍 응답" desc="AI 답변을 타이핑 애니메이션으로 표시" on={streaming} set={setStreaming} />
-        <Row label="한국어 우선" desc="답변을 한국어로 우선 생성" on={korean} set={setKorean} />
-        <Row label="출처 표시" desc="답변 하단에 참고 문서 링크 노출" on={sources} set={setSources} />
-        <div className="gd-setting-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-          <div className="lbl">애니메이션</div>
-          <AnimSegment value={animType} onChange={setAnimType} />
-        </div>
-        <button className="gd-modal-close" onClick={onClose}>닫기</button>
-      </div>
-    </div>
-  );
-}
 
 const EASE = [0.4, 0, 0.2, 1];
 const ROOM_LIMIT = 4;
@@ -125,7 +20,6 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedIds, setExpandedIds] = useState(() => new Set());
-  const [showSettings, setShowSettings] = useState(false);
   const [pinnedDocs, setPinnedDocs] = useState([]);
   const [approvalCount, setApprovalCount] = useState(0);
   const [rooms, setRooms] = useState([]);
@@ -420,12 +314,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
         {/* 하단 푸터 */}
         <div className="gd-sb-foot">
           <div className="gd-sb-foot-wiki">CURVC DevOps Wiki v1.0</div>
-          <button className="gd-sb-item" onClick={() => setShowSettings(true)}>
-            <IconSettings width="15" height="15" /> <span className="txt">설정</span>
-          </button>
         </div>
-
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </div>
     </motion.aside>
   );

@@ -830,6 +830,13 @@ a {
 .gd-mypage-body::-webkit-scrollbar { width: 4px; }
 .gd-mypage-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 
+/* 하단 고정 푸터 */
+.gd-mypage-footer {
+  flex-shrink: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
 /* 섹션 구분 */
 .gd-mypage-section-div {
   height: 1px;
