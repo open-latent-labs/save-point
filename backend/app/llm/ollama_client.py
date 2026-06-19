@@ -1,3 +1,5 @@
+from loguru import logger
+
 import httpx
 import json
 from app.config import get_settings
@@ -45,5 +47,10 @@ async def generate(
             f"{settings.ollama_generate_url}",
             json=payload,
         )
+
+        logger.info(f"Ollama status: {response.status_code}")
+
+        response.raise_for_status()
+
         data = response.json()
         return data.get("response", "")
