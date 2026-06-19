@@ -1,12 +1,14 @@
 import json
 import time
 from ulid import ULID
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.pipelines.query_pipeline import query
 from app.llm.ollama_client import generate_stream
 from app.crud.chat import save_message, update_session_last_active
 from app.models.enums import ChatRole
+from app.models.user import User
 from app.db.rdb import AsyncSessionLocal
 from app.config import get_settings
 
@@ -21,6 +23,10 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
         role=ChatRole.USER,
         content_ko=question,
     )
+
+    # 질문 수 증가
+    await db.execute(update(User).where(User.id == user_id).values(ask_count=User.ask_count + 1))
+    await db.commit()
 
     # 질문, id -> query_pipeline -> [프롬프트, 출처] 받기
     result = await query(question, user_id, selected_document_ids)

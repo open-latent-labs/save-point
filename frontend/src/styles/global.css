@@ -1013,13 +1013,13 @@ a {
 
 .gd-mypage-action.danger {
   color: #c97070;
-  border-color: rgba(201, 112, 112, .22);
+  border: none;
   background: transparent;
 }
 
 .gd-mypage-action.danger:hover {
   background: rgba(201, 112, 112, .07);
-  border-color: rgba(201, 112, 112, .4);
+  border: none;
 }
 
 /* 설정 행 (gd-setting-row 재사용) */
