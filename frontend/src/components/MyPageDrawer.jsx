@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORY_OPTIONS, formatSize, loadFavs } from "../data/upload.js";
-import { IconClose, IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
+import { CATEGORY_OPTIONS, formatSize } from "../data/upload.js";
+import { IconGoogle, IconKakao, IconNaver } from "./Icons.jsx";
 import { getLinkedOAuth, unlinkOAuth, setPrimaryEmail } from "../api/auth.js";
 import { document_list, documentPinList } from "../api/document.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -51,8 +52,10 @@ export default function MyPageDrawer({ open, onClose }) {
   const { user, login, logout } = useAuth();
 
   const [myDocs, setMyDocs] = useState([]);
+  const [docCount, setDocCount] = useState(0);
   const [pinCount, setPinCount] = useState(0);
-  const favCount = loadFavs().length;
+  const [favCount, setFavCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
   const [theme, setThemeState] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
@@ -65,7 +68,7 @@ export default function MyPageDrawer({ open, onClose }) {
 
   useEffect(() => {
     if (!open) return;
-    document_list(1, { size: 50 })
+    document_list(1, { size: 20 })
       .then((data) => {
         const docs = Array.isArray(data) ? data : (data?.documents ?? []);
         setMyDocs(docs.map((d) => ({
@@ -75,11 +78,18 @@ export default function MyPageDrawer({ open, onClose }) {
           ext: (d.extension ?? "").toLowerCase().replace(/^\./, "") || "file",
           category: d.category ?? "OTHER",
         })));
+        setDocCount(data?.total_count ?? docs.length);
       })
       .catch(() => { });
     documentPinList()
       .then((data) => setPinCount(Array.isArray(data) ? data.length : 0))
       .catch(() => setPinCount(0));
+    document_list(1, { is_bookmarked: true, size: 1 })
+      .then((data) => setFavCount(data?.total_count ?? 0))
+      .catch(() => setFavCount(0));
+    document_list(1, { status: "PENDING", size: 1 })
+      .then((data) => setPendingCount(data?.total_count ?? 0))
+      .catch(() => setPendingCount(0));
   }, [open]);
 
   useEffect(() => {
@@ -151,18 +161,39 @@ export default function MyPageDrawer({ open, onClose }) {
             exit={{ x: "100%" }}
             transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
           >
+            {/* 왼쪽 엣지 닫기 탭 */}
+            <button
+              onClick={onClose}
+              aria-label="마이페이지 닫기"
+              style={{
+                position: "absolute",
+                left: -16,
+                top: 60,
+                width: 16,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                background: "var(--elv)",
+                border: "1px solid var(--border-strong)",
+                borderRight: "none",
+                borderRadius: "4px 0 0 4px",
+                color: "var(--faint)",
+                padding: 0,
+                zIndex: 1,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--elev2)"; e.currentTarget.style.color = "var(--dim)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--elv)"; e.currentTarget.style.color = "var(--faint)"; }}
+            >
+              <ChevronRight size={10} />
+            </button>
+
             {/* 상단 브랜드 스트립 */}
             <div className="gd-sb-brand-strip" />
 
             {/* 헤더 */}
             <div className="gd-mypage-head">
-              <div className="gd-mypage-headrow">
-                <span className="gd-mypage-kicker">마이페이지</span>
-                <button className="gd-mypage-close" onClick={onClose} aria-label="닫기">
-                  <IconClose width={16} height={16} />
-                </button>
-              </div>
-
               <div className="gd-mypage-profile">
                 <Avatar name={user?.name} />
                 <div>
@@ -197,11 +228,11 @@ export default function MyPageDrawer({ open, onClose }) {
                   {/* 통계 */}
                   <div className="gd-mypage-stats">
                     <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val">{user?.ask_count ?? 0}</div>
-                      <div className="gd-mypage-stat-lbl">질문</div>
+                      <div className="gd-mypage-stat-val">{pendingCount}</div>
+                      <div className="gd-mypage-stat-lbl">승인 대기</div>
                     </div>
                     <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val" style={{ color: "#8A93FF" }}>{myDocs.length}</div>
+                      <div className="gd-mypage-stat-val" style={{ color: "#8A93FF" }}>{docCount}</div>
                       <div className="gd-mypage-stat-lbl">문서</div>
                     </div>
                     <div className="gd-mypage-stat">
@@ -232,81 +263,86 @@ export default function MyPageDrawer({ open, onClose }) {
 
                   {/* 연결된 소셜 계정 */}
                   <div className="gd-mypage-section-label">연결된 계정</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {PROVIDERS.map(({ key, label, Icon }) => {
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {PROVIDERS.map(({ key, label, Icon }, idx) => {
                       const account = linkedAccounts.find((a) => a.provider === key);
                       const linked = !!account;
                       const isPrimary = account?.email && account.email === user?.email;
                       return (
-                        <div
-                          key={key}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "8px 10px",
-                            borderRadius: 8,
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Icon />
-                            <span style={{ fontSize: 13, color: "var(--fg)" }}>{label}</span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {linked && account.email && (
-                              isPrimary ? (
-                                <span style={{
-                                  fontSize: 10, padding: "2px 7px", borderRadius: 5,
-                                  background: "rgba(54,224,161,.12)",
-                                  color: "var(--mint)",
-                                  border: "1px solid rgba(54,224,161,.25)",
-                                  whiteSpace: "nowrap",
-                                }}>
-                                  대표 이메일
-                                </span>
+                        <React.Fragment key={key}>
+                          {idx > 0 && (
+                            <div style={{
+                              height: 1,
+                              background: "var(--border)",
+                              margin: "0 12px",
+                            }} />
+                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "9px 4px",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <Icon />
+                              <span style={{ fontSize: 13, color: "var(--fg)" }}>{label}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {linked && account.email && (
+                                isPrimary ? (
+                                  <span style={{
+                                    fontSize: 10, padding: "2px 7px", borderRadius: 5,
+                                    background: "rgba(54,224,161,.12)",
+                                    color: "var(--mint)",
+                                    border: "1px solid rgba(54,224,161,.25)",
+                                    whiteSpace: "nowrap",
+                                  }}>
+                                    대표 이메일
+                                  </span>
+                                ) : (
+                                  <button
+                                    style={{
+                                      fontSize: 11, padding: "2px 8px", borderRadius: 5,
+                                      border: "1px solid var(--border-strong)", background: "transparent",
+                                      color: "var(--text)", cursor: "pointer", whiteSpace: "nowrap",
+                                    }}
+                                    disabled={oauthLoading}
+                                    onClick={() => handleSetPrimary(account.email)}
+                                  >
+                                    대표로 설정
+                                  </button>
+                                )
+                              )}
+                              {linked ? (
+                                <button
+                                  style={{
+                                    fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                    border: "1px solid var(--border-strong)", background: "transparent",
+                                    color: "var(--faint)", cursor: "pointer"
+                                  }}
+                                  disabled={oauthLoading}
+                                  onClick={() => handleUnlink(key)}
+                                >
+                                  연결 해제
+                                </button>
                               ) : (
                                 <button
                                   style={{
-                                    fontSize: 11, padding: "2px 8px", borderRadius: 5,
-                                    border: "1px solid var(--border-strong)", background: "transparent",
-                                    color: "var(--text)", cursor: "pointer", whiteSpace: "nowrap",
+                                    fontSize: 11, padding: "3px 10px", borderRadius: 6,
+                                    border: "none", background: "var(--accent)",
+                                    color: "#fff", cursor: "pointer"
                                   }}
                                   disabled={oauthLoading}
-                                  onClick={() => handleSetPrimary(account.email)}
+                                  onClick={() => handleLink(key)}
                                 >
-                                  대표로 설정
+                                  연결하기
                                 </button>
-                              )
-                            )}
-                            {linked ? (
-                              <button
-                                style={{
-                                  fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                  border: "1px solid var(--border-strong)", background: "transparent",
-                                  color: "var(--faint)", cursor: "pointer"
-                                }}
-                                disabled={oauthLoading}
-                                onClick={() => handleUnlink(key)}
-                              >
-                                연결 해제
-                              </button>
-                            ) : (
-                              <button
-                                style={{
-                                  fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                  border: "none", background: "var(--accent)",
-                                  color: "#fff", cursor: "pointer"
-                                }}
-                                disabled={oauthLoading}
-                                onClick={() => handleLink(key)}
-                              >
-                                연결하기
-                              </button>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        </React.Fragment>
                       );
                     })}
                   </div>
