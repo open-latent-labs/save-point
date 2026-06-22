@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { IconMenu, IconUser, IconBell } from "./Icons.jsx";
+import { IconMenu, IconUser, IconBell, IconSun, IconMoon } from "./Icons.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { notification_list, notification_count, notification_read } from "../api/notification.js";
 
@@ -14,6 +14,29 @@ export default function Topbar({ onMenu, onProfile }) {
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
+
+  const [theme, setTheme] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
+  const [themeAnimKey, setThemeAnimKey] = useState(0);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "mint" : "light";
+    setTheme(next);
+    setThemeAnimKey((k) => k + 1);
+    localStorage.setItem("gamedocs_theme", next);
+    document.documentElement.setAttribute("data-theme", next);
+    window.dispatchEvent(new Event("gamedocs:theme"));
+
+    const cur = localStorage.getItem("gamedocs_anim") ?? "1";
+    const nextAnim = cur === "1" ? "2" : cur === "2" ? "3" : "1";
+    localStorage.setItem("gamedocs_anim", nextAnim);
+    window.dispatchEvent(new Event("gamedocs:anim"));
+  };
+
+  useEffect(() => {
+    const sync = () => setTheme(localStorage.getItem("gamedocs_theme") ?? "mint");
+    window.addEventListener("gamedocs:theme", sync);
+    return () => window.removeEventListener("gamedocs:theme", sync);
+  }, []);
 
   useEffect(() => {
     notification_count().then(count => setUnreadCount(count ?? 0)).catch(() => {});
@@ -70,6 +93,18 @@ export default function Topbar({ onMenu, onProfile }) {
     <div className="gd-topbar">
       <button className="gd-hamburger" onClick={onMenu} aria-label="메뉴 열기">
         <IconMenu />
+      </button>
+
+      {/* 테마 토글 */}
+      <button
+        onClick={toggleTheme}
+        aria-label={theme === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"}
+        title={theme === "light" ? "다크 모드" : "라이트 모드"}
+        className="relative inline-flex items-center justify-center w-[34px] h-[34px] rounded-full border border-white/[.16] bg-transparent text-[var(--dim)] cursor-pointer transition-all duration-200 hover:border-[var(--mint)] hover:text-[var(--mint)] hover:bg-[rgba(54,224,161,.08)] shrink-0"
+      >
+        <span key={themeAnimKey} style={{ display: "flex", animation: "gdSpin 0.4s cubic-bezier(.4,0,.2,1)" }}>
+          {theme === "light" ? <IconMoon width={16} height={16} /> : <IconSun width={16} height={16} />}
+        </span>
       </button>
 
       {/* 알림 벨 */}

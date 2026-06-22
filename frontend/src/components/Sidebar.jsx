@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import DocTreeNode from "./DocTreeNode.jsx";
 import { publicDocumentList } from "../api/document.js";
 import { CATEGORIES } from "../data/mock.js";
-import { IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny } from "./Icons.jsx";
+import { IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPlus, IconTrashTiny, IconHome } from "./Icons.jsx";
 import { BRAND } from "../data/mock.js";
 import { documentPinList } from "../api/document.js";
 import { adminApprovalCount } from "../api/admin.js";
@@ -174,14 +174,17 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
         {/* 상단 네비게이션 */}
         <nav className="gd-sb-nav-section">
-          <button className={"gd-sb-navitem" + (isActive("/home") ? " active" : "")} onClick={() => go("/home")}>
+          <button className={"gd-sb-navitem" + (isActive("/home") ? " active" : "")} onClick={() => go("/home")} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <IconHome width="13" height="13" />
             홈
           </button>
           {/* AI 채팅 — 클릭 시 목록 토글 */}
           <button
             className={"gd-sb-navitem gd-sb-navitem--chat" + (isActive("/chat") ? " active" : "")}
-            onClick={() => { go("/chat"); setChatOpen((v) => !v); }}
+            onClick={() => setChatOpen((v) => !v)}
+            style={{ gap: 7 }}
           >
+            <IconChat width="13" height="13" style={{ flexShrink: 0 }} />
             AI 채팅
             <motion.svg
               viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -245,7 +248,9 @@ export default function Sidebar({ isOpen, onNavigate }) {
             )}
           </AnimatePresence>
 
-          <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")}>
+          <div className="gd-sb-section-div" style={{ margin: '6px 0 4px' }} />
+          <button className={"gd-sb-navitem" + (isActive("/upload") ? " active" : "")} onClick={() => go("/upload")} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <IconFile width="13" height="13" />
             내 문서
           </button>
           {user?.role === "ADMIN" && (
@@ -266,7 +271,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
         {/* ── 내 문서함 (고정핀 된 문서) ── */}
         <div className="gd-sb-section-div" />
         <div className="gd-sb-section-label">
-          <IconPin width="12" height="12" /> 내 문서함
+          <IconPin width="12" height="12" /> 고정 문서
         </div>
         <div className="gd-sb-pinned-list">
           {pinnedDocs.length === 0 ? (

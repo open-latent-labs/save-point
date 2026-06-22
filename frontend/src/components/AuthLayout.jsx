@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { BRAND } from "../data/mock.js";
-import { IconSpark } from "./Icons.jsx";
+import { IconSpark, IconSun, IconMoon } from "./Icons.jsx";
 
 const FEATURES = [
   "Unity · UE5 공식 레퍼런스 통합 검색",
@@ -11,8 +11,36 @@ const FEATURES = [
 
 // 좌측 브랜드 소개 + 우측 카드(children) 단독 레이아웃
 export default function AuthLayout({ kicker, title, subtitle, children }) {
+  const [theme, setTheme] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
+  const [themeAnimKey, setThemeAnimKey] = useState(0);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "mint" : "light";
+    setTheme(next);
+    setThemeAnimKey((k) => k + 1);
+    localStorage.setItem("gamedocs_theme", next);
+    document.documentElement.setAttribute("data-theme", next);
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, []);
+
   return (
     <div className="gd-auth">
+      {/* 우측 상단 테마 토글 */}
+      <button
+        onClick={toggleTheme}
+        aria-label={theme === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"}
+        title={theme === "light" ? "다크 모드" : "라이트 모드"}
+        style={{ position: "fixed", top: 16, right: 16, zIndex: 100, background: "transparent", border: "1px solid rgba(255,255,255,.16)", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--dim)", transition: "all .2s" }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,.16)"; e.currentTarget.style.color = "var(--dim)"; }}
+      >
+        <span key={themeAnimKey} style={{ display: "flex", animation: "gdSpin 0.4s cubic-bezier(.4,0,.2,1)" }}>
+          {theme === "light" ? <IconMoon width={16} height={16} /> : <IconSun width={16} height={16} />}
+        </span>
+      </button>
       <div className="gd-auth-glow" />
 
       {/* 좌측 브랜드 패널 */}
@@ -36,7 +64,7 @@ export default function AuthLayout({ kicker, title, subtitle, children }) {
           </ul>
         </div>
 
-        <p className="gd-auth-foot">© {new Date().getFullYear()} GameDocs.AI · 데모</p>
+        <p className="gd-auth-foot">© {new Date().getFullYear()} GameDocs.AI</p>
       </section>
 
       {/* 우측 카드 */}

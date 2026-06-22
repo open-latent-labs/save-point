@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout.jsx";
 import AuthField from "../components/AuthField.jsx";
-import { IconGoogle } from "../components/Icons.jsx";
 import { validateSignup } from "../data/validate.js";
 import { signup as apiSignup } from "../api/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -106,10 +105,6 @@ export default function Signup() {
         <button className="gd-auth-btn" onClick={onSubmit} disabled={submitting}>
           {submitting ? <span className="gd-spin-sm" /> : null}
           {submitting ? "가입 중…" : "회원가입"}
-        </button>
-        <div className="gd-auth-divider"><span>또는</span></div>
-        <button className="gd-oauth-btn" onClick={() => alert("Google 가입은 데모입니다.")}>
-          <IconGoogle /> Google로 계속하기
         </button>
         <p className="gd-auth-switch">
           이미 계정이 있나요? <Link to="/login">로그인</Link>
