@@ -63,12 +63,24 @@ export default function MyPageDrawer({ open, onClose }) {
   const [korean, setKorean] = useState(true);
   const [sources, setSources] = useState(true);
 
+  useEffect(() => {
+    const syncAnim = () => setAnimTypeState(localStorage.getItem("gamedocs_anim") ?? "1");
+    const syncTheme = () => setThemeState(localStorage.getItem("gamedocs_theme") ?? "mint");
+    window.addEventListener("gamedocs:anim", syncAnim);
+    window.addEventListener("gamedocs:theme", syncTheme);
+    return () => {
+      window.removeEventListener("gamedocs:anim", syncAnim);
+      window.removeEventListener("gamedocs:theme", syncTheme);
+    };
+  }, []);
+
   const [linkedAccounts, setLinkedAccounts] = useState([]);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [docPage, setDocPage] = useState(1);
+  const DOC_PAGE_SIZE = 20;
 
-  useEffect(() => {
-    if (!open) return;
-    document_list(1, { size: 20 })
+  const fetchMyDocs = React.useCallback((page) => {
+    document_list(page, { size: DOC_PAGE_SIZE })
       .then((data) => {
         const docs = Array.isArray(data) ? data : (data?.documents ?? []);
         setMyDocs(docs.map((d) => ({
@@ -81,6 +93,12 @@ export default function MyPageDrawer({ open, onClose }) {
         setDocCount(data?.total_count ?? docs.length);
       })
       .catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setDocPage(1);
+    fetchMyDocs(1);
     documentPinList()
       .then((data) => setPinCount(Array.isArray(data) ? data.length : 0))
       .catch(() => setPinCount(0));
@@ -90,7 +108,7 @@ export default function MyPageDrawer({ open, onClose }) {
     document_list(1, { status: "PENDING", size: 1 })
       .then((data) => setPendingCount(data?.total_count ?? 0))
       .catch(() => setPendingCount(0));
-  }, [open]);
+  }, [open, fetchMyDocs]);
 
   useEffect(() => {
     if (open && tab === "내 정보") {
@@ -168,14 +186,14 @@ export default function MyPageDrawer({ open, onClose }) {
               style={{
                 position: "absolute",
                 left: -16,
-                top: 60,
+                top: 128,
                 width: 16,
                 height: 28,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                background: "var(--elv)",
+                background: "var(--elev)",
                 border: "1px solid var(--border-strong)",
                 borderRight: "none",
                 borderRadius: "4px 0 0 4px",
@@ -184,7 +202,7 @@ export default function MyPageDrawer({ open, onClose }) {
                 zIndex: 1,
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--elev2)"; e.currentTarget.style.color = "var(--dim)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--elv)"; e.currentTarget.style.color = "var(--faint)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--elev)"; e.currentTarget.style.color = "var(--faint)"; }}
             >
               <ChevronRight size={10} />
             </button>
@@ -362,7 +380,10 @@ export default function MyPageDrawer({ open, onClose }) {
               {/* ── 내 문서 ── */}
               {tab === "내 문서" && (
                 <>
-                  <div className="gd-mypage-section-label">업로드한 문서 <span style={{ color: "var(--border-strong)", marginLeft: 4 }}>{myDocs.length}</span></div>
+                  <div className="gd-mypage-section-label">
+                    업로드한 문서
+                    <span style={{ color: "var(--border-strong)", marginLeft: 4 }}>{docCount}</span>
+                  </div>
 
                   {myDocs.length === 0 ? (
                     <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--faint)", fontSize: 13 }}>
@@ -395,6 +416,30 @@ export default function MyPageDrawer({ open, onClose }) {
                     ))
                   )}
 
+                  {/* 페이지네이션 */}
+                  {docCount > DOC_PAGE_SIZE && (() => {
+                    const totalPages = Math.ceil(docCount / DOC_PAGE_SIZE);
+                    const changePage = (p) => { setDocPage(p); fetchMyDocs(p); };
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 0 4px" }}>
+                        <button
+                          onClick={() => changePage(docPage - 1)}
+                          disabled={docPage === 1}
+                          style={{ background: "transparent", border: "1px solid var(--border-strong)", borderRadius: 6, color: docPage === 1 ? "var(--faint)" : "var(--text)", padding: "4px 10px", cursor: docPage === 1 ? "default" : "pointer", fontSize: 12 }}
+                        >
+                          ‹
+                        </button>
+                        <span style={{ fontSize: 12, color: "var(--dim)" }}>{docPage} / {totalPages}</span>
+                        <button
+                          onClick={() => changePage(docPage + 1)}
+                          disabled={docPage === totalPages}
+                          style={{ background: "transparent", border: "1px solid var(--border-strong)", borderRadius: 6, color: docPage === totalPages ? "var(--faint)" : "var(--text)", padding: "4px 10px", cursor: docPage === totalPages ? "default" : "pointer", fontSize: 12 }}
+                        >
+                          ›
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
 
@@ -479,16 +524,6 @@ export default function MyPageDrawer({ open, onClose }) {
 
             </div>
 
-            {tab === "내 문서" && (
-              <div className="gd-mypage-footer">
-                <button
-                  className="gd-mypage-action mint"
-                  onClick={() => { onClose(); navigate("/upload"); }}
-                >
-                  + 문서 업로드
-                </button>
-              </div>
-            )}
           </motion.aside>
         </>
       )}
