@@ -2,7 +2,6 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from app.db.rdb import init_db
 from app.db.vector_db import init_qdrant_collection, close_qdrant_client
@@ -39,21 +38,28 @@ async def _safe_throttled_heartbeat(user_id: str) -> None:
         pass
 
 
-class PresenceMiddleware(BaseHTTPMiddleware):
+class PresenceMiddleware:
     """인증된 API 요청마다 presence heartbeat를 갱신한다.
     JWT 디코드만 수행(DB 조회 없음)하여 오버헤드를 최소화하고,
-    실제 Redis write는 30초 단위 throttle로 제한한다."""
+    실제 Redis write는 30초 단위 throttle로 제한한다.
 
-    async def dispatch(self, request: Request, call_next):
-        if request.url.path not in _SKIP_PRESENCE:
-            token = request.cookies.get("sp_token")
+    순수 ASGI 미들웨어로 구현(BaseHTTPMiddleware 미사용): BaseHTTPMiddleware는
+    응답 body를 anyio 메모리 스트림으로 재포장하기 때문에, SSE 스트리밍 응답이
+    서버 종료(Ctrl+C) 등으로 취소될 때 CancelledError 트레이스백이 발생한다."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"] not in _SKIP_PRESENCE:
+            token = Request(scope).cookies.get("sp_token")
             if token:
                 payload = decode_token(token)
                 if payload and payload.get("type") == "access":
                     user_id = payload.get("sub")
                     if user_id:
                         asyncio.create_task(_safe_throttled_heartbeat(user_id))
-        return await call_next(request)
+        await self.app(scope, receive, send)
 
 
 @asynccontextmanager

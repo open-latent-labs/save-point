@@ -1,3 +1,5 @@
+from loguru import logger
+
 import httpx
 import json
 from app.config import get_settings
@@ -17,6 +19,10 @@ async def generate_stream(prompt: str):
                 "model": settings.chat_model,
                 "prompt": prompt,
                 "stream": True, # True -> 토큰 생성 될 때마다 조금씩 전달 (SSE)
+                "options" : {
+                    "num_ctx" : 12000,
+                    "temperature" : 0
+                },
             },
         ) as response:
             async for line in response.aiter_lines():
@@ -45,5 +51,10 @@ async def generate(
             f"{settings.ollama_generate_url}",
             json=payload,
         )
+
+        logger.info(f"Ollama status: {response.status_code}")
+
+        response.raise_for_status()
+
         data = response.json()
         return data.get("response", "")

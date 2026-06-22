@@ -54,7 +54,7 @@ log = logging.getLogger("dataset")
 _loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_loop)
 
-OLLAMA_URL = "https://7qg9fb67sdbvif-11434.proxy.runpod.net/api/chat"
+OLLAMA_URL = "https://140bg4xem5soaw-11434.proxy.runpod.net/api/chat"
 TEACHER = "qwen3.5:9b"
 TOP_K = 4                 # 컨텍스트로 넣을 청크 수 (추론 때와 동일하게)
 QUESTIONS_PER_CHUNK = 3
@@ -63,7 +63,7 @@ OUT_PATH = "rag_sft_dataset.jsonl"
 TMP_PATH = "rag_sft_dataset.tmp.jsonl"   # 완료 전 중간 저장용
 CKPT_PATH = "rag_sft_dataset.ckpt.json"  # 진행 상황 체크포인트
 SEED = 42
-TARGET_USER_ID = "{user_id}"
+TARGET_USER_ID = "LGOUVRQP6ERBO3JZXH255LK91H"
 random.seed(SEED)
 
 SYSTEM_PROMPT = (
@@ -265,6 +265,13 @@ def build_user_msg(question: str, contexts: List[str]) -> str:
     return f"[참고 문서]\n{ctx}\n\n[질문]\n{question}"
 
 
+def _strip_citations(text: str) -> str:
+    """답변 본문에 새어든 단독 인용 마커([1], [2] 등)만 제거.
+    - array[0] 같은 코드 인덱스: 앞 문자가 식별자/]/) 이므로 보존
+    - [2023] 같은 연도/버전(3자리 이상): 1~2자리로 한정해 보존"""
+    return re.sub(r'(?<![\w가-힣\]\)])\s*\[\d{1,2}\]', '', text)
+
+
 def gen_answer(question: str, contexts: List[str]) -> str:
     user = build_user_msg(question, contexts)
     msgs = [
@@ -272,7 +279,8 @@ def gen_answer(question: str, contexts: List[str]) -> str:
         {"role": "user", "content": user},
     ]
     # 답변은 충실성을 위해 낮은 temperature + thinking 켜기
-    return ollama_chat(msgs, temperature=0.2, think=True)
+    answer = ollama_chat(msgs, temperature=0.2, think=True)
+    return _strip_citations(answer)
 
 
 # ---------------------------------------------------------------------------
@@ -286,8 +294,11 @@ def judge_faithful(question: str, contexts: List[str], answer: str) -> bool:
         return True  # 거절 샘플은 별도 검증
     ctx = "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(contexts))
     prompt = (
-        "아래 답변의 '모든' 주장이 참고 문서로 뒷받침되는지 판단해.\n"
-        "문서에 없는 내용이 한 군데라도 있으면 NO. 한국어가 아니면 NO.\n"
+        "아래 답변이 참고 문서에 충실한지 판단해.\n"
+        "- 핵심 주장(사실·수치·동작·API 등)이 참고 문서로 뒷받침되면 YES.\n"
+        "- 문서 내용을 자연스럽게 풀어 쓰거나 정리·부연·요약한 것은 허용한다(YES).\n"
+        "- 문서에 없는 사실을 새로 지어내거나 문서와 모순되는 내용이 있으면 NO.\n"
+        "- 한국어가 아니면 NO.\n"
         "오직 YES 또는 NO 한 단어로만 답해.\n\n"
         f"참고 문서:\n{ctx}\n\n질문: {question}\n\n답변: {answer}"
     )
@@ -350,6 +361,7 @@ def make_refusal_record(question: str) -> Optional[Dict]:
     """
     retrieved = retrieve_topk(question, k=TOP_K)
     contexts = [r["text"] for r in retrieved]
+    
     if not contexts:
         return None
     if _is_answerable(question, contexts):
@@ -396,7 +408,7 @@ def main():
     log.info("데이터셋 생성 시작")
 
     log.info("PostgreSQL에서 청크 로드 중...")
-    chunks = load_chunks()[:10]
+    chunks = load_chunks()
     log.info(f"청크 {len(chunks)}개 로드 완료")
 
     done_chunk_ids, seen_q, record_count = _load_ckpt()
@@ -440,6 +452,13 @@ def main():
                     )
                     _save_ckpt(done_chunk_ids, seen_q, record_count)
                     continue
+
+                # 출처 청크를 컨텍스트에 강제 포함 → 백본 질문의 답 가능성 보장
+                # (질문은 이 청크에서 생성됐으므로 답의 근거가 반드시 들어가야 함)
+                if chunk["text"] not in contexts:
+                    contexts = [chunk["text"]] + contexts[: TOP_K - 1]
+                random.shuffle(contexts)  # 위치 편향 방지
+
                 log.info(
                     f"  [{q_label}] Stage2 완료 → {len(contexts)}개 청크 "
                     f"({time.time() - t0:.1f}s)"
@@ -459,6 +478,15 @@ def main():
                 if _is_non_korean(answer):
                     log.warning(
                         f"  [{q_label}] Stage3 비한국어 답변 감지 → 건너뜀 "
+                        f"({time.time() - t0:.1f}s)"
+                    )
+                    _save_ckpt(done_chunk_ids, seen_q, record_count)
+                    continue
+                if answer.strip() == REFUSAL_TEXT:
+                    # 백본 질문인데 teacher가 거절 → 거절 샘플로 쓰지 않고 폐기
+                    # (거절은 의도한 out-of-scope 경로에서만 생성)
+                    log.warning(
+                        f"  [{q_label}] Stage3 백본 거절 → 건너뜀 "
                         f"({time.time() - t0:.1f}s)"
                     )
                     _save_ckpt(done_chunk_ids, seen_q, record_count)

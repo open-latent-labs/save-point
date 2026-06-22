@@ -24,7 +24,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 _TERMINAL_STATUSES = {DocumentStatus.DONE, DocumentStatus.PENDING, DocumentStatus.APPROVED}
 _POLL_INTERVAL = 3.0
-_MAX_POLLS = 300  # 15분
+_MAX_POLLS = 600  # 30분
 
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=202)

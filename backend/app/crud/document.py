@@ -51,6 +51,7 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
     # idx_documents_uploader_doc(uploaded_by_id, id WHERE deleted_by_id IS NULL) 활용
     doc_conditions = [
         Document.uploaded_by_id == user_id,
+        Document.status.not_in([DocumentStatus.INITIAL, DocumentStatus.PROCESSING]),
         Document.deleted_by_id.is_(None),
     ]
     if body.status:

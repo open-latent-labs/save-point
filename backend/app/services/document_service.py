@@ -111,11 +111,13 @@ async def run_processing_pipeline(
             raw_text = ""
             try:
                 await update_job(db, ocr_job, JobStatus.RUNNING)
+                await db.commit()
                 logger.info(f"[OCR 시작] doc_id={document_id}, filename={filename}")
                 extraction = await run_ocr(file_bytes, extension)
                 raw_text = extraction.full_text
                 await save_ocr_result(db, document_id, extraction)
                 await update_job(db, ocr_job, JobStatus.DONE)
+                await db.commit()
                 logger.info(f"[OCR 완료] doc_id={document_id}, 추출 글자수={len(raw_text)}")
             except Exception as e:
                 logger.error(f"[OCR 실패] doc_id={document_id}: {e}")
@@ -127,6 +129,7 @@ async def run_processing_pipeline(
             llm_job = await create_processing_job(db, document_id, JobType.CLASSIFY_SUMMARIZE)
             try:
                 await update_job(db, llm_job, JobStatus.RUNNING)
+                await db.commit()
                 logger.info(f"[LLM 요약 시작] doc_id={document_id}")
                 classify_result = await summarize_and_classify(raw_text)
                 await save_summary_result(db, document_id, classify_result, settings.summary_model)
@@ -136,10 +139,12 @@ async def run_processing_pipeline(
             except Exception as e:
                 logger.error(f"[LLM 분류/요약 실패] doc_id={document_id}: {e}")
                 await update_job(db, llm_job, JobStatus.FAILED, str(e))
+                await db.commit()
 
             embed_job = await create_processing_job(db, document_id, JobType.EMBED)
             try:
                 await update_job(db, embed_job, JobStatus.RUNNING)
+                await db.commit()
                 logger.info(f"[임베딩 시작] doc_id={document_id}, 추출본 글자수={len(raw_text)}")
                 chunk_results = await ingest(
                     raw_text,
@@ -156,11 +161,13 @@ async def run_processing_pipeline(
                 )
                 await save_document_chunks(db, document_id, chunk_results)
                 await update_job(db, embed_job, JobStatus.DONE)
+                await db.commit()
                 logger.info(f"[임베딩 완료] doc_id={document_id}, 청크수={len(chunk_results)}")
 
             except Exception as e:
                 logger.error(f"[임베딩 실패] doc_id={document_id}: {e}")
                 await update_job(db, embed_job, JobStatus.FAILED, str(e))
+                await db.commit()
 
             await set_document_status(db, doc, DocumentStatus.DONE)
             await db.commit()
@@ -168,4 +175,4 @@ async def run_processing_pipeline(
 
         except Exception as e:
             logger.error(f"[파이프라인 수행 중 오류 발생] doc_id={document_id}: {e}")
-            await db.rollback()
+            await db.commit()

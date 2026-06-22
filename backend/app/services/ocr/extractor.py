@@ -9,7 +9,6 @@ from PIL import Image
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
-
 def extract_pdf_pages(file_path: str) -> list[tuple[str, Image.Image, float, int]]:
     doc = fitz.open(file_path)
     pages: list[tuple[str, Image.Image, float, int]] = []
@@ -26,7 +25,8 @@ def extract_pdf_pages(file_path: str) -> list[tuple[str, Image.Image, float, int
 
         text = page.get_text()
         pix = page.get_pixmap(dpi=150)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)        
+
         pages.append((text, img, image_ratio, text_block_count))
     doc.close()
     return pages

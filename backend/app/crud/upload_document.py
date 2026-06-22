@@ -133,7 +133,7 @@ async def save_summary_result(
 ) -> None:
     db.add(SummaryLlmResult(
         document_id=document_id,
-        category=classify_result["category"],
+        category=classify_result["category"].upper(),
         summary_ko=classify_result["summary_ko"],
         model_name=model_name,
         processed_at=datetime.now(timezone.utc),

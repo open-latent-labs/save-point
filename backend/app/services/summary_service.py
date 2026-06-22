@@ -15,7 +15,11 @@ class SummaryOutput(BaseModel):
     @field_validator("category", mode="before")
     @classmethod
     def coerce_category(cls, v: str) -> str:
-        return v if v in Category._value2member_map_ else Category.OTHER.value
+        if isinstance(v, str):
+            upper = v.upper()
+            if upper in Category._value2member_map_:
+                return upper
+        return Category.OTHER.value
 
 def _parse(raw: str) -> SummaryOutput:
     return SummaryOutput.model_validate(json.loads(raw.strip()))
@@ -47,5 +51,5 @@ async def summarize_and_classify(text: str, max_retries: int = 2) -> dict:
 
     return {
         "category": Category.OTHER,
-        "summary_ko": last_raw[:2000] if last_raw else None,
+        "summary_ko": last_raw if last_raw else None,
     }
