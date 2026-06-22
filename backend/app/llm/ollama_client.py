@@ -19,6 +19,10 @@ async def generate_stream(prompt: str):
                 "model": settings.chat_model,
                 "prompt": prompt,
                 "stream": True, # True -> 토큰 생성 될 때마다 조금씩 전달 (SSE)
+                "options" : {
+                    "num_ctx" : 12000,
+                    "temperature" : 0
+                },
             },
         ) as response:
             async for line in response.aiter_lines():

@@ -365,7 +365,7 @@ export default function Upload() {
               // 3초 후 항목 자동 제거 (문서 목록에 반영됨)
               setTimeout(
                 () => setItems((prev) => prev.filter((it) => it.id !== id)),
-                3000
+                1500
               );
             };
 
@@ -394,7 +394,7 @@ export default function Upload() {
           setRefreshKey((k) => k + 1);
           setTimeout(
             () => setItems((prev) => prev.filter((it) => it.id !== id)),
-            3000
+            1500
           );
         }
       } else {

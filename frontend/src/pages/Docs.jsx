@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import Topbar from "../components/Topbar.jsx";
 import { document_content, document_original, document_delete, document_update_access } from "../api/docs.js";
 
@@ -199,10 +201,12 @@ export default function Docs() {
                       </p>
                     ) : (
                       <div
-                        className="gd-doc-desc"
-                        style={{ margin: "0 0 12px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                        className="gd-doc-desc gd-markdown"
+                        style={{ margin: "0 0 12px", wordBreak: "break-word" }}
                       >
-                        {normalizedDesc}
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {normalizedDesc}
+                        </ReactMarkdown>
                       </div>
                     )}
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>

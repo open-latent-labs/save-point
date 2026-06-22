@@ -26,7 +26,7 @@ export default function UploadItem({ item, onRemove, onCategory }) {
         <div className="gd-up-sub">
           <span>{formatSize(size)}</span>
           {status === "uploading"   && <span className="dim">· 업로드 중 {progress}%</span>}
-          {status === "processing"  && <span className="dim">· AI 처리 중</span>}
+          {status === "processing"  && <span className="dim">· 문서 처리 중</span>}
           {status === "done"        && <span className="ok">· 완료</span>}
           {status === "error"       && <span className="err">· {error}</span>}
         </div>
