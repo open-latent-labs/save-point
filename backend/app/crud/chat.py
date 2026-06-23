@@ -72,6 +72,25 @@ async def get_messages(db: AsyncSession, session_id: str) -> list[ChatMessage]:
     )
     return result.scalars().all()
 
+# AI 메시지 내용 업데이트
+async def update_message_content(
+    db: AsyncSession,
+    message_id: str,
+    content_ko: str,
+    retrieved_chunk_ids: list | None = None,
+    latency_ms: int | None = None,
+) -> None:
+    values: dict = {"content_ko": content_ko}
+    if retrieved_chunk_ids is not None:
+        values["retrieved_chunk_ids"] = retrieved_chunk_ids
+    if latency_ms is not None:
+        values["latency_ms"] = latency_ms
+    await db.execute(
+        update(ChatMessage).where(ChatMessage.id == message_id).values(**values)
+    )
+    await db.commit()
+
+
 # 마지막 활동 저장
 async def update_session_last_active(db: AsyncSession, session_id: str) -> None:
     await db.execute(

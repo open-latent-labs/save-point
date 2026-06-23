@@ -12,7 +12,9 @@ export async function loadRooms(userId) {
     return data.map((s) => ({
       id: s.session_id,
       title: s.session_name,
-      date: s.last_active_at?.slice(0, 10) ?? "",
+      date: s.last_active_at?.slice(0, 10) ?? "",       // 표시용 (날짜만)
+      lastActiveAt: s.last_active_at ?? "",              // 정렬용 (전체 타임스탬프)
+      createdAt: s.created_at ?? "",                     // 정렬용 (전체 타임스탬프)
       messages: [],
     }));
   } catch (e) {

@@ -8,7 +8,8 @@ import { IconClose, IconBookOpen, IconPin, IconFile, IconGlobe, IconChat, IconPl
 import { BRAND } from "../data/mock.js";
 import { documentPinList } from "../api/document.js";
 import { adminApprovalCount } from "../api/admin.js";
-import { loadRooms, createRoom, deleteRoom } from "../data/chatRooms.js";
+import { loadRooms, deleteRoom } from "../data/chatRooms.js";
+import { formatRelativeDate } from "../utils/formatDate.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 
@@ -83,11 +84,11 @@ export default function Sidebar({ isOpen, onNavigate }) {
     const syncPublicDocs = () => fetchPublicDocs();
     const syncRoomActive = (e) => {
       const roomId = e.detail;
-      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date().toISOString();
       setRooms((prev) => {
         const idx = prev.findIndex((r) => r.id === roomId);
         if (idx < 0) return prev;
-        const updated = { ...prev[idx], date: today };
+        const updated = { ...prev[idx], lastActiveAt: now, date: now.slice(0, 10) };
         return [updated, ...prev.filter((r) => r.id !== roomId)];
       });
     };
@@ -163,9 +164,8 @@ export default function Sidebar({ isOpen, onNavigate }) {
         {/* 새 채팅 버튼 */}
         <button
           className="gd-newchat"
-          onClick={async () => {
-            const room = await createRoom(user?.id);
-            go(`/chat?room=${room.id}`);
+          onClick={() => {
+            go(`/chat`);
           }}
         >
           <IconPlus />
@@ -219,7 +219,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
                           title={room.title}
                         >
                           <span className="gd-sb-room-title">{room.title}</span>
-                          <span className="gd-sb-room-date">{room.date?.slice(5)}</span>
+                          <span className="gd-sb-room-date">{formatRelativeDate(room.lastActiveAt || room.date)}</span>
                         </button>
                         <button
                           className="gd-sb-room-del"

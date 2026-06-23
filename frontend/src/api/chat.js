@@ -29,7 +29,7 @@ SSE -> GET만 가능, 커스텀 헤더 불가 / 데이터 형식 자동 파싱, 
  * @returns {() => void} abort 함수 (중지 버튼용)
  */
 // 이벤트 핸들러 네이밍 컨벤션 -> [ON + 이벤트명] 형태는 ~할때 실행되는 함수라는 암묵적 의미
-export function streamChat(question, userId, sessionId, onToken, onSources, onDone, selectedDocumentIds = []) {
+export function streamChat(question, userId, sessionId, onToken, onSources, onDone, onError, selectedDocumentIds = []) {
   // 스트리밍 도중에 강제 중지할 수 있는 컨트롤러
   // 브라우저 내장 WEB API.
   const controller = new AbortController();
@@ -77,14 +77,23 @@ export function streamChat(question, userId, sessionId, onToken, onSources, onDo
             continue;
           }
 
+          if (data.startsWith("[ERROR]")) {
+            const errorText = JSON.parse(data.replace("[ERROR]", ""));
+            onError?.(errorText);
+            return;
+          }
+
           //위 두 케이스(종료, 출처)가 아니면 일반 데이터임으로 받아서 화면에 렌더
           onToken(JSON.parse(data));
         }
       }
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("SSE 오류:", err);
+      if (err.name === "AbortError") {
+        // 사용자가 직접 중단 (페이지 이동 등) — UI 상태만 정리
         onDone();
+      } else {
+        console.error("SSE 오류:", err);
+        onError?.("⚠️ 네트워크 오류로 답변을 받지 못했습니다.");
       }
     }
   })();
