@@ -1,6 +1,10 @@
 # test vetor data
 scripts
 
+# RAGAS
+ragas
+ragas/*
+
 node_modules/
 .claude/
 

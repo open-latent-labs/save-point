@@ -31,24 +31,6 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     # 질문, id -> query_pipeline -> [프롬프트, 출처] 받기
     result = await query(question, user_id, selected_document_ids)
 
-    ''' 
-    # query에서 관련 문서를 찾지 못해 prompt가 None으로 넘어온 경우에 쓰려고 적은건데 이제 그럴 일 없음
-    # 그치만 나중에 테스트 코드 적을때 참고하려고 남겨둠
-    # 다음 채팅 띄우고 종료
-    if not result["prompt"]:
-        no_answer = "질문에 관한 관련 문서를 찾을 수 없습니다. 다시 질문해주세요."
-        await save_message(
-            db=db,
-            message_id=str(ULID()),
-            session_id=session_id,
-            role=ChatRole.ASSISTANT,
-            content_ko=no_answer,
-        )
-        await update_session_last_active(db, session_id)
-        yield f"data: {no_answer}\n\n"
-        yield "data: [DONE]\n\n"
-        return '''
-
     # llm에 파이프라인을 통해 받은 프롬프트, 출처를 전달 -> 답변을 SSE로 실시간 스트리밍 받아 넘김
     full_answer = ""
     start = time.time()

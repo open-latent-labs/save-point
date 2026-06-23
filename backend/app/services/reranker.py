@@ -17,6 +17,7 @@ def get_reranker() -> CrossEncoder:
     return _reranker
 
 
+# 덴스-스파스 40개 문서 가져와서 top_k만큼 거름
 async def rerank(question: str, search_results: list[dict], top_k: int = 5) -> list[dict]:
     if not search_results:
         return []
