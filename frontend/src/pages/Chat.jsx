@@ -33,6 +33,9 @@ export default function Chat() {
   const [showDocModal, setShowDocModal] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState([]); // [{ id, filename }]
 
+  // 2000자 초과 경고 모달
+  const [showLengthWarn, setShowLengthWarn] = useState(false);
+
   const scrollRef = useRef(null);
   const titleInputRef = useRef(null);
   const abortMapRef = useRef(new Map());
@@ -107,7 +110,7 @@ export default function Chat() {
         if (!user?.id) return;
         let room;
         try {
-          room = await createRoom(user.id, q.length > 40 ? q.slice(0, 40) + "…" : q);
+          room = await createRoom(user.id, q.length > 15 ? q.slice(0, 15) + "…" : q);
         } catch (err) {
           console.error("방 생성 실패:", err);
           return;
@@ -202,8 +205,23 @@ export default function Chat() {
             return next;
           });
           abortMapRef.current.delete(capturedRoomId);
-        }
-      ,
+        },
+        (errorText) => {
+          skipLoadRef.current.delete(capturedRoomId);
+
+          setMessagesMap((prev) => ({
+            ...prev,
+            [capturedRoomId]: (prev[capturedRoomId] ?? []).map((m) =>
+              m.id === aiId ? { ...m, streaming: false, isLoading: false, text: m.text || errorText } : m
+            ),
+          }));
+          setBusyRooms((prev) => {
+            const next = new Set(prev);
+            next.delete(capturedRoomId);
+            return next;
+          });
+          abortMapRef.current.delete(capturedRoomId);
+        },
         selectedDocs.map((d) => d.id)
       );
 
@@ -211,6 +229,13 @@ export default function Chat() {
     },
     [busyRooms, currentRoomId, setSearchParams, selectedDocs]
   );
+
+  // 언마운트 시 진행 중인 스트리밍 abort → 백엔드가 부분 답변 저장
+  useEffect(() => {
+    return () => {
+      abortMapRef.current.forEach((abort) => abort());
+    };
+  }, []);
 
   // URL ?q= 첫 메시지 자동 전송
   useEffect(() => {
@@ -251,7 +276,22 @@ export default function Chat() {
     setTitleDraft(roomTitle);
   };
 
+  const stopGeneration = () => {
+    const abort = abortMapRef.current.get(currentRoomId);
+    if (abort) abort();
+  };
+
   const onSubmit = () => {
+    if (input.length >= 2000) {
+      setShowLengthWarn(true);
+      return;
+    }
+    sendMessage(input);
+    setInput("");
+  };
+
+  const onSubmitAnyway = () => {
+    setShowLengthWarn(false);
     sendMessage(input);
     setInput("");
   };
@@ -268,7 +308,8 @@ export default function Chat() {
                 ref={titleInputRef}
                 className="gd-chat-title-input"
                 value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
+                onChange={(e) => setTitleDraft(e.target.value.slice(0, 15))}
+                maxLength={15}
                 onBlur={saveTitle}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveTitle();
@@ -302,7 +343,7 @@ export default function Chat() {
           </div>
         ) : (
           <div className="gd-chat-inner">
-            {messages.map((m) => <ChatMessage key={m.id} message={m} />)}
+            {messages.map((m) => <ChatMessage key={m.id} message={m} userName={user?.name} />)}
           </div>
         )}
       </div>
@@ -338,9 +379,19 @@ export default function Chat() {
               variant="send"
               disabled={busy}
             />
+            {busy && (
+              <button className="gd-stop-btn" onClick={stopGeneration} title="답변 생성 중지">
+                <span className="gd-stop-icon" />
+              </button>
+            )}
           </div>
           <div className="gd-composer-hint">
             <kbd>Enter</kbd> 전송 · {selectedDocs.length > 0 ? `${selectedDocs.length}개 문서로 RAG 검색 중` : "전체 문서 자동 검색"}
+            {input.length > 0 && (
+              <span style={{ marginLeft: 10, color: input.length > 1800 ? (input.length >= 2000 ? "var(--error, #E08A8A)" : "#FFB454") : "inherit" }}>
+                {input.length} / 2000
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -351,6 +402,32 @@ export default function Chat() {
           onConfirm={(docs) => { setSelectedDocs(docs); setShowDocModal(false); }}
           onClose={() => setShowDocModal(false)}
         />
+      )}
+
+      {showLengthWarn && (
+        <div className="gd-modal-wrap" onClick={() => setShowLengthWarn(false)}>
+          <div className="gd-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>글자 수 제한 도달</h3>
+            <p className="sub">
+              현재 질문이 <strong>2,000자</strong>로 제한되어 뒷부분이 잘렸을 수 있습니다.<br />
+              내용을 다시 확인하거나, 그대로 전송할 수 있습니다.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => setShowLengthWarn(false)}
+                style={{ flex: 1, padding: "11px", borderRadius: 11, border: "1px solid var(--border-strong)", background: "var(--elev2)", color: "var(--dim)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+              >
+                다시 확인하기
+              </button>
+              <button
+                onClick={onSubmitAnyway}
+                style={{ flex: 1, padding: "11px", borderRadius: 11, border: 0, background: "var(--mint-strong)", color: "var(--mint-deep)", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+              >
+                그대로 질문하기
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {blocker.state === "blocked" && (

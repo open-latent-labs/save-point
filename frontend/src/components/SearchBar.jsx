@@ -18,7 +18,7 @@ export default function SearchBar({
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      onSubmit?.();
+      if (value.trim()) onSubmit?.();
     }
   };
 
@@ -30,7 +30,7 @@ export default function SearchBar({
         className="gd-input"
         value={value}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value.slice(0, 2000))}
         onKeyDown={handleKey}
         autoFocus={autoFocus}
         aria-label="검색 및 질문 입력"
@@ -38,7 +38,7 @@ export default function SearchBar({
       <button
         className="gd-btn"
         onClick={() => onSubmit?.()}
-        disabled={disabled || !value.trim()}
+        disabled={disabled || !value.trim() || value.length > 2000}
         aria-label={buttonLabel}
       >
         {variant === "search" ? (
