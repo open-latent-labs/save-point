@@ -1,9 +1,9 @@
 import { CATEGORIES } from "./mock.js";
 
-export const ACCEPT = ".pdf,.md,.txt,.docx,.doc";
+export const ACCEPT = ".pdf,.pptx";
 export const MAX_BYTES = 20 * 1024 * 1024;
 
-const EXT_OK = ["pdf", "md", "txt", "docx", "doc"];
+const EXT_OK = ["pdf", "pptx"];
 
 export function extOf(name) {
   const m = /\.([a-z0-9]+)$/i.exec(name || "");
@@ -18,7 +18,7 @@ export function formatSize(bytes) {
 
 export function validateFile(file) {
   const ext = extOf(file.name);
-  if (!EXT_OK.includes(ext)) return "지원하지 않는 형식이에요 (PDF·MD·TXT·DOCX).";
+  if (!EXT_OK.includes(ext)) return "지원하지 않는 형식이에요 (PDF·PPTX).";
   if (file.size > MAX_BYTES) return "파일이 너무 커요 (최대 20MB).";
   if (file.size === 0) return "빈 파일은 업로드할 수 없어요.";
   return null;

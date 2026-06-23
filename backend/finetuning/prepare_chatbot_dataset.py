@@ -87,7 +87,7 @@ def ollama_chat(messages: List[Dict], temperature: float = 0.3, think: bool = Fa
         "messages": messages,
         "stream": False,
         "think": think,
-        "options": {"temperature": temperature, "top_p": 0.95},
+        "options": {"temperature": temperature, "top_p": 0.95, "num_ctx": 12000},
     }
     for attempt in range(3):
         try:

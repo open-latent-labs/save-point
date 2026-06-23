@@ -27,7 +27,7 @@ from app.schemas.chunk import ChunkMetadata
 from app.utils.minio_client import BUCKET_NAME, upload_file
 
 _ALLOWED_EXT = {".pdf", ".pptx"}
-_MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 _UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]')
 _WINDOWS_RESERVED = re.compile(r'^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$', re.IGNORECASE)
 
@@ -43,7 +43,7 @@ def validate_extension(filename: str) -> str:
 
 def validate_file_size(file_bytes: bytes) -> None:
     if len(file_bytes) > _MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
+        raise HTTPException(status_code=413, detail="파일 크기가 20MB를 초과합니다.")
 
 
 def sanitize_filename(filename: str) -> str:

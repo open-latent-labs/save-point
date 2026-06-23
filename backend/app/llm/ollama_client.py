@@ -12,7 +12,6 @@ _MAX_RETRIES = 3       # generate 요청 최대 시도 횟수
 _BACKOFF_BASE = 0.5    # 지수 백오프 기준 대기 시간(초): 0.5 → 1.0 → 2.0
 _MAX_CONCURRENT_REQUESTS = 2  # Ollama 단일 서버 보호: 동시 요청 수 상한
 
-# generate/embed 공용 동시성 제한 (같은 Ollama 서버를 보호)
 ollama_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_REQUESTS)
 
 # 채팅 SSE
@@ -73,16 +72,13 @@ async def generate(
                 return data.get("response", "")
 
             except httpx.HTTPStatusError as e:
-                # 4xx(모델명 오타·잘못된 요청 등)는 재시도해도 동일하게 실패 → 즉시 전파
                 if e.response.status_code < 500:
                     raise
                 last_exc = e  # 5xx(서버 일시 과부하·모델 로딩 등)는 재시도
             except httpx.TransportError as e:
-                # 연결 실패·타임아웃 등 일시적 오류 → 재시도
                 last_exc = e
 
             if attempt < _MAX_RETRIES:
-                # jitter: 동시 실패한 요청들이 같은 타이밍에 재시도되어 몰리는 것 방지
                 delay = _BACKOFF_BASE * 2 ** (attempt - 1) * (1 + random.random())
                 logger.warning(
                     f"[LLM 요청 실패 — 재시도 {attempt}/{_MAX_RETRIES - 1}] "
