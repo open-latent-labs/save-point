@@ -369,6 +369,19 @@ export default function Upload() {
               );
             };
 
+            // 처리 단계 실패/타임아웃 → 오류로 표시
+            const fail = (message) => {
+              es.close();
+              delete esRef.current[id];
+              setItems((prev) =>
+                prev.map((it) =>
+                  it.id === id ? { ...it, status: "error", error: message } : it
+                )
+              );
+              setPage(1);
+              setRefreshKey((k) => k + 1);
+            };
+
             es.addEventListener("status", (e) => {
               const data = JSON.parse(e.data);
               setItems((prev) =>
@@ -381,9 +394,17 @@ export default function Upload() {
               if (["DONE", "PENDING", "APPROVED"].includes(data.document_status)) finish();
             });
 
-            es.addEventListener("failed", () => finish());
-            es.addEventListener("timeout", () => finish());
-            es.onerror = () => finish();
+            es.addEventListener("failed", (e) => {
+              let message = "문서 처리 중 오류가 발생했습니다.";
+              try { message = JSON.parse(e.data).message || message; } catch { /* 기본 메시지 사용 */ }
+              fail(message);
+            });
+            es.addEventListener("timeout", (e) => {
+              let message = "처리 시간이 초과되었습니다.";
+              try { message = JSON.parse(e.data).message || message; } catch { /* 기본 메시지 사용 */ }
+              fail(message);
+            });
+            es.onerror = () => fail("문서 처리 상태를 받아오지 못했습니다.");
           }
         } catch {
           // JSON 파싱 실패 시 업로드 성공으로 처리
