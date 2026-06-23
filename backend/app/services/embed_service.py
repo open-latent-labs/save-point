@@ -66,6 +66,7 @@ def embed_sparse(chunks: list[str]) -> list[dict]:
     for batch_start in range(0, total, _LOG_INTERVAL):
         batch = chunks[batch_start:batch_start + _LOG_INTERVAL]
         batch_end = min(batch_start + _LOG_INTERVAL, total)
+        batch_success = False
 
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
@@ -79,13 +80,36 @@ def embed_sparse(chunks: list[str]) -> list[dict]:
                     indices = [int(k) for k in lexical_weights.keys()]
                     values = [float(v) for v in lexical_weights.values()]
                     sparse_vectors.append({"indices": indices, "values": values})
+                batch_success = True
                 break
             except Exception as e:
                 if attempt < _MAX_RETRIES:
                     logger.warning(f"[Sparse 임베딩] 배치 {batch_start+1}~{batch_end}/{total} 실패 (재시도 {attempt}/{_MAX_RETRIES - 1}): {e}")
                 else:
-                    logger.error(f"[Sparse 임베딩] 배치 {batch_start+1}~{batch_end}/{total} 최종 실패, 건너뜀: {e}")
-                    sparse_vectors.extend([{"indices": [], "values": []}] * len(batch))
+                    logger.warning(f"[Sparse 임베딩] 배치 {batch_start+1}~{batch_end}/{total} 최종 실패, 청크 단위 fallback: {e}")
+
+        if not batch_success:
+            for j, chunk in enumerate(batch):
+                global_idx = batch_start + j
+                for attempt in range(1, _MAX_RETRIES + 1):
+                    try:
+                        output = model.encode(
+                            [chunk],
+                            return_dense=False,
+                            return_sparse=True,
+                            return_colbert_vecs=False,
+                        )
+                        lexical_weights = output["lexical_weights"][0]
+                        indices = [int(k) for k in lexical_weights.keys()]
+                        values = [float(v) for v in lexical_weights.values()]
+                        sparse_vectors.append({"indices": indices, "values": values})
+                        break
+                    except Exception as e:
+                        if attempt < _MAX_RETRIES:
+                            logger.warning(f"[Sparse 임베딩] 청크 {global_idx+1}/{total} 실패 (재시도 {attempt}/{_MAX_RETRIES - 1}): {e}")
+                        else:
+                            logger.error(f"[Sparse 임베딩] 청크 {global_idx+1}/{total} 최종 실패, 건너뜀: {e}")
+                            sparse_vectors.append({"indices": [], "values": []})
 
         logger.info(f"[Sparse 임베딩] {batch_end}/{total} 완료")
     return sparse_vectors

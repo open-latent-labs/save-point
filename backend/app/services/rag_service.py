@@ -17,12 +17,19 @@ async def embed_query_dense(query: str) -> list[float]:
         )
         return response.json()["embeddings"][0]
 
+# ===================스파스==============================
+
+# 스파스 임베딩은 스레드 풀로 비동기 동작하게 하는 중.
+# 덴스 임베딩 -> 올라마에 HTTP 요청을 보내기 때문에 애당초 비동기.
+# 스파스 임베딩 -> cpu에서 직접 연산하기 때문에 블로깅 발생(동기)
+async def embed_query_sparse(query: str) -> dict:
+    return await asyncio.to_thread(_run_sparse, query)
+
 # SPARSE :: 키워드 기반 
 # 질문을 임베딩(숫자 리스트)로 변경
 def _run_sparse(query: str) -> dict:
     # 같은 bge 모델을 사용하는데 왜 SPARSE 모드로 사용하겠다고 따로 모델을 불러와야하는가?
-    # 설정만 변경하면 되는게 아닌지?
-    # -> 올라마는 dense 벡터만 반환하기 때문에.(과일 가게긴 한데 여긴 망고만 팔지 애플 망고는 안 판다는 소리)
+    # 설정만 변경하면 되는게 아닌지? -> 올라마는 dense 벡터만 반환하기 때문에.
     # sparse는 bge-m3의 lexical_weights를 직접 뽑아야 하는데, 이건 FlagEmbedding 라이브러리를 통해서만 접근 가능
     # = 올라마가 쓰려는 모드를 지원 안해서 다른 루트로 모델 가져온다는 뜻
     model = get_flag_model()
@@ -42,12 +49,7 @@ def _run_sparse(query: str) -> dict:
         "values": [float(v) for v in lexical_weights.values()],
     }
 
-# 스파스 임베딩은 스레드 풀로 비동기 동작하게 하는 중.
-# 덴스 임베딩 -> 올라마에 HTTP 요청을 보내기 때문에 애당초 비동기.
-# 스파스 임베딩 -> cpu에서 직접 연산하기 때문에 블로깅 발생(동기)
-async def embed_query_sparse(query: str) -> dict:
-    return await asyncio.to_thread(_run_sparse, query)
-
+# ====================검색========================
 
 # 질문을 덴스 임베딩, 스파스 임베딩 한걸 가져와서 벡터 db에 검색
 async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id: str, limit: int = 20, document_ids: list[str] | None = None) -> list[dict]:
@@ -57,37 +59,36 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
         # 사용자가 직접 선택한 문서만 검색
         search_filter = Filter(
             must=[
-                FieldCondition(key="document_id", match=MatchAny(any=document_ids)),
+                FieldCondition(key="document_id", match=MatchAny(any=document_ids)), # 내꺼 (공용문서도 불러오게 수정해야함)
             ],
             must_not=[
-                FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+                FieldCondition(key="deleted_file", match=MatchValue(value="yes")), # 소프트 제거 제외
             ],
         )
     else:
         # 기존 방식: 내 문서 + 승인된 공용 문서 전체 검색
         search_filter = Filter(
             must_not=[
-                FieldCondition(key="deleted_file", match=MatchValue(value="yes")),
+                FieldCondition(key="deleted_file", match=MatchValue(value="yes")), # 소프트 제거 제외
             ],
             should=[
                 Filter(
                     must=[
-                        FieldCondition(key="user_id", match=MatchValue(value=user_id))
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id)) # 내꺼 전체
                     ]
                 ),
                 Filter(
                     must=[
-                        FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")),
+                        FieldCondition(key="access_type", match=MatchValue(value="PUBLIC")), # 공용 전체
                     ],
                     must_not=[
-                        FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id)), # 그런데 이제 내꺼 아닌거(내껀 위에서 다 불렀음)
                     ]
                 ),
             ]
         )
 
     # 위에서 필터된 문서에서
-    # 
     results = await client.query_points(
         collection_name=settings.qdrant_collection_name,
         # 덴스, 스파스 모두 20개씩 뽑음 (총 40개: 중복되면 더 적을 수 있음)
