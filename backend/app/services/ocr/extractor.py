@@ -32,27 +32,42 @@ def extract_pdf_pages(file_path: str) -> list[tuple[str, Image.Image, float, int
     return pages
 
 
+# 그룹 도형을 재귀적으로 순회하며 (텍스트 줄, 텍스트 블록 수, 이미지 면적) 집계
+def _collect_shape_content(shapes) -> tuple[list[str], int, int]:
+    lines: list[str] = []
+    text_block_count = 0
+    image_area = 0
+
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            g_lines, g_count, g_image_area = _collect_shape_content(shape.shapes)
+            lines.extend(g_lines)
+            text_block_count += g_count
+            # 그룹 자식은 좌표계가 달라 슬라이드 면적 환산이 부정확하므로,
+            # 이미지가 있으면 그룹 전체 면적으로 근사 (빈 페이지 오판 방지)
+            if g_image_area > 0:
+                image_area += shape.width * shape.height
+            continue
+
+        if shape.has_text_frame:
+            text_block_count += 1
+            for para in shape.text_frame.paragraphs:
+                line = "".join(run.text for run in para.runs).strip()
+                if line:
+                    lines.append(line)
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            image_area += shape.width * shape.height
+
+    return lines, text_block_count, image_area
+
+
 def extract_pptx_native_text(file_path: str) -> list[tuple[str, float, int]]:
     prs = Presentation(file_path)
     slide_area = prs.slide_width * prs.slide_height
     results: list[tuple[str, float, int]] = []
 
     for slide in prs.slides:
-        lines: list[str] = []
-        text_block_count = 0
-        image_area = 0
-
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                text_block_count += 1
-                for para in shape.text_frame.paragraphs:
-                    line = "".join(run.text for run in para.runs).strip()
-                    if line:
-                        lines.append(line)
-            # 삽입 이미지 면적 누산 (그룹 내부 이미지는 포함되지 않음)
-            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                image_area += shape.width * shape.height
-
+        lines, text_block_count, image_area = _collect_shape_content(slide.shapes)
         image_ratio = min(image_area / slide_area, 1.0) if slide_area > 0 else 0.0
         results.append(("\n".join(lines), image_ratio, text_block_count))
 

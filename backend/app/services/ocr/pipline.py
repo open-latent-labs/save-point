@@ -15,7 +15,7 @@ from app.services.ocr.extractor import (
     render_pptx_pages,
 )
 from app.services.ocr.preprocessor import preprocess_text
-from app.services.ocr.quality import QUALITY_THRESHOLD, score_text
+from app.services.ocr.quality import QUALITY_THRESHOLD, is_blank_page, score_text
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ def extract_document(
     low_quality_indices = [
         i for i, (text, ir, bc) in enumerate(zip(native_texts, image_ratios, block_counts))
         if score_text(text, image_ratio=ir, block_count=bc) < QUALITY_THRESHOLD
+        and not is_blank_page(text, ir)
     ]
 
     use_surya = False
@@ -111,7 +112,8 @@ def extract_document(
     ):
         quality = score_text(text, image_ratio=ir, block_count=bc)
 
-        if quality >= QUALITY_THRESHOLD or image is None:
+        # 텍스트도 이미지도 없는 빈 페이지는 OCR 스킵
+        if is_blank_page(text, ir) or quality >= QUALITY_THRESHOLD or image is None:
             results.append(PageResult(
                 page_number=i + 1,
                 text=preprocess_text(text),

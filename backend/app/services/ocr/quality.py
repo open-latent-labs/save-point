@@ -5,6 +5,14 @@ import unicodedata
 
 QUALITY_THRESHOLD = 0.4
 
+# 이미지 비율이 이 값 미만이면 이미지가 없는 것으로 간주
+BLANK_IMAGE_RATIO = 0.01
+
+
+# 텍스트도 이미지도 없는 빈 페이지 여부 (OCR 불필요)
+def is_blank_page(text: str, image_ratio: float = 0.0) -> bool:
+    return (not text or not text.strip()) and image_ratio < BLANK_IMAGE_RATIO
+
 # 텍스트 추출 품질 점수 계산 (0.0 = 판독 불가, 1.0 = 양호)
 def score_text(
     text: str,
