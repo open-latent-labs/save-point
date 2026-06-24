@@ -88,10 +88,36 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
             ]
         )
 
-    # 위에서 필터된 문서에서
+    # ── 덴스 단독 (로깅용) ──────────────────────────────────
+    dense_results = await client.query_points(
+        collection_name=settings.qdrant_collection_name,
+        query=dense_vector,
+        using="dense",
+        query_filter=search_filter,
+        limit=20,
+    )
+    print(f"\n[덴스 검색 결과]")
+    for r in dense_results.points:
+        print(f"  score: {r.score:.4f} | {r.payload['filename']} chunk_{r.payload['chunk_index']}")
+
+    # ── 스파스 단독 (로깅용) ─────────────────────────────────
+    sparse_results = await client.query_points(
+        collection_name=settings.qdrant_collection_name,
+        query=SparseVector(
+            indices=sparse_vector["indices"],
+            values=sparse_vector["values"],
+        ),
+        using="sparse",
+        query_filter=search_filter,
+        limit=20,
+    )
+    print(f"\n[스파스 검색 결과]")
+    for r in sparse_results.points:
+        print(f"  score: {r.score:.4f} | {r.payload['filename']} chunk_{r.payload['chunk_index']}")
+
+    # ── 덴스 + 스파스 RRF 퓨전 (실제 사용) ──────────────────
     results = await client.query_points(
         collection_name=settings.qdrant_collection_name,
-        # 덴스, 스파스 모두 20개씩 뽑음 (총 40개: 중복되면 더 적을 수 있음)
         prefetch=[
             Prefetch(query=dense_vector, using="dense", limit=20),
             Prefetch(
@@ -103,16 +129,12 @@ async def search_vectors(dense_vector: list[float], sparse_vector: dict, user_id
                 limit=20,
             ),
         ],
-
-        # 두 결과를 합쳐서 의미도 유사하고, 키워드 점수도 높은 문서만 골라내기
-        # 덴스 픽, 스파스 픽 둘 다 받은 애가 점수 높음
-        query=FusionQuery(fusion=Fusion.RRF),  # RRF로 두 결과 합치기
+        query=FusionQuery(fusion=Fusion.RRF),
         query_filter=search_filter,
         limit=limit,
     )
 
-    # 찾은 문서 확인용 (터미널)
-    print(f"\n[벡터 검색 결과]")
+    print(f"\n[RRF 퓨전 결과]")
     for r in results.points:
         print(f"  score: {r.score:.4f} | {r.payload['filename']} chunk_{r.payload['chunk_index']}")
     print()

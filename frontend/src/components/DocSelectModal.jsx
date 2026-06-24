@@ -23,9 +23,19 @@ export default function DocSelectModal({ onConfirm, onClose, initialSelected = [
     Promise.all([
       document_list(1, { size: 200 }),
       publicDocumentList(),
-    ]).then(([myRes, pubRes]) => {
-      setMyDocs(myRes?.documents ?? []);
-      setPublicDocs(pubRes ?? []);
+      document_list(1, { is_bookmarked: true, size: 200 }),
+    ]).then(([myRes, pubRes, bookmarkRes]) => {
+      const bookmarkedIds = new Set((bookmarkRes?.documents ?? []).map((d) => d.id));
+      const myWithBookmark = (myRes?.documents ?? []).map((d) => ({
+        ...d,
+        is_bookmarked: bookmarkedIds.has(d.id),
+      }));
+      const pubWithBookmark = (pubRes ?? []).map((d) => ({
+        ...d,
+        is_bookmarked: bookmarkedIds.has(d.id),
+      }));
+      setMyDocs(myWithBookmark);
+      setPublicDocs(pubWithBookmark);
       setLoading(false);
     });
   }, []);
