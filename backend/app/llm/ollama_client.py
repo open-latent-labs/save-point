@@ -7,19 +7,18 @@ from app.config import get_settings
 settings = get_settings()
 
 # 채팅 SSE
-async def generate_stream(prompt: str):
+async def generate_stream(messages: list[dict]):
     # 비동기 HTTP 클라이언트 열기
     # AsyncClient -> requests의 비동기 버전 -> Ollama 서버에 HTTP 요청 보낼 때 사용
     # timeout=60 -> 응답 없으면 오류 처리
     async with httpx.AsyncClient(timeout=180) as client:
         async with client.stream(
             "POST",
-            f"{settings.ollama_generate_url}",
+            settings.ollama_chat_url,
             json={
                 "model": settings.chat_model,
-                "prompt": prompt,
+                "messages": messages,
                 "stream": True, # True -> 토큰 생성 될 때마다 조금씩 전달 (SSE)
-                
                 "options" : {
                     "num_ctx" : 12000,
                 },
@@ -30,7 +29,7 @@ async def generate_stream(prompt: str):
                     continue
                 data = json.loads(line)
                 if not data.get("done"):
-                    yield data.get("response", "")
+                    yield data.get("message", {}).get("content", "")
 
 # 요약
 async def generate(

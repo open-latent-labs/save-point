@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.pipelines.query_pipeline import query, NO_DOCS_MESSAGE
 from app.llm.ollama_client import generate_stream
-from app.crud.chat import save_message, update_message_content, update_session_last_active
+from app.llm.chat_prompt import build_messages
+from app.crud.chat import save_message, update_message_content, update_session_last_active, get_messages
 from app.models.enums import ChatRole
 from app.models.user import User
 from app.db.rdb import AsyncSessionLocal
@@ -74,10 +75,13 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     try:
         # no_docs: Ollama 없이 고정 메시지를 바로 전달
         if result.get("no_docs"):
-            full_answer = result["prompt"]
+            full_answer = NO_DOCS_MESSAGE
             yield f"data: {json.dumps(full_answer, ensure_ascii=False)}\n\n"
         else:
-            async for token in generate_stream(result["prompt"]):
+            # 히스토리 로드 — 방금 저장한 현재 질문+플레이스홀더(마지막 2개) 제외
+            history = await get_messages(db, session_id)
+            messages = build_messages(question, result["context_chunks"], history[:-2])
+            async for token in generate_stream(messages):
                 full_answer += token
                 yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
 
