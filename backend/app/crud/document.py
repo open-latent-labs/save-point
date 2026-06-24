@@ -54,6 +54,8 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
         Document.status.not_in([DocumentStatus.INITIAL, DocumentStatus.PROCESSING]),
         Document.deleted_by_id.is_(None),
     ]
+    if body.keyword:
+        doc_conditions.append(Document.filename.ilike(f"%{body.keyword}%"))
     if body.status:
         doc_conditions.append(Document.status == body.status)
     if body.access_type:

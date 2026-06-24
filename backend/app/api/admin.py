@@ -45,10 +45,9 @@ async def reject_document(document_id: str, db: AsyncSession = Depends(get_db), 
 async def cancel_pending_document(document_id: str, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_admin)):
     admin_id = payload["sub"]
     logger.info(f"[Admin] Document cancel-pending requested | document_id={document_id}, admin_id={admin_id}")
-    result = await admin_cancel_pending(db, document_id, admin_id)
+    result = await admin_cancel_pending(db, document_id)
     logger.info(f"[Admin] Document cancel-pending | document_id={document_id}, admin_id={admin_id}")
     return result
-    return await admin_cancel_pending(db, document_id)
 
 
 # admin 계정 공인 문서 승인x

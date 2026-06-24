@@ -178,6 +178,9 @@ async def admin_publish_docs(db: AsyncSession, document_id: str, admin_id: str):
     if not doc:
         return None
     doc.access_type = DocumentAccess.PUBLIC
+    doc.status = DocumentStatus.APPROVED
+    doc.approved_by_id = admin_id
+    doc.approved_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(doc)
 

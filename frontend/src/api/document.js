@@ -17,7 +17,7 @@ export async function upload_document(file, title) {
     });
 }
 
-export async function document_list(page, { sort, access_type, status, category, size = 4, is_bookmarked } = {}) {
+export async function document_list(page, { sort, access_type, status, category, size = 4, is_bookmarked, keyword } = {}) {
     const body = {
         page: page ?? 1,
         size,
@@ -26,6 +26,7 @@ export async function document_list(page, { sort, access_type, status, category,
         ...(status && { status }),
         ...(category && { category }),
         ...(is_bookmarked !== undefined && { is_bookmarked }),
+        ...(keyword && { keyword }),
     };
 
     return await apiFetch("/documents/list", {

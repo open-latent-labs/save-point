@@ -27,4 +27,5 @@ class ListRequest(BaseModel):
     status: Optional[DocumentStatus] = None
     category: Optional[Category] = None
     is_bookmarked: Optional[bool] = None
+    keyword: Optional[str] = None
 
