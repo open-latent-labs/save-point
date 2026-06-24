@@ -1,10 +1,29 @@
 const BASE = "/api";
 
-// FastAPI 에러 응답 {"detail": "..."} 에서 메시지 추출
+// FastAPI 에러 응답 {"detail": "..." | [...]} 에서 메시지 추출
 function parseError(text) {
     try {
         const json = JSON.parse(text);
-        return json.detail ?? text;
+        if (!json.detail) return text;
+        if (typeof json.detail === "string") return json.detail;
+        if (Array.isArray(json.detail)) {
+            const first = json.detail[0];
+            if (!first) return "입력 형식이 올바르지 않습니다.";
+            const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : "";
+            const msg = first.msg ?? "";
+            // @field_validator 에러: "Value error, 한국어 메시지"
+            const match = msg.match(/^Value error,\s*(.+)$/i);
+            if (match) return match[1].trim();
+            // EmailStr 등 Pydantic 내장 타입 에러 → 필드별 한국어
+            const FIELD_MSG = {
+                email: "유효하지 않은 이메일 형식입니다.",
+                password: "비밀번호 형식이 올바르지 않습니다.",
+                name: "이름 형식이 올바르지 않습니다.",
+                user_id: "아이디 형식이 올바르지 않습니다.",
+            };
+            return FIELD_MSG[field] ?? "입력 형식이 올바르지 않습니다.";
+        }
+        return text;
     } catch {
         return text;
     }

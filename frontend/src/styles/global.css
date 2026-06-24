@@ -852,7 +852,7 @@ a {
   font-size: 10.5px;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--dim);
   padding: 10px 16px 4px;
 }
 
@@ -905,7 +905,7 @@ a {
 .gd-mypage-infokey {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--dim);
   width: 64px;
   flex-shrink: 0;
   letter-spacing: .02em;
@@ -913,7 +913,7 @@ a {
 
 .gd-mypage-infoval {
   font-size: 13px;
-  color: var(--dim);
+  color: var(--text);
 }
 
 /* 문서 아이템 */

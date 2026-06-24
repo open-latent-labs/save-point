@@ -72,6 +72,7 @@ export function usePresence() {
             es.onerror = () => {
                 es.close();
                 es = null;
+                setOnlineIds(new Set()); // 재연결 전 stale 상태 제거
                 retryTimer = setTimeout(connect, 5000);
             };
         }
@@ -92,9 +93,15 @@ export function formatLastSeen(isoStr) {
     // 타임존 표시(Z 또는 ±HH:MM)가 없으면 UTC로 강제 해석 (JS 기본 동작은 로컬 시간)
     const utcStr = /Z|[+-]\d{2}:\d{2}$/.test(isoStr) ? isoStr : isoStr + "Z";
     const diffMs = Date.now() - new Date(utcStr).getTime();
-    if (diffMs < 0) return "방금 전";
+    if (diffMs < 0) return "방금";
     const diffMin = Math.floor(diffMs / 60_000);
-    if (diffMin < 1) return "방금 전";
+    if (diffMin < 1) return "방금";
     if (diffMin < 60) return `${diffMin}분`;
-    return `${Math.floor(diffMin / 60)}시간`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}시간`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return `${diffDay}일`;
+    const diffMonth = Math.floor(diffDay / 30);
+    if (diffMonth < 12) return `${diffMonth}개월`;
+    return `${Math.floor(diffMonth / 12)}년`;
 }

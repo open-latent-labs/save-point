@@ -26,7 +26,8 @@ const PROVIDERS = [
   { key: "naver", label: "Naver", Icon: IconNaver },
 ];
 
-const TABS = ["내 정보", "내 문서", "설정"];
+const ALL_TABS = ["내 정보", "내 문서", "설정"];
+const SUPER_ADMIN_TABS = ["내 정보", "설정"];
 
 const THEMES = [
   { id: "mint",  label: "민트",   sub: "기본 다크",  color: "#36E0A1", bg: "#07090A", textColor: "#EAF0EC" },
@@ -50,6 +51,8 @@ export default function MyPageDrawer({ open, onClose }) {
   const [tab, setTab] = useState("내 정보");
   const navigate = useNavigate();
   const { user, login, logout } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const TABS = isSuperAdmin ? SUPER_ADMIN_TABS : ALL_TABS;
 
   const [myDocs, setMyDocs] = useState([]);
   const [docCount, setDocCount] = useState(0);
@@ -96,7 +99,7 @@ export default function MyPageDrawer({ open, onClose }) {
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isSuperAdmin) return;
     setDocPage(1);
     fetchMyDocs(1);
     documentPinList()
@@ -108,7 +111,7 @@ export default function MyPageDrawer({ open, onClose }) {
     document_list(1, { status: "PENDING", size: 1 })
       .then((data) => setPendingCount(data?.total_count ?? 0))
       .catch(() => setPendingCount(0));
-  }, [open, fetchMyDocs]);
+  }, [open, isSuperAdmin, fetchMyDocs]);
 
   useEffect(() => {
     if (open && tab === "내 정보") {
@@ -243,23 +246,26 @@ export default function MyPageDrawer({ open, onClose }) {
               {/* ── 내 정보 ── */}
               {tab === "내 정보" && (
                 <>
-                  {/* 통계 */}
-                  <div className="gd-mypage-stats">
-                    <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val">{pendingCount}</div>
-                      <div className="gd-mypage-stat-lbl">승인 대기</div>
-                    </div>
-                    <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val" style={{ color: "#8A93FF" }}>{docCount}</div>
-                      <div className="gd-mypage-stat-lbl">문서</div>
-                    </div>
-                    <div className="gd-mypage-stat">
-                      <div className="gd-mypage-stat-val" style={{ color: "#FFB454" }}>{favCount}</div>
-                      <div className="gd-mypage-stat-lbl">즐겨찾기</div>
-                    </div>
-                  </div>
-
-                  <div className="gd-mypage-section-div" style={{ margin: "10px 0 0" }} />
+                  {/* 통계 — 슈퍼어드민 제외 */}
+                  {!isSuperAdmin && (
+                    <>
+                      <div className="gd-mypage-stats">
+                        <div className="gd-mypage-stat">
+                          <div className="gd-mypage-stat-val">{pendingCount}</div>
+                          <div className="gd-mypage-stat-lbl">승인 대기</div>
+                        </div>
+                        <div className="gd-mypage-stat">
+                          <div className="gd-mypage-stat-val" style={{ color: "#8A93FF" }}>{docCount}</div>
+                          <div className="gd-mypage-stat-lbl">문서</div>
+                        </div>
+                        <div className="gd-mypage-stat">
+                          <div className="gd-mypage-stat-val" style={{ color: "#FFB454" }}>{favCount}</div>
+                          <div className="gd-mypage-stat-lbl">즐겨찾기</div>
+                        </div>
+                      </div>
+                      <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
+                    </>
+                  )}
 
                   {/* 기본 정보 */}
                   <div className="gd-mypage-section-label">기본 정보</div>
@@ -268,7 +274,7 @@ export default function MyPageDrawer({ open, onClose }) {
                       { key: "아이디", val: user?.user_id },
                       { key: "이메일", val: user?.email },
                       { key: "가입일", val: user?.created_at },
-                      { key: "고정", val: `${pinCount}개` },
+                      ...(!isSuperAdmin ? [{ key: "고정", val: `${pinCount}개` }] : []),
                     ].map(({ key, val }) => (
                       <div key={key} className="gd-mypage-inforow">
                         <span className="gd-mypage-infokey">{key}</span>
@@ -281,7 +287,7 @@ export default function MyPageDrawer({ open, onClose }) {
 
                   {/* 연결된 소셜 계정 */}
                   <div className="gd-mypage-section-label">연결된 계정</div>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", margin: "0 16px 4px" }}>
                     {PROVIDERS.map(({ key, label, Icon }, idx) => {
                       const account = linkedAccounts.find((a) => a.provider === key);
                       const linked = !!account;
@@ -292,7 +298,7 @@ export default function MyPageDrawer({ open, onClose }) {
                             <div style={{
                               height: 1,
                               background: "var(--border)",
-                              margin: "0 12px",
+                              margin: "0",
                             }} />
                           )}
                           <div
@@ -300,7 +306,7 @@ export default function MyPageDrawer({ open, onClose }) {
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
-                              padding: "9px 4px",
+                              padding: "9px 12px",
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -350,7 +356,7 @@ export default function MyPageDrawer({ open, onClose }) {
                                   style={{
                                     fontSize: 11, padding: "3px 10px", borderRadius: 6,
                                     border: "none", background: "var(--accent)",
-                                    color: "#fff", cursor: "pointer"
+                                    color: theme === "light" ? "#111" : "#fff", cursor: "pointer"
                                   }}
                                   disabled={oauthLoading}
                                   onClick={() => handleLink(key)}
@@ -365,12 +371,12 @@ export default function MyPageDrawer({ open, onClose }) {
                     })}
                   </div>
 
-                  <div className="gd-mypage-section-div" style={{ margin: "8px 0 4px" }} />
+                  <div className="gd-mypage-section-div" style={{ margin: "6px 0 2px" }} />
 
                   <button
                     className="gd-mypage-action danger"
                     onClick={async () => { await logout(); onClose(); navigate("/login"); }}
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: 2 }}
                   >
                     로그아웃
                   </button>

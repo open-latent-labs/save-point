@@ -37,7 +37,7 @@ const PresenceCell = ({ userId, lastActiveAt, onlineIds }) => {
         <div className="flex flex-col items-center gap-0.5">
             <div className="inline-flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#f87171] shrink-0" />
-                <span className="text-[#8a949c] font-semibold text-[12.5px]">
+                <span className="text-[#b0bdc5] font-semibold text-[12.5px]">
                     {formatted != null ? `${formatted} 전에 활동` : "접속 기록 없음"}
                 </span>
             </div>
@@ -114,7 +114,7 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "", lt
                 className={`inline-flex items-center justify-between gap-2 border rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] transition-all duration-150 w-full ${
                     lt
                     ? "bg-white text-[#6B7280] border-black/[0.10] hover:border-black/[0.20] hover:text-[#111827] shadow-sm"
-                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#8a949c] border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2]"
+                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#b0bdc5] border-white/[0.28] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2]"
                 }`}
             >
                 <span className={value ? (lt ? "text-[#111827]" : "text-[#c3ccd2]") : ""}>{displayLabel}</span>
@@ -122,7 +122,7 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "", lt
             </button>
             {open && options.length > 0 && (
                 <div className={`absolute top-full mt-1.5 right-0 min-w-full border rounded-[10px] shadow-xl z-50 overflow-hidden py-1 ${
-                    lt ? "bg-white border-black/[0.10]" : "bg-[#151b20] border-white/[0.1]"
+                    lt ? "bg-white border-black/[0.10]" : "bg-[#151b20] border-white/[0.32]"
                 }`}>
                     {options.map((opt) => (
                         <button
@@ -134,7 +134,7 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "", lt
                                 ? "text-[#22c55e] bg-[#22c55e]/[0.08]"
                                 : lt
                                     ? "text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.04]"
-                                    : "text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.04]"
+                                    : "text-[#b0bdc5] hover:text-[#e7ecef] hover:bg-white/[0.04]"
                             }`}
                         >
                             {opt.label}
@@ -168,7 +168,6 @@ export default function UserManagement() {
     const [query, setQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
-    const [selected, setSelected] = useState(() => new Set());
     const [detailUser, setDetailUser] = useState(null);
     const [page, setPage] = useState(1);
     const [apiUsers, setApiUsers] = useState([]);
@@ -197,7 +196,7 @@ export default function UserManagement() {
             } catch (e) { console.error(e); }
         };
         fetchDashboard();
-    }, []);
+    }, [refreshKey]);
 
     useEffect(() => {
         let cancelled = false;
@@ -217,7 +216,8 @@ export default function UserManagement() {
             }
         };
         fetchUsers();
-        return () => { cancelled = true; };
+        const autoRefresh = setInterval(() => { if (!cancelled) setRefreshKey((k) => k + 1); }, 60_000);
+        return () => { cancelled = true; clearInterval(autoRefresh); };
     }, [page, roleFilter, statusFilter, refreshKey]);
 
     const toggleRole = async (e, user) => {
@@ -249,28 +249,6 @@ export default function UserManagement() {
         );
     }, [apiUsers, query]);
 
-    const allChecked = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
-
-    const toggleAll = () =>
-        setSelected((prev) => {
-            const next = new Set(prev);
-            if (allChecked) filtered.forEach((u) => next.delete(u.id));
-            else filtered.forEach((u) => next.add(u.id));
-            return next;
-        });
-
-    const toggleOne = (id) =>
-        setSelected((prev) => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
-
-    const checkboxCls =
-        `appearance-none w-4 h-4 rounded-[5px] border-[1.5px] cursor-pointer align-middle relative ` +
-        `checked:bg-[#22c55e] checked:border-[#22c55e] ` +
-        `after:content-[''] after:absolute after:hidden checked:after:block after:left-[4.5px] after:top-[1.5px] after:w-1 after:h-2 after:border-[#06210f] after:border-solid after:border-r-2 after:border-b-2 after:rotate-45 ` +
-        (lt ? "border-black/[0.15] bg-white" : "border-white/[0.12] bg-[#0a0d0c]");
 
     const visiblePages = useMemo(() => {
         const delta = 2;
@@ -281,25 +259,25 @@ export default function UserManagement() {
 
     const roleBadgeCls = (role) => {
         if (role === "ADMIN") return `${BADGE_BASE} bg-[#a78bfa]/[0.15] text-[#a78bfa] border border-[#a78bfa]/25`;
-        return `${BADGE_BASE} ${lt ? "bg-black/5 text-[#6B7280] border border-black/[0.10]" : "bg-white/5 text-[#8a949c] border border-white/10"}`;
+        return `${BADGE_BASE} ${lt ? "bg-black/5 text-[#6B7280] border border-black/[0.10]" : "bg-white/5 text-[#b0bdc5] border border-white/10"}`;
     };
 
     return (
         <div className={`w-full min-h-full font-sans [font-feature-settings:'tnum'] ${lt ? "bg-[#F4F6F5] text-[#111827]" : "bg-[#0a0d0c] text-[#e7ecef]"}`}>
-            <Topbar onMenu={onMenu} onProfile={() => setMyPageOpen(true)} />
+            <Topbar onMenu={onMenu} onProfile={() => setMyPageOpen(true)} hideBell />
             <div className={`transition-[padding-left] duration-[280ms] [transition-timing-function:cubic-bezier(0.2,0.7,0.2,1)] pl-4 pr-4 sm:pr-8 py-[18px] sm:pt-7 sm:pb-10 ${sbVisible ? 'min-[861px]:pl-[264px]' : ''}`}>
 
                 {/* 헤더 */}
                 <header className="flex flex-col sm:flex-row sm:justify-between items-start gap-6 mb-6">
                     <div>
                         <h1 className="text-[26px] font-extrabold m-0 mb-1.5 tracking-[-0.5px]">사용자 관리</h1>
-                        <p className={`text-[13.5px] m-0 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>플랫폼에 등록된 사용자 정보를 관리하고 역할과 권한을 설정할 수 있습니다.</p>
+                        <p className={`text-[13.5px] m-0 ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>플랫폼에 등록된 사용자 정보를 관리하고 역할과 권한을 설정할 수 있습니다.</p>
                     </div>
                     <div className="flex flex-col items-start sm:items-end gap-3.5">
-                        <nav className={`text-[13px] flex gap-2 items-center ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>
+                        <nav className={`text-[13px] flex gap-2 items-center ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>
                             <span>홈</span>
                             <span className="opacity-50">/</span>
-                            <span className={lt ? "text-[#6B7280]" : "text-[#8a949c]"}>사용자 관리</span>
+                            <span className={lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}>사용자 관리</span>
                         </nav>
                     </div>
                 </header>
@@ -312,27 +290,27 @@ export default function UserManagement() {
                             className={`flex items-center gap-4 border rounded-2xl px-[22px] py-5 transition-[border-color,transform] hover:-translate-y-0.5 ${
                                 lt
                                 ? "bg-white border-black/[0.07] hover:border-black/[0.14] shadow-sm"
-                                : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.07] hover:border-white/[0.12]"
+                                : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.28] hover:border-white/[0.45]"
                             }`}
                         >
                             <div className={`w-12 h-12 rounded-[13px] flex items-center justify-center shrink-0 ${STAT_TONES[s.tone]}`}>
                                 <Icon name={s.icon} size={22} />
                             </div>
                             <div>
-                                <div className={`text-[13px] mb-1 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>{s.label}</div>
+                                <div className={`text-[13px] mb-1 ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>{s.label}</div>
                                 <div className="text-[28px] font-extrabold leading-[1.05] tracking-[-0.5px]">{s.value}</div>
-                                <div className={`text-[11.5px] mt-1.5 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{s.sub} <span className="text-[#22c55e]">›</span></div>
+                                <div className={`text-[11.5px] mt-1.5 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>{s.sub} <span className="text-[#22c55e]">›</span></div>
                             </div>
                         </div>
                     ))}
                 </section>
 
                 {/* 메인 패널 */}
-                <section className={`border rounded-2xl overflow-hidden ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.07]"}`}>
+                <section className={`border rounded-2xl overflow-hidden ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.28]"}`}>
                     {/* 검색 + 필터 */}
                     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-[18px]">
                         <div className={`flex items-center gap-2.5 flex-1 min-w-[220px] max-w-[420px] border rounded-[10px] px-3.5 py-2.5 focus-within:border-[#22c55e]/50 ${
-                            lt ? "bg-[#F9FAFB] border-black/[0.08] text-[#9CA3AF]" : "bg-[#0a0d0c] border-white/[0.07] text-[#5b656d]"
+                            lt ? "bg-[#F9FAFB] border-black/[0.08] text-[#9CA3AF]" : "bg-[#0a0d0c] border-white/[0.28] text-[#b0bdc5]"
                         }`}>
                             <Icon name="search" size={18} />
                             <input
@@ -356,125 +334,99 @@ export default function UserManagement() {
                                 <tr className={`[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:px-3.5 [&>th]:py-3 [&>th]:whitespace-nowrap ${
                                     lt
                                     ? "[&>th]:text-[#9CA3AF] [&>th]:border-t [&>th]:border-b [&>th]:border-black/[0.07] [&>th]:bg-black/[0.02]"
-                                    : "[&>th]:text-[#5b656d] [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.07] [&>th]:bg-white/[0.012]"
+                                    : "[&>th]:text-[#b0bdc5] [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.28] [&>th]:bg-white/[0.012]"
                                 }`}>
-                                    <th className="!w-11">
-                                        <input type="checkbox" className={checkboxCls} checked={allChecked} onChange={toggleAll} aria-label="전체 선택" />
-                                    </th>
                                     <th>사용자</th><th>이메일</th><th>권한</th>
                                     <th>질문 수</th><th>업로드 문서 수</th>
                                     <th>활동 상태</th><th>접속 상태</th>
-                                    <th className="!w-14 !text-center">권한 변경</th>
                                 </tr>
                             </thead>
                             <tbody className={`[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0 ${
-                                lt ? "[&>tr>td]:border-b [&>tr>td]:border-black/[0.06]" : "[&>tr>td]:border-b [&>tr>td]:border-white/[0.07]"
+                                lt ? "[&>tr>td]:border-b [&>tr>td]:border-black/[0.06]" : "[&>tr>td]:border-b [&>tr>td]:border-white/[0.28]"
                             }`}>
                                 {filtered.map((u) => (
                                     <tr
                                         key={u.id}
                                         onClick={() => setDetailUser(u)}
-                                        className={`cursor-pointer transition-colors ${
-                                            selected.has(u.id)
-                                            ? "bg-[#22c55e]/[0.05]"
-                                            : lt ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.025]"
-                                        }`}
+                                        className={`cursor-pointer transition-colors ${lt ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.025]"}`}
                                     >
-                                        <td onClick={(e) => e.stopPropagation()}>
-                                            <input type="checkbox" className={checkboxCls} checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} aria-label={`${u.name} 선택`} />
-                                        </td>
                                         <td className="!text-left">
                                             <div className="flex gap-[11px]">
                                                 <Avatar name={u.name} status={u.status} />
                                                 <div className="flex flex-col gap-px">
                                                     <span className="font-semibold text-[13.5px]">{u.name}</span>
-                                                    <span className={`text-xs ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{u.user_id}</span>
+                                                    <span className={`text-xs ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>{u.user_id}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className={lt ? "text-[#6B7280]" : "text-[#8a949c]"}>{u.email}</td>
-                                        <td><span className={roleBadgeCls(getRole(u))}>{getRole(u)}</span></td>
+                                        <td className={lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}>{u.email}</td>
+                                        <td onClick={(e) => e.stopPropagation()}>
+                                            <button type="button" onClick={(e) => toggleRole(e, u)} title="클릭하여 권한 변경" className={`${roleBadgeCls(getRole(u))} cursor-pointer hover:brightness-125 transition-all`}>
+                                                {getRole(u)}
+                                            </button>
+                                        </td>
                                         <td className="font-semibold">{u.questions.toLocaleString()}</td>
                                         <td className="font-semibold">{u.docs.toLocaleString()}</td>
                                         <td onClick={(e) => e.stopPropagation()}>
-                                            {(() => {
-                                                const isSuspended = u.ban === "BAN";
-                                                return (
-                                                    <div className="inline-flex gap-1.5">
-                                                        <button type="button" aria-label="활동 정지" onClick={(e) => { if (!isSuspended) toggleSuspend(e, u); }} disabled={isSuspended}
-                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${!isSuspended
-                                                                ? "bg-[#fb923c]/[0.12] text-[#fb923c] border-[#fb923c]/25 cursor-pointer hover:bg-[#fb923c]/[0.22]"
-                                                                : lt ? "bg-black/[0.03] text-[#9CA3AF] border-black/[0.06] cursor-not-allowed" : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                            }`}>활동 정지</button>
-                                                        <button type="button" aria-label="활동 재개" onClick={(e) => { if (isSuspended) toggleSuspend(e, u); }} disabled={!isSuspended}
-                                                            className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${isSuspended
-                                                                ? "bg-[#22c55e]/[0.12] text-[#22c55e] border-[#22c55e]/25 cursor-pointer hover:bg-[#22c55e]/[0.22]"
-                                                                : lt ? "bg-black/[0.03] text-[#9CA3AF] border-black/[0.06] cursor-not-allowed" : "bg-white/[0.03] text-[#3a4248] border-white/[0.05] cursor-not-allowed"
-                                                            }`}>활동 재개</button>
-                                                    </div>
-                                                );
-                                            })()}
+                                            {u.ban === "BAN" ? (
+                                                <button type="button" onClick={(e) => toggleSuspend(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#22c55e]/[0.12] text-[#22c55e] border-[#22c55e]/25 cursor-pointer hover:bg-[#22c55e]/[0.22]">
+                                                    활동 재개
+                                                </button>
+                                            ) : (
+                                                <button type="button" onClick={(e) => toggleSuspend(e, u)}
+                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#fb923c]/[0.12] text-[#fb923c] border-[#fb923c]/25 cursor-pointer hover:bg-[#fb923c]/[0.22]">
+                                                    활동 정지
+                                                </button>
+                                            )}
                                         </td>
                                         <td onClick={(e) => e.stopPropagation()}>
                                             <PresenceCell userId={u.id} lastActiveAt={u.lastActiveAt} onlineIds={onlineIds} />
                                         </td>
-                                        <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                                            {getRole(u) !== "ADMIN" ? (
-                                                <button type="button" aria-label="승급" onClick={(e) => toggleRole(e, u)}
-                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#a78bfa]/[0.12] text-[#a78bfa] border-[#a78bfa]/25 cursor-pointer hover:bg-[#a78bfa]/[0.22]">
-                                                    승급
-                                                </button>
-                                            ) : (
-                                                <button type="button" aria-label="강등" onClick={(e) => toggleRole(e, u)}
-                                                    className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border transition-colors bg-[#f87171]/[0.12] text-[#f87171] border-[#f87171]/25 cursor-pointer hover:bg-[#f87171]/[0.22]">
-                                                    강등
-                                                </button>
-                                            )}
-                                        </td>
                                     </tr>
                                 ))}
                                 {loading && (
-                                    <tr><td colSpan={9} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>불러오는 중...</td></tr>
+                                    <tr><td colSpan={7} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>불러오는 중...</td></tr>
                                 )}
                                 {!loading && filtered.length === 0 && (
-                                    <tr><td colSpan={9} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>검색 결과가 없습니다.</td></tr>
+                                    <tr><td colSpan={7} className={`!text-center !py-10 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>검색 결과가 없습니다.</td></tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
                     {/* 푸터 / 페이지네이션 */}
-                    <div className={`flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-t ${lt ? "border-black/[0.07]" : "border-white/[0.07]"}`}>
-                        <span className={`text-[13px] ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>전체 {apiTotal.toLocaleString()}명</span>
+                    <div className={`flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-t ${lt ? "border-black/[0.07]" : "border-white/[0.28]"}`}>
+                        <span className={`text-[13px] ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>전체 {apiTotal.toLocaleString()}명</span>
                         <div className="flex items-center gap-1.5">
                             <button type="button" aria-label="이전" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
+                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#b0bdc5] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
                                 <Icon name="chevron-left" size={16} />
                             </button>
                             {visiblePages[0] > 1 && (
                                 <>
                                     <button type="button" onClick={() => setPage(1)}
-                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 1 ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>1</button>
-                                    {visiblePages[0] > 2 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>…</span>}
+                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === 1 ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#b0bdc5] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>1</button>
+                                    {visiblePages[0] > 2 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>…</span>}
                                 </>
                             )}
                             {visiblePages.map((p) => (
                                 <button key={p} type="button" onClick={() => setPage(p)}
-                                    className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{p}</button>
+                                    className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === p ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#b0bdc5] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{p}</button>
                             ))}
                             {visiblePages[visiblePages.length - 1] < apiTotalPages && (
                                 <>
-                                    {visiblePages[visiblePages.length - 1] < apiTotalPages - 1 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>…</span>}
+                                    {visiblePages[visiblePages.length - 1] < apiTotalPages - 1 && <span className={`px-1 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>…</span>}
                                     <button type="button" onClick={() => setPage(apiTotalPages)}
-                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === apiTotalPages ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{apiTotalPages}</button>
+                                        className={`min-w-8 h-8 px-2 rounded-lg text-[13px] inline-flex items-center justify-center transition-colors ${page === apiTotalPages ? "bg-[#22c55e] text-[#06210f] font-bold" : lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#b0bdc5] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>{apiTotalPages}</button>
                                 </>
                             )}
                             <button type="button" aria-label="다음" onClick={() => setPage((p) => Math.min(apiTotalPages, p + 1))} disabled={page === apiTotalPages}
-                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#8a949c] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
+                                className={`min-w-8 h-8 px-2 rounded-lg inline-flex items-center justify-center transition-colors disabled:opacity-30 ${lt ? "text-[#6B7280] hover:bg-black/[0.06] hover:text-[#111827]" : "text-[#b0bdc5] hover:bg-white/[0.06] hover:text-[#e7ecef]"}`}>
                                 <Icon name="chevron-right" size={16} />
                             </button>
                         </div>
-                        <span className={`text-[13px] ${lt ? "text-[#9CA3AF]" : "text-[#5b656d]"}`}>{page} / {apiTotalPages} 페이지</span>
+                        <span className={`text-[13px] ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>{page} / {apiTotalPages} 페이지</span>
                     </div>
                 </section>
             </div>
@@ -483,6 +435,8 @@ export default function UserManagement() {
                 user={detailUser}
                 open={!!detailUser}
                 onClose={() => setDetailUser(null)}
+                onlineIds={onlineIds}
+                lt={lt}
                 onResetPassword={() => { }}
                 onSuspend={async (u) => { await banUser({ id: u.id }); setRefreshKey((k) => k + 1); }}
                 onUnsuspend={async (u) => { await unbanUser({ id: u.id }); setRefreshKey((k) => k + 1); }}
