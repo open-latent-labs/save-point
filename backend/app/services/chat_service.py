@@ -5,7 +5,7 @@ from ulid import ULID
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.pipelines.query_pipeline import query
+from app.pipelines.query_pipeline import query, NO_DOCS_MESSAGE
 from app.llm.ollama_client import generate_stream
 from app.crud.chat import save_message, update_message_content, update_session_last_active
 from app.models.enums import ChatRole
@@ -72,9 +72,14 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
     start = time.time()
 
     try:
-        async for token in generate_stream(result["prompt"]):
-            full_answer += token
-            yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
+        # no_docs: Ollama 없이 고정 메시지를 바로 전달
+        if result.get("no_docs"):
+            full_answer = result["prompt"]
+            yield f"data: {json.dumps(full_answer, ensure_ascii=False)}\n\n"
+        else:
+            async for token in generate_stream(result["prompt"]):
+                full_answer += token
+                yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
 
         # 4a. 정상 완료 — 플레이스홀더를 실제 답변으로 업데이트
         latency_ms = int((time.time() - start) * 1000)

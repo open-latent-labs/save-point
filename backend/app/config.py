@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import os
 
-_env = os.getenv("APP_ENV", "dev") # runpod 서버 사용 원할시 dev -> prod로 수정!
+_env = os.getenv("APP_ENV", "prod") # runpod 서버 사용 원할시 dev -> prod로 수정!
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
