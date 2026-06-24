@@ -2,6 +2,7 @@ import httpx
 from loguru import logger
 
 from app.config import get_settings
+from app.llm.ollama_client import ollama_semaphore
 from app.services.flag_model import get_flag_model
 
 settings = get_settings()
@@ -21,10 +22,11 @@ async def embed_dense(chunks: list[str]) -> list[list[float]]:
 
             for attempt in range(1, _MAX_RETRIES + 1):
                 try:
-                    response = await client.post(
-                        f"{settings.ollama_embed_url}",
-                        json={"model": settings.embed_model, "input": batch},
-                    )
+                    async with ollama_semaphore:
+                        response = await client.post(
+                            f"{settings.ollama_embed_url}",
+                            json={"model": settings.embed_model, "input": batch},
+                        )
                     response.raise_for_status()
                     vectors.extend(response.json()["embeddings"])
                     batch_success = True
@@ -40,10 +42,11 @@ async def embed_dense(chunks: list[str]) -> list[list[float]]:
                     global_idx = batch_start + j
                     for attempt in range(1, _MAX_RETRIES + 1):
                         try:
-                            response = await client.post(
-                                f"{settings.ollama_base_url}/api/embed",
-                                json={"model": settings.embed_model, "input": chunk},
-                            )
+                            async with ollama_semaphore:
+                                response = await client.post(
+                                    f"{settings.ollama_base_url}/api/embed",
+                                    json={"model": settings.embed_model, "input": chunk},
+                                )
                             response.raise_for_status()
                             vectors.append(response.json()["embeddings"][0])
                             break

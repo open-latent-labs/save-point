@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     ollama_embed_url: str
     summary_model: str
     chat_model: str
+    judge_model:str
 
     algorithm: str
     access_token_expire_minutes: int

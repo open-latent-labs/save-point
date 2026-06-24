@@ -24,10 +24,7 @@ const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]
 // 확장자별 뱃지 색
 const extColors = {
   pdf: "#E08A8A",
-  md: "#36E0A1",
-  txt: "#8A93FF",
-  docx: "#5BC8FF",
-  doc: "#5BC8FF",
+  pptx: "#E0A35B",
 };
 
 function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish, isAdmin, onAdminPublish }) {
@@ -369,6 +366,19 @@ export default function Upload() {
               );
             };
 
+            // 처리 단계 실패/타임아웃 → 오류로 표시
+            const fail = (message) => {
+              es.close();
+              delete esRef.current[id];
+              setItems((prev) =>
+                prev.map((it) =>
+                  it.id === id ? { ...it, status: "error", error: message } : it
+                )
+              );
+              setPage(1);
+              setRefreshKey((k) => k + 1);
+            };
+
             es.addEventListener("status", (e) => {
               const data = JSON.parse(e.data);
               setItems((prev) =>
@@ -381,9 +391,17 @@ export default function Upload() {
               if (["DONE", "PENDING", "APPROVED"].includes(data.document_status)) finish();
             });
 
-            es.addEventListener("failed", () => finish());
-            es.addEventListener("timeout", () => finish());
-            es.onerror = () => finish();
+            es.addEventListener("failed", (e) => {
+              let message = "문서 처리 중 오류가 발생했습니다.";
+              try { message = JSON.parse(e.data).message || message; } catch { /* 기본 메시지 사용 */ }
+              fail(message);
+            });
+            es.addEventListener("timeout", (e) => {
+              let message = "처리 시간이 초과되었습니다.";
+              try { message = JSON.parse(e.data).message || message; } catch { /* 기본 메시지 사용 */ }
+              fail(message);
+            });
+            es.onerror = () => fail("문서 처리 상태를 받아오지 못했습니다.");
           }
         } catch {
           // JSON 파싱 실패 시 업로드 성공으로 처리
@@ -398,9 +416,14 @@ export default function Upload() {
           );
         }
       } else {
+        let message = `서버 오류 (${xhr.status})`;
+        try {
+          const detail = JSON.parse(xhr.responseText)?.detail;
+          if (detail) message = typeof detail === "string" ? detail : JSON.stringify(detail);
+        } catch { /* 본문 파싱 실패 시 기본 메시지 사용 */ }
         setItems((prev) =>
           prev.map((it) =>
-            it.id === id ? { ...it, status: "error", error: `서버 오류 (${xhr.status})` } : it
+            it.id === id ? { ...it, status: "error", error: message } : it
           )
         );
       }
@@ -555,7 +578,7 @@ export default function Upload() {
             <div className="gd-drop-main">
               파일을 여기로 끌어다 놓거나 <span className="mint">클릭해서 선택</span>하세요
             </div>
-            <div className="gd-drop-sub">PDF · MD · TXT · DOCX · 최대 20MB</div>
+            <div className="gd-drop-sub">PDF · PPTX · 최대 20MB</div>
 
             {uploading && (
               <div style={{ width: "100%", marginTop: 14, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }} onClick={(e) => e.stopPropagation()}>
