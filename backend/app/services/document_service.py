@@ -3,9 +3,11 @@ import re
 
 from fastapi import HTTPException
 from loguru import logger
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.user import User
 from app.crud.upload_document import (
     create_document_record,
     create_processing_job,
@@ -90,6 +92,9 @@ async def start_upload(
         filename=filename,
         extension=ext,
         file_size=len(file_bytes),
+    )
+    await db.execute(
+        update(User).where(User.id == user_id).values(upload_file_count=User.upload_file_count + 1)
     )
     await db.commit()
     return doc

@@ -46,3 +46,10 @@ export async function dashboardNum() {
         credentials: "include",
     });
 }
+
+export async function getUserRoleLog(userId) {
+    return apiFetch(`/superAdmin/user_role_log/${userId}`, {
+        method: "GET",
+        credentials: "include",
+    });
+}

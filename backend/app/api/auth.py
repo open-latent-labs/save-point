@@ -10,7 +10,8 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, Request
 from fastapi.responses import RedirectResponse, StreamingResponse
 from loguru import logger
 from passlib.context import CryptContext
-from sqlalchemy import func, select
+from datetime import datetime, timezone
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.presence import service
@@ -260,6 +261,8 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
 
     payload = {"sub": user.id, "role": user.role.value}
     _set_auth_cookies(response, create_access_token(payload), create_refresh_token(payload))
+    await db.execute(update(User).where(User.id == user.id).values(last_active_at=datetime.now(timezone.utc)))
+    await db.commit()
     await service.heartbeat(user.id)
     return TokenResponse(user=_user_info(user))
 
@@ -453,6 +456,9 @@ async def google_callback(code: str | None = None, error: str | None = None, db:
     if user.ban == UserBan.BAN:
         return RedirectResponse(url=error_url + "banned")
 
+    await db.execute(update(User).where(User.id == user.id).values(last_active_at=datetime.now(timezone.utc)))
+    await db.commit()
+    await service.heartbeat(user.id)
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
     redirect = RedirectResponse(url=f"{settings.frontend_url}{redirect_path}", status_code=302)
@@ -516,6 +522,9 @@ async def kakao_callback(code: str | None = None, error: str | None = None, db: 
     if user.ban == UserBan.BAN:
         return RedirectResponse(url=error_url + "banned")
 
+    await db.execute(update(User).where(User.id == user.id).values(last_active_at=datetime.now(timezone.utc)))
+    await db.commit()
+    await service.heartbeat(user.id)
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
     redirect = RedirectResponse(url=f"{settings.frontend_url}{redirect_path}", status_code=302)
@@ -736,6 +745,9 @@ async def naver_callback(
     if user.ban == UserBan.BAN:
         return RedirectResponse(url=error_url + "banned")
 
+    await db.execute(update(User).where(User.id == user.id).values(last_active_at=datetime.now(timezone.utc)))
+    await db.commit()
+    await service.heartbeat(user.id)
     token_payload = {"sub": user.id, "role": user.role.value}
     redirect_path = "/superAdmin" if user.role == UserRole.SUPER_ADMIN else "/home"
     redirect = RedirectResponse(url=f"{settings.frontend_url}{redirect_path}", status_code=302)

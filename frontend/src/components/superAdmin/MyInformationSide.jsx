@@ -1,25 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useUserRole } from "../../context/UserRoleContext.jsx";
-
-/**
- * UserDetailSidebar (Tailwind CSS 버전)
- * 사용자 관리 테이블에서 행을 선택하면 우측에서 열리는 상세 드로어.
- *
- * 요구사항: Tailwind CSS 가 설정된 프로젝트.
- * 커스텀 색상은 arbitrary value 로 작성되어 tailwind.config 수정이 필요 없습니다.
- * 아이콘은 의존성 없는 인라인 SVG 입니다.
- *
- * 사용 예:
- *   const [selected, setSelected] = useState(null);
- *   <UserDetailSidebar
- *     user={selected}
- *     open={!!selected}
- *     onClose={() => setSelected(null)}
- *     onResetPassword={(u) => ...}
- *     onSuspend={(u) => ...}
- *     onDelete={(u) => ...}
- *   />
- */
+import { formatLastSeen } from "../../api/connect.js";
+import { changeRole, getUserRoleLog } from "../../api/superAdmin.js";
 
 const SAMPLE_USER = {
     name: "김개발",
@@ -35,9 +17,8 @@ const SAMPLE_USER = {
 
 const TABS = ["기본 정보", "활동 통계"];
 const ROLE_OPTIONS = ["ADMIN", "USER"];
-// const STATUS_OPTIONS = ["승인", "반려"];
 
-/* ---------- 아이콘 (의존성 없는 인라인 SVG) ---------- */
+/* ---------- 아이콘 ---------- */
 const Icon = ({ name, size = 20, className = "" }) => {
     const common = {
         width: size, height: size, viewBox: "0 0 24 24", fill: "none",
@@ -53,6 +34,8 @@ const Icon = ({ name, size = 20, className = "" }) => {
         case "key": return (<svg {...common}><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>);
         case "alert": return (<svg {...common}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>);
         case "trash": return (<svg {...common}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>);
+        case "calendar": return (<svg {...common}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>);
+        case "activity": return (<svg {...common}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>);
         default: return null;
     }
 };
@@ -76,7 +59,7 @@ const Avatar = ({ name }) => {
 };
 
 /* ---------- 셀렉트 ---------- */
-const Select = ({ value, options, onChange }) => {
+const Select = ({ value, options, onChange, lt = false }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -91,14 +74,22 @@ const Select = ({ value, options, onChange }) => {
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="inline-flex items-center justify-between gap-2 w-full bg-gradient-to-b from-[#151b20] to-[#11161a] border border-white/[0.08] rounded-[10px] pl-3.5 pr-3 py-2.5 text-[13.5px] text-[#c3ccd2] cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#e7ecef] transition-all duration-150"
+                className={`inline-flex items-center justify-between gap-2 w-full border rounded-[10px] pl-3.5 pr-3 py-1.5 text-[13.5px] cursor-pointer transition-all duration-150 ${
+                    lt
+                    ? "bg-white text-[#374151] border-black/[0.10] shadow-sm hover:border-black/[0.20] hover:text-[#111827]"
+                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.08] text-[#c3ccd2] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#e7ecef]"
+                }`}
             >
                 <span>{value}</span>
                 <Icon name="chevron-down" size={14} className={`opacity-50 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
             </button>
 
             {open && (
-                <div className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-[#11161a] border border-white/[0.08] rounded-[10px] overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
+                <div className={`absolute z-50 top-[calc(100%+4px)] left-0 right-0 border rounded-[10px] overflow-hidden shadow-xl ${
+                    lt
+                    ? "bg-white border-black/[0.10]"
+                    : "bg-[#11161a] border-white/[0.08] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                }`}>
                     {options.map((o) => (
                         <button
                             key={o}
@@ -106,8 +97,10 @@ const Select = ({ value, options, onChange }) => {
                             onClick={() => { onChange?.(o); setOpen(false); }}
                             className={`w-full text-left px-3.5 py-2.5 text-[13.5px] transition-colors ${value === o
                                 ? "text-[#34d399] bg-[#22c55e]/[0.08]"
-                                : "text-[#c3ccd2] hover:bg-white/[0.05] hover:text-[#e7ecef]"
-                                }`}
+                                : lt
+                                    ? "text-[#6B7280] hover:bg-black/[0.04] hover:text-[#111827]"
+                                    : "text-[#c3ccd2] hover:bg-white/[0.05] hover:text-[#e7ecef]"
+                            }`}
                         >
                             {o}
                         </button>
@@ -118,16 +111,6 @@ const Select = ({ value, options, onChange }) => {
     );
 };
 
-/* ---------- 통계 항목 ---------- */
-const StatItem = ({ icon, label, value }) => (
-    <div className="flex items-start gap-3">
-        <span className="text-[#5b656d] mt-0.5"><Icon name={icon} size={18} /></span>
-        <div>
-            <div className="text-[12.5px] text-[#8a949c] mb-0.5">{label}</div>
-            <div className="text-xl font-bold text-[#e7ecef] leading-none">{value}</div>
-        </div>
-    </div>
-);
 
 export default function UserDetailSidebar({
     user = SAMPLE_USER,
@@ -136,26 +119,47 @@ export default function UserDetailSidebar({
     onSuspend = () => { },
     onUnsuspend = () => { },
     onDelete = () => { },
+    onlineIds = new Set(),
+    lt = false,
 }) {
     const [tab, setTab] = useState("기본 정보");
+    const [roleLog, setRoleLog] = useState([]);
+    const [roleLogLoading, setRoleLogLoading] = useState(false);
     const { getRole, updateRole } = useUserRole();
 
-    // open=false 로 닫힐 때도 슬라이드 아웃 애니메이션이 재생되도록
-    // user가 null이 되어도 마지막 데이터를 유지
     const lastUserRef = useRef(user);
     if (user) lastUserRef.current = user;
     const displayUser = lastUserRef.current;
 
     const role = getRole(displayUser);
 
-    const handleRoleChange = (newRole) => {
-        if (displayUser) updateRole(displayUser.id, newRole);
+    const handleRoleChange = async (newRole) => {
+        if (!displayUser) return;
+        const current = getRole(displayUser);
+        if (current === newRole) return;
+        try {
+            await changeRole({ id: displayUser.id, role: current });
+            updateRole(displayUser.id, newRole);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
-    // 새 user로 바뀔 때 탭 초기화
     useEffect(() => {
-        if (user) setTab("기본 정보");
+        if (user) {
+            setTab("기본 정보");
+            setRoleLog([]);
+        }
     }, [user?.id]);
+
+    useEffect(() => {
+        if (tab !== "활동 통계" || !displayUser?.id) return;
+        setRoleLogLoading(true);
+        getUserRoleLog(displayUser.id)
+            .then(setRoleLog)
+            .catch(() => setRoleLog([]))
+            .finally(() => setRoleLogLoading(false));
+    }, [tab, displayUser?.id]);
 
     if (!displayUser) return null;
 
@@ -164,8 +168,7 @@ export default function UserDetailSidebar({
             {/* 배경 오버레이 */}
             <div
                 onClick={onClose}
-                className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0 pointer-events-none"
-                    }`}
+                className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
                 aria-hidden
             />
 
@@ -174,8 +177,11 @@ export default function UserDetailSidebar({
                 role="dialog"
                 aria-modal="true"
                 aria-label="사용자 상세"
-                className={`fixed top-0 right-0 z-50 h-full w-full max-w-[400px] bg-[#0c1013] border-l border-white/[0.07] shadow-[-20px_0_50px_rgba(0,0,0,0.5)] flex flex-col font-sans text-[#e7ecef] transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"
-                    }`}
+                className={`fixed top-0 right-0 z-50 h-full w-full max-w-[400px] flex flex-col font-sans transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"} ${
+                    lt
+                    ? "bg-[#F9FAFB] border-l border-black/[0.08] shadow-[-20px_0_50px_rgba(0,0,0,0.10)] text-[#111827]"
+                    : "bg-[#0c1013] border-l border-white/[0.07] shadow-[-20px_0_50px_rgba(0,0,0,0.5)] text-[#e7ecef]"
+                }`}
             >
                 {/* 상단: 닫기 + 프로필 */}
                 <div className="px-6 pt-5 pb-4 shrink-0">
@@ -184,7 +190,11 @@ export default function UserDetailSidebar({
                             type="button"
                             onClick={onClose}
                             aria-label="닫기"
-                            className="text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.06] p-1.5 rounded-lg transition-colors"
+                            className={`p-1.5 rounded-lg transition-colors ${
+                                lt
+                                ? "text-[#9CA3AF] hover:text-[#111827] hover:bg-black/[0.05]"
+                                : "text-[#8a949c] hover:text-[#e7ecef] hover:bg-white/[0.06]"
+                            }`}
                         >
                             <Icon name="x" size={20} />
                         </button>
@@ -199,21 +209,24 @@ export default function UserDetailSidebar({
                                     {role}
                                 </span>
                             </div>
-                            <div className="text-[13px] text-[#8a949c] mt-0.5">{displayUser.handle}</div>
+                            <div className={`text-[13px] mt-0.5 ${lt ? "text-[#9CA3AF]" : "text-[#8a949c]"}`}>{displayUser.handle}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* 탭 */}
-                <div className="px-6 border-b border-white/[0.07] shrink-0">
+                <div className={`px-6 border-b shrink-0 ${lt ? "border-black/[0.08]" : "border-white/[0.07]"}`}>
                     <div className="flex gap-6">
                         {TABS.map((t) => (
                             <button
                                 key={t}
                                 type="button"
                                 onClick={() => setTab(t)}
-                                className={`relative pb-3 pt-1 text-[13.5px] transition-colors ${tab === t ? "text-[#e7ecef] font-semibold" : "text-[#8a949c] hover:text-[#e7ecef]"
-                                    }`}
+                                className={`relative pb-3 pt-1 text-[13.5px] transition-colors outline-none ${
+                                    tab === t
+                                    ? `${lt ? "text-[#111827]" : "text-[#e7ecef]"} font-semibold`
+                                    : lt ? "text-[#6B7280] hover:text-[#111827]" : "text-[#8a949c] hover:text-[#e7ecef]"
+                                }`}
                             >
                                 {t}
                                 {tab === t && (
@@ -229,31 +242,37 @@ export default function UserDetailSidebar({
                     {tab === "기본 정보" && (
                         <>
                             {/* 기본 정보 카드 */}
-                            <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
+                            <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
                                 <dl className="space-y-3.5">
-                                    <Row label="이메일"><span className="text-[#e7ecef]">{displayUser.email}</span></Row>
-                                    <Row label="가입일"><span className="text-[#e7ecef]">{displayUser.joinedAt}</span></Row>
-                                    <Row label="상태"><Select value={role} options={ROLE_OPTIONS} onChange={handleRoleChange} /></Row>
-                                    <Row label="최근 접속" align="start">
+                                    <Row label="등급" lt={lt}><Select value={role} options={ROLE_OPTIONS} onChange={handleRoleChange} lt={lt} /></Row>
+                                    <Row label="이메일" lt={lt}><span className={lt ? "text-[#111827]" : "text-[#e7ecef]"}>{displayUser.email}</span></Row>
+                                    <Row label="가입일" lt={lt}><span className={lt ? "text-[#111827]" : "text-[#e7ecef]"}>{displayUser.joinedAt}</span></Row>
+                                    <Row label="최근 접속" align="start" lt={lt}>
                                         <div>
-                                            <div className="text-[#34d399] text-[12.5px] mt-0.5">({displayUser.lastSeenAgo})</div>
+                                            {onlineIds.has(displayUser.id) ? (
+                                                <div className="inline-flex items-center gap-1.5 mt-0.5">
+                                                    <span className="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_6px_rgba(34,197,94,0.7)] shrink-0" />
+                                                    <span className="text-[#22c55e] text-[12.5px] font-semibold">현재 활동 중</span>
+                                                </div>
+                                            ) : (() => {
+                                                const seen = formatLastSeen(displayUser.lastActiveAt);
+                                                return (
+                                                    <div className="inline-flex items-center gap-1.5 mt-0.5">
+                                                        <span className="w-2 h-2 rounded-full bg-[#f87171] shrink-0" />
+                                                        <span className={`text-[12.5px] ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>
+                                                            {seen != null ? `${seen} 전에 활동` : "접속 기록 없음"}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </Row>
                                 </dl>
                             </section>
 
-                            {/* 사용자 통계 */}
-                            <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
-                                <h3 className="text-[13.5px] font-semibold text-[#c3ccd2] mb-4">사용자 통계</h3>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                                    <StatItem icon="message" label="질문 수" value={displayUser.questions} />
-                                    <StatItem icon="file" label="업로드 문서 수" value={displayUser.docs} />
-                                </div>
-                            </section>
-
                             {/* 관리 기능 */}
-                            <section className="bg-[#11161a] border border-white/[0.06] rounded-2xl p-5">
-                                <h3 className="text-[13.5px] font-semibold text-[#c3ccd2] mb-4">관리 기능</h3>
+                            <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
+                                <h3 className={`text-[13.5px] font-semibold mb-4 ${lt ? "text-[#374151]" : "text-[#c3ccd2]"}`}>관리 기능</h3>
                                 <div className="grid gap-3">
                                     {displayUser.ban !== "BAN" && (
                                         <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(displayUser)} variant="warning" />
@@ -266,9 +285,70 @@ export default function UserDetailSidebar({
                         </>
                     )}
 
-                    {tab === "활동 통계" && (
-                        <div className="text-[#5b656d] text-sm text-center py-16">활동 통계 내용이 여기에 표시됩니다.</div>
-                    )}
+                    {tab === "활동 통계" && (() => {
+                        const joinedMs = displayUser.joinedAt ? new Date(displayUser.joinedAt).getTime() : null;
+                        const daysSince = joinedMs ? Math.max(1, Math.floor((Date.now() - joinedMs) / 86_400_000)) : null;
+                        const avgPerDay = daysSince ? (displayUser.questions / daysSince).toFixed(2) : "-";
+
+                        return (
+                            <>
+                                {/* 활동 지표 카드 */}
+                                <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
+                                    <h3 className={`text-[13.5px] font-semibold mb-4 ${lt ? "text-[#374151]" : "text-[#c3ccd2]"}`}>활동 지표</h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { icon: "message", label: "질문 수", value: displayUser.questions.toLocaleString(), unit: "회" },
+                                            { icon: "file",    label: "업로드 문서", value: displayUser.docs.toLocaleString(), unit: "개" },
+                                            { icon: "calendar", label: "가입 경과", value: daysSince?.toLocaleString() ?? "-", unit: "일" },
+                                            { icon: "activity", label: "일평균 질문", value: avgPerDay, unit: "회/일" },
+                                        ].map(({ icon, label, value, unit }) => (
+                                            <div key={label} className={`border rounded-xl p-3.5 flex flex-col gap-1.5 ${lt ? "bg-white border-black/[0.09] shadow-sm" : "bg-[#0c1013] border-white/[0.08]"}`}>
+                                                <div className={`flex items-center gap-1.5 ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>
+                                                    <Icon name={icon} size={13} />
+                                                    <span className="text-[11px] font-medium">{label}</span>
+                                                </div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className={`text-[22px] font-extrabold leading-none ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>{value}</span>
+                                                    <span className={`text-[11px] ${lt ? "text-[#6B7280]" : "text-[#b0bdc5]"}`}>{unit}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* 권한 변경 이력 */}
+                                <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
+                                    <h3 className={`text-[13.5px] font-semibold mb-4 ${lt ? "text-[#374151]" : "text-[#c3ccd2]"}`}>권한 변경 이력</h3>
+                                    {roleLogLoading ? (
+                                        <p className={`text-center text-[13px] py-6 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>불러오는 중...</p>
+                                    ) : roleLog.length === 0 ? (
+                                        <p className={`text-center text-[13px] py-6 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>변경 이력이 없습니다</p>
+                                    ) : (
+                                        <ol className={`relative border-l ml-2 space-y-4 ${lt ? "border-black/[0.12]" : "border-white/[0.12]"}`}>
+                                            {roleLog.map((entry) => {
+                                                const isPromotion = entry.after_role === "ADMIN";
+                                                return (
+                                                    <li key={entry.id} className="pl-5 relative">
+                                                        <span className={`absolute -left-[5px] top-[3px] w-2.5 h-2.5 rounded-full border-2 ${lt ? "border-[#F9FAFB]" : "border-[#0c1013]"} ${isPromotion ? "bg-[#a78bfa]" : "bg-[#f87171]"}`} />
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className={`text-[11.5px] font-bold ${isPromotion ? "text-[#a78bfa]" : "text-[#f87171]"}`}>
+                                                                {entry.before_role} → {entry.after_role}
+                                                            </span>
+                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isPromotion ? "bg-[#a78bfa]/[0.12] text-[#a78bfa]" : "bg-[#f87171]/[0.12] text-[#f87171]"}`}>
+                                                                {isPromotion ? "승급" : "강등"}
+                                                            </span>
+                                                        </div>
+                                                        <div className={`text-[12px] ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>by <span className={`font-medium ${lt ? "text-[#374151]" : "text-[#e7ecef]"}`}>{entry.changed_by_name}</span></div>
+                                                        <div className={`text-[11px] font-mono mt-0.5 ${lt ? "text-[#9CA3AF]" : "text-[#b0bdc5]"}`}>{entry.created_at.slice(0, 10)}</div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ol>
+                                    )}
+                                </section>
+                            </>
+                        );
+                    })()}
                 </div>
             </aside>
         </>
@@ -276,9 +356,9 @@ export default function UserDetailSidebar({
 }
 
 /* ---------- 라벨/값 행 ---------- */
-const Row = ({ label, children, align = "center" }) => (
+const Row = ({ label, children, align = "center", lt = false }) => (
     <div className={`grid grid-cols-[72px_1fr] gap-4 items-${align === "start" ? "start" : "center"}`}>
-        <dt className="text-[13px] text-[#8a949c] pt-0.5">{label}</dt>
+        <dt className={`text-[13px] pt-0.5 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>{label}</dt>
         <dd className="text-[13.5px]">{children}</dd>
     </div>
 );

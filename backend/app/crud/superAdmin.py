@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
+from sqlalchemy.orm import aliased
 from fastapi import HTTPException
 
 from app.models.user import User
@@ -107,6 +108,28 @@ async def all_user_list(db: AsyncSession, body: UserListQuery):
     }
     
 
+async def get_user_role_log(db: AsyncSession, user_id: str):
+    ChangedBy = aliased(User)
+    result = await db.execute(
+        select(UserRoleLog, ChangedBy.name)
+        .join(ChangedBy, UserRoleLog.changed_by_user_id == ChangedBy.id)
+        .where(UserRoleLog.target_user_id == user_id)
+        .order_by(UserRoleLog.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": log.id,
+            "before_role": log.before_role.value,
+            "after_role": log.after_role.value,
+            "reason": log.reason,
+            "changed_by_name": name,
+            "created_at": log.created_at.isoformat(),
+        }
+        for log, name in rows
+    ]
+
+
 async def dashboard_num(db: AsyncSession):
     total_result = await db.execute(select(func.count()).select_from(User))
     total = total_result.scalar()
@@ -114,7 +137,7 @@ async def dashboard_num(db: AsyncSession):
     active_result = await db.execute(select(func.count()).select_from(User).where(User.is_active == True))
     active = active_result.scalar()
 
-    blocked_result = await db.execute(select(func.count()).select_from(User).where(User.is_active == False))
+    blocked_result = await db.execute(select(func.count()).select_from(User).where(User.ban == UserBan.BAN))
     blocked = blocked_result.scalar()
 
     admin_result = await db.execute(select(func.count()).select_from(User).where(User.role == UserRole.ADMIN))
