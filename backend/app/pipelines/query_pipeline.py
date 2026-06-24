@@ -1,7 +1,10 @@
 from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
-from app.llm.chat_prompt import build_prompt, none_source_build_prompt
 from app.services.reranker import rerank
 from app.utils.profiler import profile # 리소스 확인용
+
+NO_DOCS_MESSAGE = '''현재 질문의 답변에 참고할 문서를 찾지 못했습니다.
+                    질문과 관련하여 참고가 될만한 문서를 찾아서 업로드하거나,
+                    답변에 참고할만한 확실한 키워드를 질문과 함께 제공하거나 더 자세히 질문해주세요.'''
 
 # 채팅 파이프라인
 async def query(question: str, user_id: str, selected_document_ids: list[str] = []) -> dict:
@@ -14,20 +17,15 @@ async def query(question: str, user_id: str, selected_document_ids: list[str] = 
         document_ids=selected_document_ids if selected_document_ids else None,
     )
 
-    # 문서 못 찾으면 none_source 프롬프트로 LLM에 질문
+    # 문서 못 찾으면 LLM 없이 바로 안내 메시지 반환
     if not search_results:
-        prompt = none_source_build_prompt(question)
-        return {"prompt": prompt, "sources": []}
+        return {"context_chunks": [], "sources": [], "no_docs": True}
 
     reranked_results = await rerank(question, search_results, top_k=5)
 
-    # 리랭킹 후에도 없으면(15번에서 오류로 못 걸러졌거나, 리랭킹으로 인해 문서 전부 걸러짐)
+    # 리랭킹 후에도 없으면 동일하게 안내 메시지 반환
     if not reranked_results:
-        prompt = none_source_build_prompt(question)
-        return {"prompt": prompt, "sources": []}
-
-    # 정상 프롬프트
-    prompt = build_prompt(question, reranked_results)
+        return {"context_chunks": [], "sources": [], "no_docs": True}
 
     sources = [
         {
@@ -37,7 +35,7 @@ async def query(question: str, user_id: str, selected_document_ids: list[str] = 
         for r in reranked_results
     ]
 
-    return {"prompt": prompt, "sources": sources}
+    return {"context_chunks": reranked_results, "sources": sources}
 
 ''' 리소스 확인 용 코드
 async def query(question: str, user_id: str) -> dict:

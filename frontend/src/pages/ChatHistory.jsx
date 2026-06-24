@@ -2,8 +2,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { loadRooms, deleteRoom } from "../data/chatRooms.js";
+import { formatRelativeDate } from "../utils/formatDate.js";
 import { IconClose } from "../components/Icons.jsx";
 import Topbar from "../components/Topbar.jsx";
+
+const SORT_OPTIONS = [
+  { key: "active", label: "활동순" },
+  { key: "newest", label: "최신순" },
+  { key: "name", label: "이름순" },
+];
 
 export default function ChatHistory() {
   const { user } = useAuth();
@@ -11,6 +18,7 @@ export default function ChatHistory() {
   const { onMenu, onProfile } = useOutletContext();
   const [rooms, setRooms] = useState([]);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("active");
 
   useEffect(() => {
     loadRooms(user?.id).then(setRooms);
@@ -18,9 +26,19 @@ export default function ChatHistory() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rooms;
-    return rooms.filter((r) => r.title.toLowerCase().includes(q));
-  }, [rooms, query]);
+    let list = q ? rooms.filter((r) => r.title.toLowerCase().includes(q)) : [...rooms];
+
+    if (sort === "name") {
+      list.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+    } else if (sort === "newest") {
+      list.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    } else {
+      // active: last_active_at desc
+      list.sort((a, b) => (b.lastActiveAt ?? b.date ?? "").localeCompare(a.lastActiveAt ?? a.date ?? ""));
+    }
+
+    return list;
+  }, [rooms, query, sort]);
 
   const handleDelete = async (e, roomId) => {
     e.stopPropagation();
@@ -36,7 +54,7 @@ export default function ChatHistory() {
         <div className="gd-history-wrap">
           <h2 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 600 }}>채팅 기록</h2>
 
-          <div className="gd-history-search-row">
+          <div className="gd-history-toolbar">
             <input
               className="gd-history-search-input"
               type="text"
@@ -45,6 +63,17 @@ export default function ChatHistory() {
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
             />
+            <div className="gd-history-sort">
+              {SORT_OPTIONS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  className={`gd-history-sort-btn${sort === key ? " active" : ""}`}
+                  onClick={() => setSort(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {filtered.length === 0 ? (
@@ -60,7 +89,7 @@ export default function ChatHistory() {
                   onClick={() => navigate(`/chat?room=${room.id}`)}
                 >
                   <span className="gd-history-item-title">{room.title}</span>
-                  <span className="gd-history-item-date">{room.date?.slice(5)}</span>
+                  <span className="gd-history-item-date">{formatRelativeDate(room.lastActiveAt || room.date)}</span>
                   <button
                     className="gd-history-item-del"
                     onClick={(e) => handleDelete(e, room.id)}

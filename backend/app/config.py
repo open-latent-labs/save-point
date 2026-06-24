@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_generate_url: str
+    ollama_chat_url: str
     ollama_embed_url: str
     summary_model: str
     chat_model: str
