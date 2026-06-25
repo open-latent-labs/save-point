@@ -110,10 +110,10 @@ Table users {
   password          varchar(255)  [not null]
   role              user_role     [not null, default: 'USER', note: '회원 역할(권한 구분)']
   email             varchar(255)  [not null, unique]
-  name              varchar(255)  [not null]
-  user_id           varchar(26)   [not null, unique]
-  ban               user_ban      [not null, default: 'UNBAN', note: '회원 계정 상태']
-  is_active         boolean       [not null, default: true]
+  name              varchar(100)  [not null]
+  user_id           varchar(255)  [not null, unique]
+  ban               user_ban      [not null, default: 'UNBAN', note: '회원 계정 상태(계정 상태 구분)']
+  is_active         boolean       [not null, default: true, note: '회원 접속 상태(접속 여부 구분)']
   last_active_at    timestamptz
   upload_file_count int           [not null, default: 0, note: '업로드한 문서 갯수']
   ask_count         int           [not null, default: 0, note: '챗봇 질문 수']
@@ -131,6 +131,19 @@ Table user_role_log {
   after_role          user_role   [not null]
   reason              text
   created_at          timestamptz [default: `now()`]
+}
+
+Table user_oauth_accounts {
+  id               int          [pk, increment]
+  user_id          varchar(26)  [not null]
+  provider         varchar(20)  [not null, note: 'google | kakao | naver']
+  provider_user_id varchar(255) [not null, note: '소셜 플랫폼이 부여한 고유 ID']
+  email            varchar(255) [note: '소셜 계정 이메일(없을 수 있음)']
+  created_at       timestamptz  [default: `now()`]
+
+  indexes {
+    (provider, provider_user_id) [unique, name: 'uq_provider_user']
+  }
 }
 
 Table documents {
@@ -295,6 +308,9 @@ Table notifications {
 // user_role_log
 Ref: user_role_log.target_user_id     > users.id [delete: set null]
 Ref: user_role_log.changed_by_user_id > users.id [delete: no action]
+
+// user_oauth_accounts
+Ref: user_oauth_accounts.user_id > users.id [delete: cascade]
 
 // documents
 Ref: documents.uploaded_by_id > users.id [delete: no action]

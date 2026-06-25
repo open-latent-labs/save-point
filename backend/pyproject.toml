@@ -45,8 +45,21 @@ torch-backend = "cpu"
 dev = [
     "pytest>=9.0.3",
     "pytest-mock>=3.14.0",
+    "pytest-asyncio>=0.24.0",
+    "respx>=0.21.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+# 비동기 테스트: async def 테스트 함수는 데코레이터 없이 자동 실행
+# (@pytest.mark.asyncio 누락으로 인한 조용한 통과 방지)
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+# 테스트 분류 마커 — 실행 시 `-m unit` / `-m integration` 로 선택
+markers = [
+    "unit: 외부 의존성 없이 단일 함수/클래스 검증 (mock 사용, 빠름)",
+    "integration: 실제 의존성 연동 (Qdrant :memory:, testcontainers PG 등, 느림)",
+]
