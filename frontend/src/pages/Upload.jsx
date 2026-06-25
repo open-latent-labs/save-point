@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useDeferredValue } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
@@ -173,6 +173,8 @@ export default function Upload() {
   const [pendingIds, setPendingIds] = useState(() => loadPending());
   const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const deferredKeyword = useDeferredValue(searchInput);
 
   // 승인 문서함에서 변경 시 동기화
   useEffect(() => {
@@ -205,6 +207,7 @@ export default function Upload() {
           ...(visFilter === "private"  && { access_type: "PRIVATE" }),
           ...(visFilter === "fav"      && { is_bookmarked: true }),
           ...(visFilter === "pending"  && { status: "PENDING" }),
+          ...(deferredKeyword.trim() && { keyword: deferredKeyword.trim() }),
         });
         if (cancelled) return;
         const docs = Array.isArray(data) ? data : (data?.documents ?? []);
@@ -230,10 +233,10 @@ export default function Upload() {
     };
     fetchDocs();
     return () => { cancelled = true; };
-  }, [page, refreshKey, catFilter, sortBy, visFilter]);
+  }, [page, refreshKey, catFilter, sortBy, visFilter, deferredKeyword]);
 
-  // 필터/정렬 변경 시 페이지 초기화
-  useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter]);
+  // 필터/정렬/검색 변경 시 페이지 초기화
+  useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter, deferredKeyword]);
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = async (id) => {
@@ -645,8 +648,47 @@ export default function Upload() {
               <span className="gd-mydocs-count">{apiTotalCount}개</span>
             </div>
 
-            {/* 필터 바 — 콤보 + 상태 탭 한 줄 */}
+            {/* 필터 바 — 검색 + 콤보 + 상태 탭 한 줄 */}
             <div className="gd-docs-filterbar">
+              <div style={{ position: "relative", flex: "1 1 160px", minWidth: 0 }}>
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--dim)", pointerEvents: "none" }}
+                >
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="파일명 검색..."
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    paddingLeft: 30, paddingRight: searchInput ? 28 : 10,
+                    height: 32, borderRadius: 6, fontSize: 13,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text)", outline: "none",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--mint)"; }}
+                  onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
+                />
+                {searchInput && (
+                  <button
+                    onClick={() => setSearchInput("")}
+                    style={{
+                      position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "var(--dim)", padding: 2, lineHeight: 1,
+                    }}
+                    aria-label="검색어 지우기"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               <select className="gd-combo" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
                 <option value="all">전체 카테고리</option>
                 {CATEGORY_OPTIONS.map((c) => (
@@ -690,7 +732,9 @@ export default function Upload() {
 
               return filteredDocs.length === 0 ? (
                 <div className="gd-mydocs-empty">
-                  {{ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다."}
+                  {deferredKeyword.trim()
+                    ? `"${deferredKeyword.trim()}"에 해당하는 문서가 없습니다.`
+                    : ({ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다.")}
                 </div>
               ) : (
                 <>

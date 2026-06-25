@@ -27,7 +27,7 @@ const PROVIDERS = [
 ];
 
 const ALL_TABS = ["내 정보", "내 문서", "설정"];
-const SUPER_ADMIN_TABS = ["내 정보", "설정"];
+const SUPER_ADMIN_TABS = ["내 정보"];
 
 const THEMES = [
   { id: "mint",  label: "민트",   sub: "기본 다크",  color: "#36E0A1", bg: "#07090A", textColor: "#EAF0EC" },
@@ -313,38 +313,30 @@ export default function MyPageDrawer({ open, onClose }) {
                               <Icon />
                               <span style={{ fontSize: 13, color: "var(--fg)" }}>{label}</span>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                               {linked && account.email && (
                                 isPrimary ? (
-                                  <span style={{
-                                    fontSize: 10, padding: "2px 7px", borderRadius: 5,
-                                    background: "rgba(54,224,161,.12)",
-                                    color: "var(--mint)",
-                                    border: "1px solid rgba(54,224,161,.25)",
-                                    whiteSpace: "nowrap",
-                                  }}>
+                                  <span style={{ fontSize: 11, color: "var(--mint)", whiteSpace: "nowrap" }}>
                                     대표 이메일
                                   </span>
                                 ) : (
                                   <button
                                     style={{
-                                      fontSize: 11, padding: "2px 8px", borderRadius: 5,
-                                      border: "1px solid var(--border-strong)", background: "transparent",
-                                      color: "var(--text)", cursor: "pointer", whiteSpace: "nowrap",
+                                      fontSize: 11, padding: 0, border: "none", background: "transparent",
+                                      color: "var(--dim)", cursor: "pointer", whiteSpace: "nowrap",
                                     }}
                                     disabled={oauthLoading}
                                     onClick={() => handleSetPrimary(account.email)}
                                   >
-                                    대표로 설정
+                                    대표 지정
                                   </button>
                                 )
                               )}
                               {linked ? (
                                 <button
                                   style={{
-                                    fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                    border: "1px solid var(--border-strong)", background: "transparent",
-                                    color: "var(--faint)", cursor: "pointer"
+                                    fontSize: 11, padding: 0, border: "none", background: "transparent",
+                                    color: "var(--faint)", cursor: "pointer",
                                   }}
                                   disabled={oauthLoading}
                                   onClick={() => handleUnlink(key)}
@@ -354,9 +346,8 @@ export default function MyPageDrawer({ open, onClose }) {
                               ) : (
                                 <button
                                   style={{
-                                    fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                                    border: "none", background: "var(--accent)",
-                                    color: theme === "light" ? "#111" : "#fff", cursor: "pointer"
+                                    fontSize: 11, padding: 0, border: "none", background: "transparent",
+                                    color: "var(--accent)", cursor: "pointer",
                                   }}
                                   disabled={oauthLoading}
                                   onClick={() => handleLink(key)}

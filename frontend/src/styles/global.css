@@ -809,7 +809,7 @@ a {
   font-size: 13px;
   cursor: pointer;
   transition: color .15s;
-  color: var(--faint);
+  color: var(--dim);
   font-weight: 400;
 }
 
@@ -884,7 +884,7 @@ a {
 
 .gd-mypage-stat-lbl {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--dim);
   margin-top: 4px;
 }
 
