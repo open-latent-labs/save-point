@@ -8,8 +8,8 @@
   --border: rgba(255, 255, 255, .08);
   --border-strong: rgba(255, 255, 255, .16);
   --text: #EAF0EC;
-  --dim: #8A938F;
-  --faint: #565C59;
+  --dim: #A8B4AE;
+  --faint: #8A938F;
   --mint-rgb: 54, 224, 161;
   --mint-strong-rgb: 17, 185, 129;
   --mint-light: #00B8D9;
@@ -181,11 +181,11 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 11px;
-  letter-spacing: .06em;
+  letter-spacing: .03em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--dim);
   padding: 4px 14px 4px;
   flex: none;
 }
@@ -330,9 +330,9 @@ a {
 
 .gd-sb-pinned-empty {
   font-size: 12px;
-  color: var(--faint);
+  color: var(--dim);
   padding: 4px 6px 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
 }
 
 .gd-sb-pending-count {
@@ -504,11 +504,11 @@ a {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 11px;
-  letter-spacing: .06em;
+  letter-spacing: .03em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--dim);
   padding: 6px 10px;
 }
 
@@ -1869,7 +1869,7 @@ a {
 
 .gd-doc-desc {
   font-size: 13.5px;
-  color: var(--dim);
+  color: var(--text);
   line-height: 1.75;
   margin: 0 0 24px;
 }
