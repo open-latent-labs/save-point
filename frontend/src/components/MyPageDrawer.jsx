@@ -62,9 +62,6 @@ export default function MyPageDrawer({ open, onClose }) {
 
   const [animType, setAnimTypeState] = useState(() => localStorage.getItem("gamedocs_anim") ?? "1");
   const [theme, setThemeState] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
-  const [streaming, setStreaming] = useState(true);
-  const [korean, setKorean] = useState(true);
-  const [sources, setSources] = useState(true);
 
   useEffect(() => {
     const syncAnim = () => setAnimTypeState(localStorage.getItem("gamedocs_anim") ?? "1");
@@ -498,24 +495,6 @@ export default function MyPageDrawer({ open, onClose }) {
                       ))}
                     </div>
                   </div>
-                  {[
-                    { label: "스트리밍 응답", desc: "AI 답변을 타이핑 애니메이션으로 표시", on: streaming, toggle: () => setStreaming(v => !v) },
-                    { label: "한국어 우선", desc: "답변을 한국어로 우선 생성", on: korean, toggle: () => setKorean(v => !v) },
-                    { label: "출처 표시", desc: "답변 하단에 참고 문서 링크 노출", on: sources, toggle: () => setSources(v => !v) },
-                  ].map(({ label, desc, on, toggle }) => (
-                    <div key={label} className="gd-setting-row">
-                      <div>
-                        <div className="lbl">{label}</div>
-                        <div className="desc">{desc}</div>
-                      </div>
-                      <button
-                        className={"gd-toggle" + (on ? " on" : "")}
-                        onClick={toggle}
-                        aria-pressed={on}
-                        aria-label={label}
-                      />
-                    </div>
-                  ))}
                 </div>
               )}
 

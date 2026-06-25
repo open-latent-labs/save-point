@@ -9,10 +9,12 @@ from sqlalchemy import func, literal
 from app.models.document import Document
 from app.models.ocr_result import OcrResult
 from app.models.summary_llm_result import SummaryLlmResult
+from app.models.bookmarked_document import BookmarkedDocument
+from app.models.pinned_document import PinnedDocument
 from app.crud.vector_docs import update_document_payload
 
 
-async def document_content(db: AsyncSession, document_id: str):
+async def document_content(db: AsyncSession, document_id: str, user_id: str = None):
     result = await db.execute(
         select(Document, SummaryLlmResult)
         .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
@@ -21,6 +23,26 @@ async def document_content(db: AsyncSession, document_id: str):
     row = result.one_or_none()
     if row is None:
         return None
+
+    is_bookmarked = False
+    is_pinned = False
+    if user_id:
+        bm = await db.execute(
+            select(BookmarkedDocument).where(
+                BookmarkedDocument.document_id == document_id,
+                BookmarkedDocument.user_id == user_id,
+            )
+        )
+        is_bookmarked = bm.scalar_one_or_none() is not None
+
+        pm = await db.execute(
+            select(PinnedDocument).where(
+                PinnedDocument.document_id == document_id,
+                PinnedDocument.user_id == user_id,
+            )
+        )
+        is_pinned = pm.scalar_one_or_none() is not None
+
     return {
         "document": {
             "id": row[0].id,
@@ -28,7 +50,10 @@ async def document_content(db: AsyncSession, document_id: str):
             "extension": row[0].extension,
             "file_size": row[0].file_size,
             "access_type": row[0].access_type,
+            "status": row[0].status,
             "created_at": row[0].created_at.isoformat() if row[0].created_at else None,
+            "is_bookmarked": is_bookmarked,
+            "is_pinned": is_pinned,
         },
         "summary": {
             "category": row[1].category,
