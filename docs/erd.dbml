@@ -24,6 +24,7 @@ enum document_status {
   PENDING
   APPROVED
   REJECTED
+  FAILED
 }
 
 enum document_access {
