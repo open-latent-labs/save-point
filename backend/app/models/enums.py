@@ -19,6 +19,7 @@ class DocumentStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+    FAILED = "FAILED"
 
 
 class DocumentAccess(str, enum.Enum):
