@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveApproved, loadApproved, savePending, loadPending } from "../data/upload.js";
 
 const SSE_URL = `api/auth/stream`;
 
@@ -22,6 +23,13 @@ export function useHeartbeat() {
             es.addEventListener("notification", (e) => {
                 try {
                     const data = JSON.parse(e.data);
+                    if (data.type === "DOCUMENT_APPROVED" && data.document_id) {
+                        const current = loadApproved();
+                        if (!current.includes(data.document_id)) {
+                            saveApproved([...current, data.document_id]);
+                        }
+                        savePending(loadPending().filter((id) => id !== data.document_id));
+                    }
                     showBrowserNotification(data.message || "새 알림이 도착했습니다.");
                 } catch {
                     showBrowserNotification("새 알림이 도착했습니다.");
