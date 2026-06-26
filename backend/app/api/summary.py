@@ -32,8 +32,8 @@ async def document_original(id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/docs/{id}")
-async def document_content(id: str, db: AsyncSession = Depends(get_db)):
-    result = await crud_document_content(db, id)
+async def document_content(id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    result = await crud_document_content(db, id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return result

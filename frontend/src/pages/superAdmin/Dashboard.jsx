@@ -111,31 +111,28 @@ const FilterSelect = ({ label, options = [], value, onChange, className = "", lt
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className={`inline-flex items-center justify-between gap-2 border rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] transition-all duration-150 w-full ${
-                    lt
-                    ? "bg-white text-[#6B7280] border-black/[0.10] hover:border-black/[0.20] hover:text-[#111827] shadow-sm"
-                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#b0bdc5] border-white/[0.28] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2]"
-                }`}
+                className={`inline-flex items-center justify-between gap-2 border rounded-[10px] px-3.5 py-2 text-[13px] cursor-pointer min-w-[112px] transition-all duration-150 w-full ${lt
+                        ? "bg-white text-[#6B7280] border-black/[0.10] hover:border-black/[0.20] hover:text-[#111827] shadow-sm"
+                        : "bg-gradient-to-b from-[#151b20] to-[#11161a] text-[#b0bdc5] border-white/[0.28] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#c3ccd2]"
+                    }`}
             >
                 <span className={value ? (lt ? "text-[#111827]" : "text-[#c3ccd2]") : ""}>{displayLabel}</span>
                 <Icon name="chevron-down" size={14} className={`opacity-50 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
             </button>
             {open && options.length > 0 && (
-                <div className={`absolute top-full mt-1.5 right-0 min-w-full border rounded-[10px] shadow-xl z-50 overflow-hidden py-1 ${
-                    lt ? "bg-white border-black/[0.10]" : "bg-[#151b20] border-white/[0.32]"
-                }`}>
+                <div className={`absolute top-full mt-1.5 right-0 min-w-full border rounded-[10px] shadow-xl z-50 overflow-hidden py-1 ${lt ? "bg-white border-black/[0.10]" : "bg-[#151b20] border-white/[0.32]"
+                    }`}>
                     {options.map((opt) => (
                         <button
                             key={opt.value}
                             type="button"
                             onClick={() => { onChange(opt.value); setOpen(false); }}
-                            className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors whitespace-nowrap ${
-                                value === opt.value
-                                ? "text-[#22c55e] bg-[#22c55e]/[0.08]"
-                                : lt
-                                    ? "text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.04]"
-                                    : "text-[#b0bdc5] hover:text-[#e7ecef] hover:bg-white/[0.04]"
-                            }`}
+                            className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors whitespace-nowrap ${value === opt.value
+                                    ? "text-[#22c55e] bg-[#22c55e]/[0.08]"
+                                    : lt
+                                        ? "text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.04]"
+                                        : "text-[#b0bdc5] hover:text-[#e7ecef] hover:bg-white/[0.04]"
+                                }`}
                         >
                             {opt.label}
                         </button>
@@ -232,8 +229,11 @@ export default function UserManagement() {
 
     const toggleSuspend = async (e, user) => {
         e.stopPropagation();
+        const isBanned = user.ban === "BAN";
+        const confirmed = window.confirm(isBanned ? "정지를 해제하시겠습니까?" : "정지 하시겠습니까?");
+        if (!confirmed) return;
         try {
-            if (user.ban === "BAN") { await unbanUser({ id: user.id }); }
+            if (isBanned) { await unbanUser({ id: user.id }); }
             else { await banUser({ id: user.id }); }
             setRefreshKey((k) => k + 1);
         } catch (err) { console.error(err); }
@@ -287,11 +287,10 @@ export default function UserManagement() {
                     {statsData.map((s) => (
                         <div
                             key={s.key}
-                            className={`flex items-center gap-4 border rounded-2xl px-[22px] py-5 transition-[border-color,transform] hover:-translate-y-0.5 ${
-                                lt
-                                ? "bg-white border-black/[0.07] hover:border-black/[0.14] shadow-sm"
-                                : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.28] hover:border-white/[0.45]"
-                            }`}
+                            className={`flex items-center gap-4 border rounded-2xl px-[22px] py-5 transition-[border-color,transform] hover:-translate-y-0.5 ${lt
+                                    ? "bg-white border-black/[0.07] hover:border-black/[0.14] shadow-sm"
+                                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.28] hover:border-white/[0.45]"
+                                }`}
                         >
                             <div className={`w-12 h-12 rounded-[13px] flex items-center justify-center shrink-0 ${STAT_TONES[s.tone]}`}>
                                 <Icon name={s.icon} size={22} />
@@ -309,9 +308,8 @@ export default function UserManagement() {
                 <section className={`border rounded-2xl overflow-hidden ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.28]"}`}>
                     {/* 검색 + 필터 */}
                     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-[18px]">
-                        <div className={`flex items-center gap-2.5 flex-1 min-w-[220px] max-w-[420px] border rounded-[10px] px-3.5 py-2.5 focus-within:border-[#22c55e]/50 ${
-                            lt ? "bg-[#F9FAFB] border-black/[0.08] text-[#9CA3AF]" : "bg-[#0a0d0c] border-white/[0.28] text-[#b0bdc5]"
-                        }`}>
+                        <div className={`flex items-center gap-2.5 flex-1 min-w-[220px] max-w-[420px] border rounded-[10px] px-3.5 py-2.5 focus-within:border-[#22c55e]/50 ${lt ? "bg-[#F9FAFB] border-black/[0.08] text-[#9CA3AF]" : "bg-[#0a0d0c] border-white/[0.28] text-[#b0bdc5]"
+                            }`}>
                             <Icon name="search" size={18} />
                             <input
                                 type="text"
@@ -331,19 +329,17 @@ export default function UserManagement() {
                     <div className="overflow-x-auto">
                         <table className="w-full border-collapse min-w-[1020px]">
                             <thead>
-                                <tr className={`[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:px-3.5 [&>th]:py-3 [&>th]:whitespace-nowrap ${
-                                    lt
-                                    ? "[&>th]:text-[#9CA3AF] [&>th]:border-t [&>th]:border-b [&>th]:border-black/[0.07] [&>th]:bg-black/[0.02]"
-                                    : "[&>th]:text-[#b0bdc5] [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.28] [&>th]:bg-white/[0.012]"
-                                }`}>
+                                <tr className={`[&>th]:text-center [&>th]:text-xs [&>th]:font-semibold [&>th]:px-3.5 [&>th]:py-3 [&>th]:whitespace-nowrap ${lt
+                                        ? "[&>th]:text-[#9CA3AF] [&>th]:border-t [&>th]:border-b [&>th]:border-black/[0.07] [&>th]:bg-black/[0.02]"
+                                        : "[&>th]:text-[#b0bdc5] [&>th]:border-t [&>th]:border-b [&>th]:border-white/[0.28] [&>th]:bg-white/[0.012]"
+                                    }`}>
                                     <th>사용자</th><th>이메일</th><th>권한</th>
                                     <th>질문 수</th><th>업로드 문서 수</th>
                                     <th>활동 상태</th><th>접속 상태</th>
                                 </tr>
                             </thead>
-                            <tbody className={`[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0 ${
-                                lt ? "[&>tr>td]:border-b [&>tr>td]:border-black/[0.06]" : "[&>tr>td]:border-b [&>tr>td]:border-white/[0.28]"
-                            }`}>
+                            <tbody className={`[&>tr>td]:px-3.5 [&>tr>td]:py-3.5 [&>tr>td]:text-[13.5px] [&>tr>td]:align-middle [&>tr>td]:whitespace-nowrap [&>tr>td]:text-center [&>tr:last-child>td]:border-b-0 ${lt ? "[&>tr>td]:border-b [&>tr>td]:border-black/[0.06]" : "[&>tr>td]:border-b [&>tr>td]:border-white/[0.28]"
+                                }`}>
                                 {filtered.map((u) => (
                                     <tr
                                         key={u.id}

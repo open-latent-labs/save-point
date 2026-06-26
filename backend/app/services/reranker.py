@@ -43,7 +43,7 @@ async def _rerank_local(question: str, search_results: list[dict], top_k: int) -
         print(f"  score: {score:.4f} | {result['filename']} chunk_{result['chunk_index']}")
     print()
 
-    return [result for score, result in reranked[:top_k] if score > 0.5]
+    return [result for score, result in reranked[:top_k] if score > 0.1]
 
 
 async def _rerank_remote(question: str, search_results: list[dict], top_k: int) -> list[dict]:

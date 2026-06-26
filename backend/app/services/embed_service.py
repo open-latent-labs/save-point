@@ -3,7 +3,8 @@ from loguru import logger
 
 from app.config import get_settings
 from app.llm.ollama_client import ollama_semaphore
-from app.services.flag_model import get_flag_model
+# from app.services.flag_model import get_flag_model  # [SPARSE 비활성화]
+
 
 settings = get_settings()
 
@@ -61,8 +62,8 @@ async def embed_dense(chunks: list[str]) -> list[list[float]]:
     return vectors
 
 
-# Sparse 임베딩 (FlagEmbedding)
-def embed_sparse(chunks: list[str]) -> list[dict]:
+# [SPARSE 비활성화] Sparse 임베딩 (FlagEmbedding) — 덴스+리랭킹으로 전환
+'''def embed_sparse(chunks: list[str]) -> list[dict]:
     model = get_flag_model()
     total = len(chunks)
     sparse_vectors = []
@@ -115,4 +116,4 @@ def embed_sparse(chunks: list[str]) -> list[dict]:
                             sparse_vectors.append({"indices": [], "values": []})
 
         logger.info(f"[Sparse 임베딩] {batch_end}/{total} 완료")
-    return sparse_vectors
+    return sparse_vectors'''

@@ -4,10 +4,16 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Topbar from "../components/Topbar.jsx";
 import { document_content, document_original, document_delete, document_update_access } from "../api/docs.js";
+import { documentBookmark, documentBookmarkDelete, documentPin, documentPinDelete, requestPublicDocument } from "../api/document.js";
+import { adminPublishDocument } from "../api/admin.js";
+import { IconStar, IconPin, IconGlobe } from "../components/Icons.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Docs() {
   const { docId = "atlassian-intro" } = useParams();
   const { onMenu, onProfile } = useOutletContext();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,6 +21,8 @@ export default function Docs() {
 
   const [docData, setDocData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
+  const [isFav, setIsFav] = useState(false);
+  const [isPin, setIsPin] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState("");
@@ -33,6 +41,8 @@ export default function Docs() {
       }
       document_content(docId).then((data) => {
         setDocData(data);
+        setIsFav(data?.document?.is_bookmarked ?? false);
+        setIsPin(data?.document?.is_pinned ?? false);
         setIsEditing(false);
       });
     }
@@ -77,6 +87,40 @@ export default function Docs() {
     navigate(-1);
   };
 
+  const toggleFav = async () => {
+    const next = !isFav;
+    setIsFav(next);
+    try {
+      if (next) await documentBookmark(docId, true);
+      else await documentBookmarkDelete(docId);
+    } catch { setIsFav(!next); }
+  };
+
+  const togglePin = async () => {
+    const next = !isPin;
+    setIsPin(next);
+    try {
+      if (next) await documentPin(docId, true);
+      else await documentPinDelete(docId);
+      window.dispatchEvent(new Event("gamedocs:pins"));
+    } catch { setIsPin(!next); }
+  };
+
+  const handlePublish = async () => {
+    try {
+      if (isAdmin) await adminPublishDocument(docId);
+      else await requestPublicDocument(docId);
+      setDocData((prev) => ({
+        ...prev,
+        document: {
+          ...prev.document,
+          access_type: isAdmin ? "PUBLIC" : prev.document.access_type,
+          status: isAdmin ? "APPROVED" : "PENDING",
+        },
+      }));
+    } catch (e) { console.error(e); }
+  };
+
   const textareaStyle = {
     width: "100%",
     minHeight: "160px",
@@ -102,40 +146,75 @@ export default function Docs() {
       <div className="gd-page-scroll">
         <div className="gd-doc-wrap">
           <div className="gd-doc-card">
-            {/* 브레드크럼 */}
-            {!isOriginalView && docData?.summary?.category && (
-              <nav className="gd-breadcrumb">
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="gd-breadcrumb-item">{docData.summary.category}</span>
-                </span>
-              </nav>
-            )}
+            {/* 상단 바: 카테고리 · 텍스트 버튼들 · 아이콘 버튼들 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              {/* 카테고리 뱃지 */}
+              {!isOriginalView && docData?.summary?.category && (
+                <span className="gd-breadcrumb-item" style={{ flexShrink: 0 }}>{docData.summary.category}</span>
+              )}
 
-            {/* 제목 */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h1 className="gd-doc-title" style={{ margin: 0 }}>{activeData.document.filename}</h1>
+              {/* 텍스트 버튼들 */}
               {isOriginalView ? (
-                <button
-                  onClick={() => navigate(location.pathname.replace("/original", ""))}
-                  className={btnStyle}
-                >
+                <button onClick={() => navigate(location.pathname.replace("/original", ""))} className={btnStyle}>
                   요약내용 보기
                 </button>
               ) : (
-                <button
-                  onClick={() => navigate(location.pathname.replace(/\/$/, "") + "/original")}
-                  className={btnStyle}
-                >
+                <button onClick={() => navigate(location.pathname.replace(/\/$/, "") + "/original")} className={btnStyle}>
                   원문내용 보기
                 </button>
               )}
-              <button
-                onClick={handleDelete}
-                className="flex-shrink-0 ml-auto px-3 py-1 rounded-md text-xs border border-red-900/60 text-red-400/80 border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-red-400 hover:text-red-400"
-              >
-                삭제
-              </button>
+              {!isOriginalView && !isEditing && (
+                <button onClick={handleEditStart} className={btnStyle}>
+                  전체 수정
+                </button>
+              )}
+
+              {/* 아이콘 버튼들 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: "auto" }}>
+                {docData?.document?.access_type !== "PUBLIC" && docData?.document?.status !== "PENDING" && (
+                  <button
+                    onClick={handlePublish}
+                    title={isAdmin ? "공용 등록" : "공용 등록 신청"}
+                    className="gd-docitem-pub"
+                    style={{ color: "var(--dim)" }}
+                  >
+                    <IconGlobe width="15" height="15" />
+                  </button>
+                )}
+                {docData?.document?.status === "PENDING" && (
+                  <span style={{ fontSize: 11, color: "var(--dim)", marginRight: 4 }}>승인 대기중</span>
+                )}
+                <button
+                  onClick={togglePin}
+                  title={isPin ? "고정 해제" : "고정"}
+                  className={`gd-docitem-pin${isPin ? " on" : ""}`}
+                  style={{ color: isPin ? "var(--mint)" : "var(--dim)" }}
+                >
+                  <IconPin filled={isPin} width="15" height="15" />
+                </button>
+                <button
+                  onClick={toggleFav}
+                  title={isFav ? "즐겨찾기 해제" : "즐겨찾기"}
+                  className={`gd-docitem-fav${isFav ? " on" : ""}`}
+                  style={{ color: isFav ? "#FFB454" : "var(--dim)" }}
+                >
+                  <IconStar filled={isFav} width="15" height="15" />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  title="삭제"
+                  className="gd-docitem-del"
+                  style={{ color: "var(--dim)" }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* 제목 */}
+            <h1 className="gd-doc-title" style={{ margin: "0 0 4px" }}>{activeData.document.filename}</h1>
 
             {/* 메타 */}
             {activeData.document?.created_at && (
@@ -209,14 +288,6 @@ export default function Docs() {
                         </ReactMarkdown>
                       </div>
                     )}
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={handleEditStart}
-                        className="px-3 py-1 rounded-md text-xs border border-[var(--border)] text-[var(--dim)] bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--text)] hover:text-[var(--text)]"
-                      >
-                        전체 수정
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>

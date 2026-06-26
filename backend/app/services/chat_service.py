@@ -20,24 +20,12 @@ settings = get_settings()
 _PLACEHOLDER = "⚠️ 답변을 받지 못했습니다. (생성 중 연결이 끊겼거나 오류가 발생했습니다)"
 
 
-async def _finalize_answer(
-    ai_message_id: str,
-    session_id: str,
-    content: str,
-    sources: list,
-    latency_ms: int,
-) -> None:
+async def _finalize_answer(ai_message_id: str,session_id: str,content: str,sources: list,latency_ms: int,) -> None:
     """스트리밍 완료 또는 중단 후 독립 세션으로 AI 메시지를 업데이트"""
     final_content = content.strip() or _PLACEHOLDER
     try:
         async with AsyncSessionLocal() as save_db:
-            await update_message_content(
-                db=save_db,
-                message_id=ai_message_id,
-                content_ko=final_content,
-                retrieved_chunk_ids=sources,
-                latency_ms=latency_ms,
-            )
+            await update_message_content(db=save_db,message_id=ai_message_id,content_ko=final_content,retrieved_chunk_ids=sources,latency_ms=latency_ms,)
             await update_session_last_active(save_db, session_id)
     except Exception as e:
         logger.error(f"[AI 메시지 업데이트 실패] message_id={ai_message_id}: {e}")
@@ -45,29 +33,25 @@ async def _finalize_answer(
 
 async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncSession, selected_document_ids: list[str] = []):
     # 1. 질문 저장
-    await save_message(
-        db=db,
-        message_id=str(ULID()),
-        session_id=session_id,
-        role=ChatRole.USER,
-        content_ko=question,
-    )
+    await save_message(db=db,message_id=str(ULID()),session_id=session_id,role=ChatRole.USER,content_ko=question,)
     await db.execute(update(User).where(User.id == user_id).values(ask_count=User.ask_count + 1))
 
     # 2. AI 메시지를 플레이스홀더로 먼저 저장
     #    → 이후 연결이 끊겨도 DB에 흔적이 남음
     ai_message_id = str(ULID())
-    await save_message(
-        db=db,
-        message_id=ai_message_id,
-        session_id=session_id,
-        role=ChatRole.ASSISTANT,
-        content_ko=_PLACEHOLDER,
-    )
+    await save_message(db=db,message_id=ai_message_id,session_id=session_id,role=ChatRole.ASSISTANT,content_ko=_PLACEHOLDER,)
     await db.commit()
 
-    # 3. RAG 파이프라인 실행
-    result = await query(question, user_id, selected_document_ids)
+    # 3. 히스토리 로드 — 방금 저장한 현재 질문+플레이스홀더(마지막 2개) 제외
+    #    RAG 파이프라인 전에 로드해서 쿼리 리라이팅에도 활용
+    history = await get_messages(db, session_id)
+    chat_history = [
+        {"role": msg.role.value.lower(), "content": msg.content_ko}
+        for msg in history[:-2]
+    ]
+
+    # 4. RAG 파이프라인 실행
+    result = await query(question, user_id, chat_history, selected_document_ids)
 
     full_answer = ""
     start = time.time()
@@ -78,8 +62,6 @@ async def stream_answer(question: str, user_id: str, session_id: str, db: AsyncS
             full_answer = NO_DOCS_MESSAGE
             yield f"data: {json.dumps(full_answer, ensure_ascii=False)}\n\n"
         else:
-            # 히스토리 로드 — 방금 저장한 현재 질문+플레이스홀더(마지막 2개) 제외
-            history = await get_messages(db, session_id)
             messages = build_messages(question, result["context_chunks"], history[:-2])
             async for token in generate_stream(messages):
                 full_answer += token

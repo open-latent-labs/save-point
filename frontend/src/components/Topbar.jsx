@@ -127,11 +127,11 @@ export default function Topbar({ onMenu, onProfile, hideBell = false }) {
 
               {notifLoading ? (
                 <p className="py-7 text-center text-[13px] text-[var(--faint)]">불러오는 중...</p>
-              ) : notifications.length === 0 ? (
+              ) : notifications.filter(n => !n.is_read).length === 0 ? (
                 <p className="py-7 text-center text-[13px] text-[var(--faint)]">알림이 없습니다</p>
               ) : (
                 <ul className="list-none m-0 p-1 max-h-[320px] overflow-y-auto [scrollbar-width:thin]">
-                  {notifications.map(n => (
+                  {notifications.filter(n => !n.is_read).map(n => (
                     <li
                       key={n.id}
                       onClick={() => handleNotifClick(n.id, n.document_id, n.is_read)}

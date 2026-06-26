@@ -175,6 +175,7 @@ export default function Upload() {
   const queueRef = useRef([]);
   const activeIdsRef = useRef(new Set());
   const startUploadRef = useRef(null);
+  const prevFiltersRef = useRef({ catFilter: "all", sortBy: "date", visFilter: "all", deferredKeyword: "" });
 
   // ── 내 문서 state ──
   const [myDocs, setMyDocs] = useState([]);
@@ -214,11 +215,24 @@ export default function Upload() {
 
   // 내 문서 목록 fetch
   useEffect(() => {
+    const prev = prevFiltersRef.current;
+    const filterChanged =
+      catFilter !== prev.catFilter ||
+      sortBy !== prev.sortBy ||
+      visFilter !== prev.visFilter ||
+      deferredKeyword !== prev.deferredKeyword;
+
+    prevFiltersRef.current = { catFilter, sortBy, visFilter, deferredKeyword };
+
+    // 필터 변경 시 page=1로 즉시 fetch (state 비동기 업데이트와 무관)
+    const effectivePage = filterChanged ? 1 : page;
+    if (filterChanged && page !== 1) setPage(1);
+
     let cancelled = false;
     const fetchDocs = async () => {
       setLoading(true);
       try {
-        const data = await document_list(page, {
+        const data = await document_list(effectivePage, {
           sort: sortBy,
           ...(catFilter !== "all" && { category: catFilter }),
           ...(visFilter === "public"   && { access_type: "PUBLIC" }),
@@ -252,9 +266,6 @@ export default function Upload() {
     fetchDocs();
     return () => { cancelled = true; };
   }, [page, refreshKey, catFilter, sortBy, visFilter, deferredKeyword]);
-
-  // 필터/정렬/검색 변경 시 페이지 초기화
-  useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter, deferredKeyword]);
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = async (id) => {
@@ -885,7 +896,9 @@ export default function Upload() {
                 <div className="gd-mydocs-empty">
                   {deferredKeyword.trim()
                     ? `"${deferredKeyword.trim()}"에 해당하는 문서가 없습니다.`
-                    : ({ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다.")}
+                    : catFilter !== "all"
+                      ? `${catLabel[catFilter] || catFilter} 카테고리의 문서가 없습니다.`
+                      : ({ fav: "즐겨찾기한 문서가 없습니다.", pending: "승인 대기 중인 문서가 없습니다.", public: "공용 문서가 없습니다.", private: "개인 문서가 없습니다." }[visFilter] ?? "조건에 맞는 문서가 없습니다.")}
                 </div>
               ) : (
                 <>

@@ -23,6 +23,9 @@ function parseError(text) {
             };
             return FIELD_MSG[field] ?? "입력 형식이 올바르지 않습니다.";
         }
+        if (json.detail === "정지된 계정입니다.") {
+            return "정지된 계정입니다.";
+        }
         return text;
     } catch {
         return text;
@@ -50,8 +53,14 @@ export function signup({ name, user_id, email, password }) {
     return authFetch(`${BASE}/auth/signup`, { name, user_id, email, password });
 }
 
-export function loginApi({ user_id, password }) {
-    return authFetch(`${BASE}/auth/login`, { user_id, password });
+export async function loginApi({ user_id, password }) {
+    const result = await authFetch(`${BASE}/auth/login`, { user_id, password });
+
+    if (result.user.ban === "BAN") {
+        alert("정지된 계정입니다.");
+        throw new Error("정지된 계정입니다.");
+    }
+    return result;
 }
 
 export async function getLinkedOAuth() {

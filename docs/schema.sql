@@ -76,6 +76,30 @@ CREATE TABLE user_role_log (
     CONSTRAINT fk_role_log_changer   FOREIGN KEY (changed_by_user_id) REFERENCES users (id)
 );
 
+CREATE TABLE user_ban_log (
+    id                  BIGINT       GENERATED ALWAYS AS IDENTITY,          
+    target_user_id      VARCHAR(26),                                    -- 대상 유저 (탈퇴 시 NULL)
+    changed_by_user_id  VARCHAR(26)  NOT NULL,                          -- 변경한 유저
+    before_ban          user_ban     NOT NULL,                          -- 변경 전 BAN 상태
+    after_ban           user_ban     NOT NULL,                          -- 변경 후 BAN 상태
+    reason              TEXT,                                           -- 사유
+    created_at          TIMESTAMPTZ  DEFAULT NOW(),                     -- 변경 시간
+
+    CONSTRAINT pk_user_ban_log       PRIMARY KEY (id),
+    CONSTRAINT fk_ban_log_target     FOREIGN KEY (target_user_id)     REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT fk_ban_log_changer    FOREIGN KEY (changed_by_user_id) REFERENCES users (id)
+);
+
+COMMENT ON TABLE  user_ban_log                  IS '계정 정지·해제 이력';
+COMMENT ON COLUMN user_ban_log.target_user_id   IS '대상 유저 (탈퇴 시 NULL)';
+COMMENT ON COLUMN user_ban_log.changed_by_user_id IS '변경한 유저';
+COMMENT ON COLUMN user_ban_log.before_ban       IS '변경 전 BAN 상태';
+COMMENT ON COLUMN user_ban_log.after_ban        IS '변경 후 BAN 상태';
+COMMENT ON COLUMN user_ban_log.reason           IS '정지·해제 사유';
+
+CREATE INDEX idx_ban_log_target ON user_ban_log (target_user_id);
+
+
 CREATE TABLE documents (
     id              VARCHAR(26)      NOT NULL,   -- ULID, 백엔드 생성
     filename        VARCHAR(255),

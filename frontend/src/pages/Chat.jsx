@@ -316,7 +316,6 @@ export default function Chat() {
                   if (e.key === "Escape") cancelTitle();
                 }}
                 autoFocus
-                maxLength={200}
               />
             ) : (
               <button className="gd-chat-title-btn" onClick={startEditTitle} title="클릭하여 제목 수정">

@@ -134,6 +134,20 @@ Table user_role_log {
   created_at          timestamptz [default: `now()`]
 }
 
+Table user_ban_log {
+  id                  bigint      [pk, increment, note: '계정 정지·해제 이력']
+  target_user_id      varchar(26) [note: '대상 유저 (탈퇴 시 NULL)']
+  changed_by_user_id  varchar(26) [not null, note: '변경한 유저']
+  before_ban          user_ban    [not null, note: '변경 전 BAN 상태']
+  after_ban           user_ban    [not null, note: '변경 후 BAN 상태']
+  reason              text        [note: '정지·해제 사유']
+  created_at          timestamptz [default: `now()`]
+
+  indexes {
+    target_user_id [name: 'idx_ban_log_target']
+  }
+}
+
 Table user_oauth_accounts {
   id               int          [pk, increment]
   user_id          varchar(26)  [not null]
@@ -309,6 +323,10 @@ Table notifications {
 // user_role_log
 Ref: user_role_log.target_user_id     > users.id [delete: set null]
 Ref: user_role_log.changed_by_user_id > users.id [delete: no action]
+
+// user_ban_log
+Ref: user_ban_log.target_user_id     > users.id [delete: set null]
+Ref: user_ban_log.changed_by_user_id > users.id [delete: no action]
 
 // user_oauth_accounts
 Ref: user_oauth_accounts.user_id > users.id [delete: cascade]

@@ -2,6 +2,7 @@ from app.models.user import User
 from app.models.user_oauth_account import UserOAuthAccount
 from app.models.document import Document
 from app.models.user_role_log import UserRoleLog
+from app.models.user_ban_log import UserBanLog
 from app.models.ocr_result import OcrResult
 from app.models.summary_llm_result import SummaryLlmResult
 from app.models.document_chunk import DocumentChunk
@@ -18,6 +19,7 @@ __all__ = [
     "UserOAuthAccount",
     "Document",
     "UserRoleLog",
+    "UserBanLog",
     "OcrResult",
     "SummaryLlmResult",
     "DocumentChunk",
