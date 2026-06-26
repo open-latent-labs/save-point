@@ -1,12 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, insert
 from sqlalchemy.orm import aliased
 from fastapi import HTTPException
 
 from app.models.user import User
 from app.models.enums import UserRole, UserBan
 from app.models.user_role_log import UserRoleLog
+from app.models.user_ban_log import UserBanLog
 from app.schemas.superAdmin import ChangeRoleRequest, ChangeBanRequest, UserResponse, UserListQuery
 
 
@@ -49,7 +50,7 @@ async def change_role(db: AsyncSession, body: ChangeRoleRequest, user_id: str):
 
     return user
 
-async def ban_user(db: AsyncSession, body: ChangeBanRequest):
+async def ban_user(db: AsyncSession, body: ChangeBanRequest, user_id: str):
     result = await db.execute(select(User).where(User.id == body.id))
     user = result.scalar_one_or_none()
 
@@ -58,12 +59,23 @@ async def ban_user(db: AsyncSession, body: ChangeBanRequest):
 
     user.ban = UserBan.BAN
 
+    user_ban_log = UserBanLog(
+        target_user_id = body.id,
+        changed_by_user_id = user_id,
+        before_ban = UserBan.UNBAN,
+        after_ban = UserBan.BAN,
+        reason="정지 되었습니다.",
+    )
+
+    db.add(user_ban_log)
+    await db.flush()
+
     await db.commit()
     await db.refresh(user)
 
     return user
 
-async def unban_user(db: AsyncSession, body: ChangeBanRequest):
+async def unban_user(db: AsyncSession, body: ChangeBanRequest, user_id: str):
     result = await db.execute(select(User).where(User.id == body.id))
     user = result.scalar_one_or_none()
 
@@ -71,6 +83,17 @@ async def unban_user(db: AsyncSession, body: ChangeBanRequest):
         raise HTTPException(status_code=404, detail="User not found")
 
     user.ban = UserBan.UNBAN
+
+    user_ban_log = UserBanLog(
+        target_user_id = body.id,
+        changed_by_user_id = user_id,
+        before_ban = UserBan.BAN,
+        after_ban = UserBan.UNBAN,
+        reason = "정지 해제 되었습니다.",
+        )
+
+    db.add(user_ban_log)
+    await db.flush()
 
     await db.commit()
     await db.refresh(user)
