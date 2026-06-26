@@ -191,7 +191,7 @@ async def admin_publish_docs(db: AsyncSession, document_id: str, admin_id: str):
         reason="공인 문서 승인",
     )
     db.add(approval_log)
-    
+
 
     try:
         await update_document_payload(document_id, access_type="PUBLIC")
