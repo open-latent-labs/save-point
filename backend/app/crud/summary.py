@@ -61,18 +61,30 @@ async def document_content(db: AsyncSession, document_id: str, user_id: str = No
         },
     }
 
-async def delete_documnet(db: AsyncSession, document_id: str,user_id: str):
+async def delete_documnet(db: AsyncSession, document_id: str, user_id: str):
 
     result = await db.execute(
-        select(Document)
-        .where(Document.id == document_id)
+        select(Document).where(Document.id == document_id)
     )
     row = result.scalar_one_or_none()
     if row is None:
         return None
     row.deleted_by_id = user_id
     row.deleted_at = func.now()
-    
+
+    # 핀·북마크 레코드 cascade 삭제
+    pin_row = await db.execute(
+        select(PinnedDocument).where(PinnedDocument.document_id == document_id)
+    )
+    for pin in pin_row.scalars().all():
+        await db.delete(pin)
+
+    bm_row = await db.execute(
+        select(BookmarkedDocument).where(BookmarkedDocument.document_id == document_id)
+    )
+    for bm in bm_row.scalars().all():
+        await db.delete(bm)
+
     try:
         await update_document_payload(document_id, deleted_file="yes")
         logger.info("삭제 플래그 업데이트 성공")

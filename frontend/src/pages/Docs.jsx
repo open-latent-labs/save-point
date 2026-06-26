@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,6 +27,7 @@ export default function Docs() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (isOriginalView) {
@@ -81,9 +83,14 @@ export default function Docs() {
 
   const handleCancel = () => setIsEditing(false);
 
-  const handleDelete = async () => {
-    if (!window.confirm("문서를 삭제하시겠습니까?")) return;
+  const handleDelete = () => setDeleteConfirmOpen(true);
+
+  const handleDeleteConfirm = async () => {
+    setDeleteConfirmOpen(false);
     await document_delete(docId);
+    localStorage.removeItem(`gamedocs_edited_${docId}`);
+    window.dispatchEvent(new Event("gamedocs:pins"));
+    window.dispatchEvent(new Event("gamedocs:public-docs"));
     navigate(-1);
   };
 
@@ -141,6 +148,7 @@ export default function Docs() {
   const btnStyle = "flex-shrink-0 px-3 py-1 rounded-md text-xs border border-[var(--mint-strong)]/40 text-[var(--mint)]/70 bg-transparent cursor-pointer whitespace-nowrap transition-[border-color,color] duration-150 hover:border-[var(--mint)] hover:text-[var(--mint)]";
 
   return (
+    <>
     <div className="gd-page">
       <Topbar onMenu={onMenu} onProfile={onProfile} />
       <div className="gd-page-scroll">
@@ -297,5 +305,108 @@ export default function Docs() {
         </div>
       </div>
     </div>
+
+    {/* ── 삭제 확인 모달 ── */}
+    <AnimatePresence>
+      {deleteConfirmOpen && (
+        <>
+          {/* 오버레이 */}
+          <motion.div
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(0,0,0,.55)",
+              backdropFilter: "blur(3px)",
+            }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setDeleteConfirmOpen(false)}
+          />
+
+          {/* 모달 본체 */}
+          <motion.div
+            style={{
+              position: "fixed", top: "50%", left: "50%",
+              zIndex: 201,
+              width: "min(380px, calc(100vw - 32px))",
+              background: "var(--elev)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 18,
+              overflow: "hidden",
+              boxShadow: "0 32px 80px -16px rgba(0,0,0,.6), 0 0 0 1px rgba(224,138,138,.08)",
+            }}
+            initial={{ opacity: 0, scale: 0.94, x: "-50%", y: "-44%" }}
+            animate={{ opacity: 1, scale: 1,    x: "-50%", y: "-50%" }}
+            exit={{   opacity: 0, scale: 0.94, x: "-50%", y: "-44%" }}
+            transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 위험 컬러 스트립 */}
+            <div style={{ height: 3, background: "linear-gradient(90deg, #c97070 0%, #e08a8a 100%)" }} />
+
+            <div style={{ padding: "22px 24px 24px" }}>
+              {/* 아이콘 */}
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: "rgba(224,138,138,.10)",
+                border: "1px solid rgba(224,138,138,.22)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 16, color: "#e08a8a",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                  <path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+
+              {/* 제목 */}
+              <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--text)", fontFamily: "var(--font-sans)" }}>
+                문서를 삭제하시겠습니까?
+              </h3>
+
+              {/* 파일명 */}
+              <p style={{
+                margin: "0 0 14px", fontSize: 13, color: "var(--dim)",
+                fontFamily: "var(--font-sans)",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {activeData?.document?.filename}
+              </p>
+
+              {/* 경고 박스 */}
+              <div style={{
+                padding: "9px 12px", borderRadius: 8,
+                background: "rgba(224,138,138,.07)",
+                border: "1px solid rgba(224,138,138,.18)",
+                fontSize: 12, color: "var(--faint)",
+                fontFamily: "var(--font-sans)", lineHeight: 1.65,
+                marginBottom: 20,
+              }}>
+                삭제된 문서는 복구할 수 없습니다.
+              </div>
+
+              {/* 버튼 */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setDeleteConfirmOpen(false)}
+                  className="gd-mypage-action"
+                  style={{ flex: 1, margin: 0, justifyContent: "center", fontSize: 13 }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="gd-del-confirm-btn"
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
