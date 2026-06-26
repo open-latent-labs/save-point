@@ -1,5 +1,6 @@
 import httpx
 import asyncio
+from loguru import logger
 from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
 # from qdrant_client.models import SparseVector, FusionQuery, Fusion, Prefetch  # [SPARSE 비활성화] 하이브리드 → 덴스 전환
 from app.config import get_settings
@@ -8,7 +9,7 @@ from app.db.vector_db import get_qdrant_client
 
 settings = get_settings()
 
-# DENSE :: 의미 기반 
+# DENSE :: 의미 기반
 # 질문을 임베딩(숫자 리스트)로 변경
 async def embed_query_dense(query: str) -> list[float]:
     async with httpx.AsyncClient(timeout=60) as client:
@@ -16,7 +17,11 @@ async def embed_query_dense(query: str) -> list[float]:
             f"{settings.ollama_embed_url}",
             json={"model": settings.embed_model, "input": query},
         )
-        return response.json()["embeddings"][0]
+        data = response.json()
+        if "embeddings" not in data:
+            logger.error(f"[embed_query_dense] Ollama 응답에 embeddings 없음: {data}")
+            raise ValueError(f"Ollama embed 실패: {data.get('error', data)}")
+        return data["embeddings"][0]
 
 # ===================스파스============================== [SPARSE 비활성화 - 덴스+리랭킹으로 전환]
 

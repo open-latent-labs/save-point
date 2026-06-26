@@ -24,11 +24,15 @@ async def generate_stream(messages: list[dict]):
             "POST",
             settings.ollama_chat_url,
             json={
-                "model": settings.chat_model,
+                "model": settings.new_chat_model,
                 "messages": messages,
                 "stream": True, # True -> 토큰 생성 될 때마다 조금씩 전달 (SSE)
                 "options" : {
                     "num_ctx" : 12000,
+                    "temperature": 0.4,        # 약간의 다양성 — 완전 결정적(0)이면 루프에 더 취약
+                    "repeat_penalty": 1.3,     # 같은 토큰/패턴 반복에 패널티 — 핵심 수정
+                    "repeat_last_n": 256,      # 반복 체크 윈도우
+                    "num_predict": 900,        # 안전 상한 — 이게 없으면 무한정 생성됨
                 },
             },
         ) as response:
