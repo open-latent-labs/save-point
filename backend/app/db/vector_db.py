@@ -1,5 +1,6 @@
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, VectorParams,SparseVectorParams, SparseIndexParams
+from qdrant_client.models import Distance, VectorParams
+# from qdrant_client.models import SparseVectorParams, SparseIndexParams  # [SPARSE 비활성화]
 from app.config import get_settings
 
 # https://qdrant.tech/documentation/
@@ -31,11 +32,12 @@ async def init_qdrant_collection() -> None:
                     distance=Distance.COSINE,
                 )
             },
-            sparse_vectors_config={
-                "sparse": SparseVectorParams(
-                    index=SparseIndexParams(on_disk=False)
-                )
-            },
+            # [SPARSE 비활성화] sparse 컬렉션 설정 제거
+            # sparse_vectors_config={
+            #     "sparse": SparseVectorParams(
+            #         index=SparseIndexParams(on_disk=False)
+            #     )
+            # },
         )
 
 # 종료시 연결 닫기(세션 느낌)

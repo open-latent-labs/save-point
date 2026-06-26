@@ -32,9 +32,11 @@ class Settings(BaseSettings):
     ollama_generate_url: str
     ollama_chat_url: str
     ollama_embed_url: str
-    summary_model: str
     chat_model: str
+    new_chat_model: str
+    summary_model: str
     judge_model:str
+    rewrite_model:str
 
     algorithm: str
     access_token_expire_minutes: int

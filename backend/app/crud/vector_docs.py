@@ -1,5 +1,6 @@
 import uuid
-from qdrant_client.models import FieldCondition,Filter,FilterSelector,MatchValue,PointStruct,SparseVector
+from qdrant_client.models import FieldCondition,Filter,FilterSelector,MatchValue,PointStruct
+# from qdrant_client.models import SparseVector  # [SPARSE 비활성화]
 
 from app.config import get_settings
 from app.db.vector_db import get_qdrant_client
@@ -11,7 +12,7 @@ settings = get_settings()
 async def store_vectors(
     chunks: list[str],                  # 청크(나눈 텍스트 덩어리)
     dense_vectors: list[list[float]],   # 덴스 벡터
-    sparse_vectors: list[dict],         # 스파스 벡터
+    # sparse_vectors: list[dict],       # [SPARSE 비활성화] 스파스 벡터
     metadata: ChunkMetadata,            # 메타데이터 [문서 id, 유저 id, 문서 타입, 파일 이름, 청크 인덱스, 청크 텍스트. 문서 삭제 상태]
 ) -> list[ChunkResult]:
     client = get_qdrant_client()
@@ -22,10 +23,11 @@ async def store_vectors(
             id=point_id,
             vector={
                 "dense": dense_vector,
-                "sparse": SparseVector(
-                    indices=sparse["indices"],
-                    values=sparse["values"],
-                ),
+                # [SPARSE 비활성화] sparse 벡터 저장 안 함
+                # "sparse": SparseVector(
+                #     indices=sparse["indices"],
+                #     values=sparse["values"],
+                # ),
             },
             payload={
                 "document_id": metadata.document_id,
@@ -37,9 +39,10 @@ async def store_vectors(
                 "deleted_file": metadata.deleted_file,
             },
         )
-        for i, (point_id, chunk, dense_vector, sparse) in enumerate(
-            zip(point_ids, chunks, dense_vectors, sparse_vectors)
+        for i, (point_id, chunk, dense_vector) in enumerate(
+            zip(point_ids, chunks, dense_vectors)
         )
+        # [SPARSE 비활성화] 원래: zip(point_ids, chunks, dense_vectors, sparse_vectors)
     ]
 
     await client.upsert(
