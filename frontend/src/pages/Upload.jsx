@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useDeferredValue } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
@@ -27,12 +28,11 @@ const extColors = {
   pptx: "#E0A35B",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish, isAdmin, onAdminPublish }) {
-  const navigate = useNavigate();
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish, isAdmin, onAdminPublish, onItemClick }) {
   return (
     <div
       className={"gd-docitem" + (isPin ? " pinned" : "")}
-      onClick={() => navigate(`/docs/${doc.id}`)}
+      onClick={onItemClick}
       style={{ cursor: "pointer" }}
     >
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
@@ -149,6 +149,7 @@ export default function Upload() {
   const { onMenu, onProfile } = useOutletContext();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  const navigate = useNavigate();
 
   // ── 업로드 진행 state ──
   const [items, setItems] = useState([]);
@@ -159,6 +160,7 @@ export default function Upload() {
   const notifiedItemIds = useRef(new Set());
 
   // ── 내 문서 state ──
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const [myDocs, setMyDocs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiTotalPages, setApiTotalPages] = useState(1);
@@ -172,7 +174,11 @@ export default function Upload() {
   const [visFilter, setVisFilter] = useState("all");
   const [pendingIds, setPendingIds] = useState(() => loadPending());
   const [rejectedIds, setRejectedIds] = useState(() => loadRejected());
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const saved = parseInt(sessionStorage.getItem("upload_page") || "1", 10);
+    return saved > 0 ? saved : 1;
+  });
+  const isInitialFilterMount = useRef(true);
   const [searchInput, setSearchInput] = useState("");
   const deferredKeyword = useDeferredValue(searchInput);
 
@@ -235,8 +241,14 @@ export default function Upload() {
     return () => { cancelled = true; };
   }, [page, refreshKey, catFilter, sortBy, visFilter, deferredKeyword]);
 
-  // 필터/정렬/검색 변경 시 페이지 초기화
-  useEffect(() => { setPage(1); }, [catFilter, sortBy, visFilter, deferredKeyword]);
+  // sessionStorage 복원 후 즉시 비움 (뒤로가기가 아닌 신규 방문 시 stale 방지)
+  useEffect(() => { sessionStorage.removeItem("upload_page"); }, []);
+
+  // 필터/정렬/검색 변경 시 페이지 초기화 (최초 마운트는 제외)
+  useEffect(() => {
+    if (isInitialFilterMount.current) { isInitialFilterMount.current = false; return; }
+    setPage(1);
+  }, [catFilter, sortBy, visFilter, deferredKeyword]);
 
   // ── 즐겨찾기 토글 ──
   const toggleFav = async (id) => {
@@ -287,10 +299,20 @@ export default function Upload() {
   };
 
   // ── 문서 삭제 ──
-  const deleteDoc = async (id) => {
+  const requestDelete = (id) => {
+    const doc = myDocs.find((d) => d.id === id);
+    setDeleteTarget({ id, name: doc?.name ?? "" });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
     try {
       await document_delete(id);
       setMyDocs((prev) => prev.filter((d) => d.id !== id));
+      window.dispatchEvent(new Event("gamedocs:pins"));
+      window.dispatchEvent(new Event("gamedocs:public-docs"));
     } catch (e) {
       console.error(e);
     }
@@ -300,7 +322,6 @@ export default function Upload() {
   const requestPublic = async (id) => {
     try {
       await requestPublicDocument(id);
-      setPage(1);
       setRefreshKey((k) => k + 1);
     } catch (e) {
       console.error(e);
@@ -311,7 +332,6 @@ export default function Upload() {
   const adminPublish = async (id) => {
     try {
       await adminPublishDocument(id);
-      setPage(1);
       setRefreshKey((k) => k + 1);
     } catch (e) {
       console.error(e);
@@ -540,6 +560,7 @@ export default function Upload() {
   }, [items]);
 
   return (
+    <>
     <div className="gd-page">
       <Topbar onMenu={onMenu} onProfile={onProfile} />
 
@@ -648,46 +669,65 @@ export default function Upload() {
               <span className="gd-mydocs-count">{apiTotalCount}개</span>
             </div>
 
-            {/* 필터 바 — 검색 + 콤보 + 상태 탭 한 줄 */}
-            <div className="gd-docs-filterbar">
-              <div style={{ position: "relative", flex: "1 1 160px", minWidth: 0 }}>
-                <svg
-                  width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--dim)", pointerEvents: "none" }}
-                >
-                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="파일명 검색..."
+            {/* 검색 */}
+            <div style={{ position: "relative", marginBottom: 6 }}>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--dim)", pointerEvents: "none" }}
+              >
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="파일명 검색..."
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  paddingLeft: 30, paddingRight: searchInput ? 28 : 10,
+                  height: 32, borderRadius: 6, fontSize: 13,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)", outline: "none",
+                  fontFamily: "var(--font-sans)",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--mint)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
+              />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput("")}
                   style={{
-                    width: "100%", boxSizing: "border-box",
-                    paddingLeft: 30, paddingRight: searchInput ? 28 : 10,
-                    height: 32, borderRadius: 6, fontSize: 13,
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text)", outline: "none",
-                    fontFamily: "var(--font-sans)",
+                    position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--dim)", padding: 2, lineHeight: 1,
                   }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--mint)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
-                />
-                {searchInput && (
+                  aria-label="검색어 지우기"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* 탭(좌) | 카테고리 + 정렬(우) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
+                {[
+                  { key: "all", label: "전체" },
+                  { key: "fav", label: "즐겨찾기" },
+                  { key: "pending", label: "승인 대기중" },
+                  { key: "public", label: "PUBLIC" },
+                  { key: "private", label: "PRIVATE" },
+                ].map(({ key, label }) => (
                   <button
-                    onClick={() => setSearchInput("")}
-                    style={{
-                      position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
-                      background: "none", border: "none", cursor: "pointer",
-                      color: "var(--dim)", padding: 2, lineHeight: 1,
-                    }}
-                    aria-label="검색어 지우기"
+                    key={key}
+                    className={`gd-vis-tab ${key}${visFilter === key ? " on" : ""}`}
+                    onClick={() => setVisFilter(key)}
                   >
-                    ✕
+                    {label}
                   </button>
-                )}
+                ))}
               </div>
               <select className="gd-combo" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
                 <option value="all">전체 카테고리</option>
@@ -700,24 +740,6 @@ export default function Upload() {
                 <option value="name">이름순</option>
                 <option value="size">크기순</option>
               </select>
-            </div>
-
-            <div className="gd-vis-filterbar">
-              {[
-                { key: "all", label: "전체" },
-                { key: "fav", label: "즐겨찾기" },
-                { key: "pending", label: "승인 대기중" },
-                { key: "public", label: "PUBLIC" },
-                { key: "private", label: "PRIVATE" },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  className={`gd-vis-tab ${key}${visFilter === key ? " on" : ""}`}
-                  onClick={() => setVisFilter(key)}
-                >
-                  {label}
-                </button>
-              ))}
             </div>
 
             {/* 문서 리스트 + 페이지네이션 */}
@@ -747,12 +769,16 @@ export default function Upload() {
                         onFav={toggleFav}
                         isPin={pinIds.includes(doc.id)}
                         onPin={togglePin}
-                        onDelete={deleteDoc}
+                        onDelete={requestDelete}
                         isPending={doc.status === "PENDING"}
                         isRejected={doc.status === "REJECTED"}
                         onPublish={requestPublic}
                         isAdmin={isAdmin}
                         onAdminPublish={adminPublish}
+                        onItemClick={() => {
+                          sessionStorage.setItem("upload_page", String(page));
+                          navigate(`/docs/${doc.id}`);
+                        }}
                       />
                     ))}
                   </div>
@@ -818,5 +844,91 @@ export default function Upload() {
         </div>
       </div>
     </div>
+
+    {/* ── 삭제 확인 모달 ── */}
+    <AnimatePresence>
+      {deleteTarget && (
+        <>
+          <motion.div
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(0,0,0,.55)",
+              backdropFilter: "blur(3px)",
+            }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setDeleteTarget(null)}
+          />
+          <motion.div
+            style={{
+              position: "fixed", top: "50%", left: "50%",
+              zIndex: 201,
+              width: "min(380px, calc(100vw - 32px))",
+              background: "var(--elev)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 18,
+              overflow: "hidden",
+              boxShadow: "0 32px 80px -16px rgba(0,0,0,.6), 0 0 0 1px rgba(224,138,138,.08)",
+            }}
+            initial={{ opacity: 0, scale: 0.94, x: "-50%", y: "-44%" }}
+            animate={{ opacity: 1, scale: 1,    x: "-50%", y: "-50%" }}
+            exit={{   opacity: 0, scale: 0.94, x: "-50%", y: "-44%" }}
+            transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ height: 3, background: "linear-gradient(90deg, #c97070 0%, #e08a8a 100%)" }} />
+            <div style={{ padding: "22px 24px 24px" }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: "rgba(224,138,138,.10)",
+                border: "1px solid rgba(224,138,138,.22)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 16, color: "#e08a8a",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                  <path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+              <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--text)", fontFamily: "var(--font-sans)" }}>
+                문서를 삭제하시겠습니까?
+              </h3>
+              <p style={{
+                margin: "0 0 14px", fontSize: 13, color: "var(--dim)",
+                fontFamily: "var(--font-sans)",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {deleteTarget.name}
+              </p>
+              <div style={{
+                padding: "9px 12px", borderRadius: 8,
+                background: "rgba(224,138,138,.07)",
+                border: "1px solid rgba(224,138,138,.18)",
+                fontSize: 12, color: "var(--faint)",
+                fontFamily: "var(--font-sans)", lineHeight: 1.65,
+                marginBottom: 20,
+              }}>
+                삭제된 문서는 복구할 수 없습니다.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="gd-mypage-action"
+                  style={{ flex: 1, margin: 0, justifyContent: "center", fontSize: 13 }}
+                >
+                  취소
+                </button>
+                <button onClick={confirmDelete} className="gd-del-confirm-btn">
+                  삭제
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

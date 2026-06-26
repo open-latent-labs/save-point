@@ -2517,6 +2517,12 @@ a {
   border-color: rgba(var(--mint-rgb), .30);
 }
 
+.gd-vis-tab.on.all {
+  color: var(--dim);
+  background: rgba(255, 255, 255, .06);
+  border-color: var(--border-strong);
+}
+
 .gd-vis-tab.on.private {
   color: var(--dim);
   background: rgba(255, 255, 255, .06);
@@ -2524,9 +2530,9 @@ a {
 }
 
 .gd-vis-tab.on.pending {
-  color: #FFB454;
-  background: rgba(255, 180, 84, .08);
-  border-color: rgba(255, 180, 84, .30);
+  color: #60A5FA;
+  background: rgba(96, 165, 250, .08);
+  border-color: rgba(96, 165, 250, .30);
 }
 
 .gd-vis-tab.on.fav {
@@ -3648,6 +3654,25 @@ a {
 .gd-doc-modal-confirm:hover { opacity: .85; }
 
 /* ============ Theme: Light ============ */
+/* ── 삭제 확인 모달 버튼 ── */
+.gd-del-confirm-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(224, 138, 138, .40);
+  background: rgba(224, 138, 138, .10);
+  color: #e08a8a;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.gd-del-confirm-btn:hover {
+  background: rgba(224, 138, 138, .18);
+  border-color: rgba(224, 138, 138, .60);
+}
+
 [data-theme="light"] {
   --bg: #F4F6F5;
   --elev: #FFFFFF;

@@ -180,7 +180,10 @@ async def pin(db: AsyncSession, document_id: str, user_id: str):
         is_pinned = False
     else:
         count_result = await db.execute(
-            select(func.count()).select_from(PinnedDocument).where(PinnedDocument.user_id == user_id)
+            select(func.count())
+            .select_from(PinnedDocument)
+            .join(Document, Document.id == PinnedDocument.document_id)
+            .where(PinnedDocument.user_id == user_id, Document.deleted_by_id.is_(None))
         )
         if count_result.scalar_one() >= 3:
             raise HTTPException(status_code=400, detail="고정 문서는 최대 3개까지 가능합니다.")
@@ -272,7 +275,7 @@ async def pin_list(db: AsyncSession, user_id: str):
     result = await db.execute(
         select(PinnedDocument, Document)
         .join(Document, Document.id == PinnedDocument.document_id)
-        .where(PinnedDocument.user_id == user_id)
+        .where(PinnedDocument.user_id == user_id, Document.deleted_by_id.is_(None))
         .order_by(PinnedDocument.pin_order.asc(), PinnedDocument.created_at.desc())
     )
     rows = result.all()

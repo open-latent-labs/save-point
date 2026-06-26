@@ -284,26 +284,19 @@ export default function MyPageDrawer({ open, onClose }) {
 
                   {/* 연결된 소셜 계정 */}
                   <div className="gd-mypage-section-label">연결된 계정</div>
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", margin: "0 16px 4px" }}>
+                  <div style={{ margin: "0 0 4px" }}>
                     {PROVIDERS.map(({ key, label, Icon }, idx) => {
                       const account = linkedAccounts.find((a) => a.provider === key);
                       const linked = !!account;
                       const isPrimary = account?.email && account.email === user?.email;
                       return (
                         <React.Fragment key={key}>
-                          {idx > 0 && (
-                            <div style={{
-                              height: 1,
-                              background: "var(--border)",
-                              margin: "0",
-                            }} />
-                          )}
                           <div
                             style={{
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
-                              padding: "9px 12px",
+                              padding: "9px 16px",
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
