@@ -17,6 +17,9 @@ import { useAuth } from "../context/AuthContext.jsx";
 let _uid = 0;
 const uid = () => `f${++_uid}_${Date.now()}`;
 
+// 동시에 진행할 업로드(네트워크 전송) 최대 개수
+const MAX_CONCURRENT_UPLOADS = 2;
+
 // 카테고리 색상 맵
 const catColor = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.color]));
 const catLabel = Object.fromEntries(CATEGORY_OPTIONS.map((c) => [c.key, c.label]));
@@ -27,13 +30,13 @@ const extColors = {
   pptx: "#E0A35B",
 };
 
-function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, onPublish, isAdmin, onAdminPublish }) {
+function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejected, isFailed, onPublish, isAdmin, onAdminPublish }) {
   const navigate = useNavigate();
   return (
     <div
       className={"gd-docitem" + (isPin ? " pinned" : "")}
-      onClick={() => navigate(`/docs/${doc.id}`)}
-      style={{ cursor: "pointer" }}
+      onClick={() => { if (!isFailed) navigate(`/docs/${doc.id}`); }}
+      style={{ cursor: isFailed ? "default" : "pointer" }}
     >
       <div className="gd-docitem-ext" style={{ background: extColors[doc.ext] || "var(--dim)" }}>
         {doc.ext.toUpperCase()}
@@ -69,11 +72,17 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
               <span className="gd-rejected-badge">승인 거절됨</span>
             </>
           )}
+          {isFailed && (
+            <>
+              <span className="gd-meta-sep">·</span>
+              <span className="gd-rejected-badge">처리 실패</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className="gd-docitem-actions" onClick={(e) => e.stopPropagation()}>
-        {!isPending && !isRejected && !doc.isPublic && (
+        {!isPending && !isRejected && !isFailed && !doc.isPublic && (
           isAdmin ? (
             <button
               className="gd-docitem-pub"
@@ -94,22 +103,26 @@ function DocItem({ doc, isFav, onFav, isPin, onPin, onDelete, isPending, isRejec
             </button>
           )
         )}
-        <button
-          className={"gd-docitem-pin" + (isPin ? " on" : "")}
-          onClick={() => onPin(doc.id)}
-          aria-label={isPin ? "고정 해제" : "고정하기"}
-          title={isPin ? "고정 해제" : "고정하기"}
-        >
-          <IconPin filled={isPin} width="14" height="14" />
-        </button>
-        <button
-          className={"gd-docitem-fav" + (isFav ? " on" : "")}
-          onClick={() => onFav(doc.id)}
-          aria-label={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
-          title={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
-        >
-          <IconStar filled={isFav} width="15" height="15" />
-        </button>
+        {!isFailed && (
+          <>
+            <button
+              className={"gd-docitem-pin" + (isPin ? " on" : "")}
+              onClick={() => onPin(doc.id)}
+              aria-label={isPin ? "고정 해제" : "고정하기"}
+              title={isPin ? "고정 해제" : "고정하기"}
+            >
+              <IconPin filled={isPin} width="14" height="14" />
+            </button>
+            <button
+              className={"gd-docitem-fav" + (isFav ? " on" : "")}
+              onClick={() => onFav(doc.id)}
+              aria-label={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+              title={isFav ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+            >
+              <IconStar filled={isFav} width="15" height="15" />
+            </button>
+          </>
+        )}
         {onDelete && !isPending && !doc.isPublic && (
           <button
             className="gd-docitem-del"
@@ -157,6 +170,11 @@ export default function Upload() {
   const xhrRef = useRef({});
   const esRef = useRef({});
   const notifiedItemIds = useRef(new Set());
+  // 동시성 제어용: 대기열, 현재 슬롯을 점유 중인 항목 id 집합, 최신 startUpload 참조
+  // 슬롯은 '전송 완료'가 아니라 '처리(SSE) 완료/실패' 시점에 반환된다.
+  const queueRef = useRef([]);
+  const activeIdsRef = useRef(new Set());
+  const startUploadRef = useRef(null);
 
   // ── 내 문서 state ──
   const [myDocs, setMyDocs] = useState([]);
@@ -321,10 +339,27 @@ export default function Upload() {
   // 모든 필터(fav, pending 포함)는 서버에서 처리하므로 클라이언트 필터링 불필요
   const filteredDocs = myDocs;
 
+  // 대기열에서 빈 슬롯만큼 업로드를 꺼내 시작 (전송+처리 동시 실행 수 제한)
+  const drainQueue = useCallback(() => {
+    while (activeIdsRef.current.size < MAX_CONCURRENT_UPLOADS && queueRef.current.length > 0) {
+      const { id, file } = queueRef.current.shift();
+      activeIdsRef.current.add(id);
+      startUploadRef.current?.(id, file);
+    }
+  }, []);
+
+  // 한 항목이 처리 완료/실패/제거되어 슬롯을 비울 때 호출 (멱등 — 중복 호출 안전)
+  const releaseSlot = useCallback((id) => {
+    if (activeIdsRef.current.delete(id)) drainQueue();
+  }, [drainQueue]);
+
   // ── 실제 업로드 ──
   const startUpload = useCallback((id, file) => {
     const xhr = new XMLHttpRequest();
     xhrRef.current[id] = xhr;
+
+    // 대기열에서 꺼내 실제 전송을 시작하는 순간 'uploading'으로 전환
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "uploading" } : it)));
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {
@@ -357,6 +392,7 @@ export default function Upload() {
             const finish = () => {
               es.close();
               delete esRef.current[id];
+              releaseSlot(id); // 처리 완료 → 다음 업로드 시작
               setItems((prev) =>
                 prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
               );
@@ -373,6 +409,7 @@ export default function Upload() {
             const fail = (message) => {
               es.close();
               delete esRef.current[id];
+              releaseSlot(id); // 처리 실패 → 다음 업로드 시작
               setItems((prev) =>
                 prev.map((it) =>
                   it.id === id ? { ...it, status: "error", error: message } : it
@@ -405,9 +442,13 @@ export default function Upload() {
               fail(message);
             });
             es.onerror = () => fail("문서 처리 상태를 받아오지 못했습니다.");
+          } else {
+            // document_id가 없어 처리 스트림을 못 여는 경우 → 슬롯 반환
+            releaseSlot(id);
           }
         } catch {
           // JSON 파싱 실패 시 업로드 성공으로 처리
+          releaseSlot(id);
           setItems((prev) =>
             prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
           );
@@ -429,6 +470,8 @@ export default function Upload() {
             it.id === id ? { ...it, status: "error", error: message } : it
           )
         );
+        // 서버 오류 → 처리 단계로 못 넘어가므로 즉시 슬롯 반환
+        releaseSlot(id);
       }
       delete xhrRef.current[id];
     };
@@ -438,6 +481,8 @@ export default function Upload() {
         prev.map((it) => (it.id === id ? { ...it, status: "error", error: "네트워크 오류" } : it))
       );
       delete xhrRef.current[id];
+      // 네트워크 오류 → 슬롯 반환
+      releaseSlot(id);
     };
 
     const formData = new FormData();
@@ -446,7 +491,10 @@ export default function Upload() {
 
     xhr.open("POST", "/api/documents/upload");
     xhr.send(formData);
-  }, []);
+  }, [releaseSlot]);
+
+  // drainQueue가 항상 최신 startUpload를 호출하도록 참조 유지
+  startUploadRef.current = startUpload;
 
   const addFiles = useCallback(
     (fileList) => {
@@ -460,7 +508,7 @@ export default function Upload() {
           size: f.size,
           ext: extOf(f.name) || "file",
           category: guessCategory(f.name),
-          status: error ? "error" : "uploading",
+          status: error ? "error" : "queued",
           progress: 0,
           error,
           file: f,
@@ -469,11 +517,13 @@ export default function Upload() {
         };
       });
       setItems((prev) => [...prev, ...created]);
+      
       created.forEach((it) => {
-        if (it.status === "uploading") startUpload(it.id, it.file);
+        if (it.status === "queued") queueRef.current.push({ id: it.id, file: it.file });
       });
+      drainQueue();
     },
-    [startUpload]
+    [drainQueue]
   );
 
   const onDrop = (e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); };
@@ -481,10 +531,14 @@ export default function Upload() {
   const onDragLeave = (e) => { e.preventDefault(); if (e.currentTarget.contains(e.relatedTarget)) return; setDragging(false); };
 
   const removeItem = (id) => {
+    queueRef.current = queueRef.current.filter((q) => q.id !== id);
+    
     xhrRef.current[id]?.abort();
     delete xhrRef.current[id];
     esRef.current[id]?.close();
     delete esRef.current[id];
+    
+    releaseSlot(id);
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
@@ -499,8 +553,9 @@ export default function Upload() {
 
   const processingItems = items.filter((i) => i.status === "processing" || i.status === "done");
   const errorItems = items.filter((i) => i.status === "error");
-  const uploading = items.some((i) => i.status === "uploading");
   const uploadingItems = items.filter((i) => i.status === "uploading");
+  const queuedItems = items.filter((i) => i.status === "queued");
+  const uploading = uploadingItems.length > 0;
   const overallProgress = uploadingItems.length > 0
     ? Math.round(uploadingItems.reduce((sum, i) => sum + i.progress, 0) / uploadingItems.length)
     : 0;
@@ -593,7 +648,8 @@ export default function Upload() {
                   }} />
                 </div>
                 <span style={{ fontSize: 12, color: "var(--dim)" }}>
-                  {overallProgress}% 업로드 중 · {uploadingItems.length}개 남음
+                  {overallProgress}% 업로드 중 · 전송 {uploadingItems.length}개
+                  {queuedItems.length > 0 && ` · 대기 ${queuedItems.length}개`}
                 </span>
               </div>
             )}
@@ -607,6 +663,18 @@ export default function Upload() {
               onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
             />
           </div>
+
+          {/* ── 업로드 대기 중인 항목 ── */}
+          {queuedItems.length > 0 && (
+            <div className="gd-up-list">
+              <div className="gd-up-listhead">
+                <span>대기 중 {queuedItems.length}개</span>
+              </div>
+              {queuedItems.map((it) => (
+                <UploadItem key={it.id} item={it} onRemove={removeItem} onCategory={setCategory} />
+              ))}
+            </div>
+          )}
 
           {/* ── AI 처리 중인 항목 ── */}
           {processingItems.length > 0 && (
@@ -750,6 +818,7 @@ export default function Upload() {
                         onDelete={deleteDoc}
                         isPending={doc.status === "PENDING"}
                         isRejected={doc.status === "REJECTED"}
+                        isFailed={doc.status === "FAILED"}
                         onPublish={requestPublic}
                         isAdmin={isAdmin}
                         onAdminPublish={adminPublish}
