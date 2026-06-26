@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useDeferredValue } from "react";
-import { useOutletContext, useNavigate } from "react-router-dom";
+import { useOutletContext, useNavigate, useBlocker } from "react-router-dom";
 import Topbar from "../components/Topbar.jsx";
 import UploadItem from "../components/UploadItem.jsx";
 import { IconUpload, IconStar, IconPin, IconTrash, IconGlobe } from "../components/Icons.jsx";
@@ -560,6 +560,31 @@ export default function Upload() {
     ? Math.round(uploadingItems.reduce((sum, i) => sum + i.progress, 0) / uploadingItems.length)
     : 0;
 
+  // ── 업로드/처리 진행 중 페이지 이동 차단 ──
+  // 대기·전송·처리 중인 항목이 하나라도 있으면 이동을 막는다.
+  const isBusy = items.some((i) =>
+    i.status === "queued" || i.status === "uploading" || i.status === "processing"
+  );
+
+  // SPA 내부 라우팅 이동 차단 (react-router data router 전용 useBlocker)
+  const blocker = useBlocker(isBusy);
+
+  // 더 이상 진행 중인 항목이 없으면 막혀 있던 이동을 자동 해제
+  useEffect(() => {
+    if (!isBusy && blocker.state === "blocked") blocker.reset();
+  }, [isBusy, blocker]);
+
+  // 새로고침·탭 닫기·외부 이동 차단 (브라우저 기본 확인창)
+  useEffect(() => {
+    if (!isBusy) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isBusy]);
+
   // 처리 완료 알림 (Notification API)
   useEffect(() => {
     const newlyDone = items.filter(
@@ -599,6 +624,64 @@ export default function Upload() {
       <Topbar onMenu={onMenu} onProfile={onProfile} />
 
       {/* <UploadCompleteModal isOpen={showModal} onClose={() => setShowModal(false)} stats={modalStats} /> */}
+
+      {/* ── 업로드 진행 중 이동 차단 팝업 ── */}
+      {blocker.state === "blocked" && (
+        <>
+          <div
+            onClick={() => blocker.reset()}
+            style={{
+              position: "fixed", inset: 0, zIndex: 10000,
+              background: "rgba(0,0,0,.55)",
+            }}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            style={{
+              position: "fixed", top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)", zIndex: 10001,
+              width: "min(360px, calc(100vw - 32px))",
+              background: "linear-gradient(180deg, #0e1113 0%, #07090a 100%)",
+              border: "1px solid rgba(255,255,255,.16)",
+              borderRadius: 18, overflow: "hidden",
+              boxShadow: "0 32px 80px -16px rgba(0,0,0,.95)",
+            }}
+          >
+            <div style={{
+              height: 3,
+              background: "linear-gradient(90deg, #f0a35b 0%, #f0c45b 55%, #f08a8a 100%)",
+            }} />
+            <div style={{ padding: "20px 22px 8px" }}>
+              <div style={{
+                fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".07em",
+                textTransform: "uppercase", color: "#f0a35b", marginBottom: 10,
+              }}>
+                페이지 이동 불가
+              </div>
+              <p style={{
+                margin: 0, fontFamily: "var(--font-sans)", fontSize: 14, fontWeight: 500,
+                color: "#eaf0ec", lineHeight: 1.65, wordBreak: "keep-all",
+              }}>
+                업로드가 진행 중입니다. 완료되기 전에는 다른 페이지로 이동할 수 없습니다.
+              </p>
+            </div>
+            <div style={{ display: "flex", padding: "12px 22px 20px" }}>
+              <button
+                onClick={() => blocker.reset()}
+                className="gd-mypage-action mint"
+                style={{
+                  flex: 1, margin: 0, justifyContent: "center",
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {pinError && (
         <div style={{
           position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)",
