@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func, literal
+from sqlalchemy import func, literal, or_
 
 from datetime import datetime, timezone
 
@@ -13,7 +13,7 @@ from app.models.bookmarked_document import BookmarkedDocument
 from app.models.pinned_document import PinnedDocument
 from app.models.summary_llm_result import SummaryLlmResult
 from app.models.user import User
-from app.models.enums import DocumentStatus, DocumentAccess, UserRole
+from app.models.enums import DocumentStatus, DocumentAccess, UserRole, Category
 
 from app.schemas.document import ListRequest, SortBy
 
@@ -73,20 +73,40 @@ async def list(db: AsyncSession, body: ListRequest, user_id: str):
 
     # category 필터 유무에 따라 SummaryLlmResult JOIN 방식 분기
     if body.category:
-        # INNER JOIN: category 조건 만족하는 rows만 접근
-        count_stmt = (
-            select(func.count(Document.id))
-            .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
-            .where(*doc_conditions, SummaryLlmResult.category == body.category)
-        )
-        main_stmt = (
-            select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
-            .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
-            .where(*doc_conditions, SummaryLlmResult.category == body.category)
-            .order_by(sort_map[body.sort])
-            .offset((body.page - 1) * body.size)
-            .limit(body.size)
-        )
+        if body.category == Category.OTHER:
+            # OTHER: 명시적 OTHER + 미분류(SummaryLlmResult 없음 or category=NULL) 포함
+            other_cond = or_(
+                SummaryLlmResult.category == Category.OTHER,
+                SummaryLlmResult.category.is_(None),
+            )
+            count_stmt = (
+                select(func.count(Document.id))
+                .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+                .where(*doc_conditions, other_cond)
+            )
+            main_stmt = (
+                select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
+                .outerjoin(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+                .where(*doc_conditions, other_cond)
+                .order_by(sort_map[body.sort])
+                .offset((body.page - 1) * body.size)
+                .limit(body.size)
+            )
+        else:
+            # INNER JOIN: category 조건 만족하는 rows만 접근
+            count_stmt = (
+                select(func.count(Document.id))
+                .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+                .where(*doc_conditions, SummaryLlmResult.category == body.category)
+            )
+            main_stmt = (
+                select(Document, SummaryLlmResult, is_bookmarked, is_pinned)
+                .join(SummaryLlmResult, SummaryLlmResult.document_id == Document.id)
+                .where(*doc_conditions, SummaryLlmResult.category == body.category)
+                .order_by(sort_map[body.sort])
+                .offset((body.page - 1) * body.size)
+                .limit(body.size)
+            )
     else:
         # category 필터 없음: count는 SummaryLlmResult JOIN 불필요
         count_stmt = select(func.count(Document.id)).where(*doc_conditions)
