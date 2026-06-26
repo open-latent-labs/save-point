@@ -1,5 +1,6 @@
-from app.services.rag_service import search_vectors, embed_query_dense, embed_query_sparse
+from app.services.rag_service import search_vectors, embed_query_dense  # [SPARSE 비활성화] embed_query_sparse 제거
 from app.services.reranker import rerank
+from app.services.query_rewriter import rewrite_query
 from app.utils.profiler import profile # 리소스 확인용
 
 NO_DOCS_MESSAGE = '''현재 질문의 답변에 참고할 문서를 찾지 못했습니다.
@@ -7,13 +8,15 @@ NO_DOCS_MESSAGE = '''현재 질문의 답변에 참고할 문서를 찾지 못�
                     답변에 참고할만한 확실한 키워드를 질문과 함께 제공하거나 더 자세히 질문해주세요.'''
 
 # 채팅 파이프라인
-async def query(question: str, user_id: str, selected_document_ids: list[str] = []) -> dict:
+async def query(question: str, user_id: str, chat_history: list[dict] = [], selected_document_ids: list[str] = [],) -> dict:
+    # 이전 대화가 있으면 검색 쿼리를 맥락에 맞게 재작성
+    search_query = await rewrite_query(question, chat_history) if chat_history else question
 
-    dense_vector = await embed_query_dense(question)
-    sparse_vector = await embed_query_sparse(question)
+    dense_vector = await embed_query_dense(search_query)
+    '''sparse_vector = await embed_query_sparse(search_query)  # [SPARSE 비활성화]'''
 
     search_results = await search_vectors(
-        dense_vector, sparse_vector, user_id,
+        dense_vector, user_id,
         document_ids=selected_document_ids if selected_document_ids else None,
     )
 
@@ -21,7 +24,7 @@ async def query(question: str, user_id: str, selected_document_ids: list[str] = 
     if not search_results:
         return {"context_chunks": [], "sources": [], "no_docs": True}
 
-    reranked_results = await rerank(question, search_results, top_k=5)
+    reranked_results = await rerank(search_query, search_results, top_k=5)
 
     # 리랭킹 후에도 없으면 동일하게 안내 메시지 반환
     if not reranked_results:

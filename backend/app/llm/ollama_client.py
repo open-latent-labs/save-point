@@ -70,7 +70,6 @@ async def generate(
                 logger.info(f"Ollama status: {response.status_code}")
 
                 response.raise_for_status()
-
                 data = response.json()
                 return data.get("response", "")
 
@@ -92,3 +91,20 @@ async def generate(
                 logger.error(f"[LLM 요청 최종 실패] {last_exc}")
 
     raise last_exc
+
+
+# 쿼리 리라이팅 전용 (temperature=0 — 결정론적 출력)
+async def generate_rewrite(prompt: str) -> str:
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(
+            f"{settings.ollama_generate_url}",
+            json={
+                "model": settings.rewrite_model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"num_ctx" : 12000, "temperature": 0},
+            },
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+
