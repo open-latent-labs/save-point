@@ -26,6 +26,7 @@ from app.pipelines.ingest_pipeline import ingest
 from app.services.ocr.pipline import run_ocr
 from app.services.summary_service import summarize_and_classify
 from app.schemas.chunk import ChunkMetadata
+from app.crud.vector_docs import update_document_payload
 from app.utils.minio_client import BUCKET_NAME, upload_file
 
 _ALLOWED_EXT = {".pdf", ".pptx"}
@@ -120,6 +121,16 @@ async def run_processing_pipeline(
                 logger.info(f"[OCR 시작] doc_id={document_id}, filename={filename}")
                 extraction = await run_ocr(file_bytes, extension)
                 raw_text = extraction.full_text
+
+                if not raw_text.strip():
+                    msg = "문서에서 텍스트를 추출하지 못했습니다. 내용이 있는 문서인지 확인해 주세요."
+                    logger.warning(f"[OCR 결과 비어있음] doc_id={document_id}, filename={filename}")
+                    await update_job(db, ocr_job, JobStatus.FAILED, msg)
+                    await save_ocr_failure(db, document_id, msg)
+                    await set_document_status(db, doc, DocumentStatus.FAILED)
+                    await db.commit()
+                    return
+
                 await save_ocr_result(db, document_id, extraction)
                 await update_job(db, ocr_job, JobStatus.DONE)
                 await db.commit()
@@ -128,6 +139,7 @@ async def run_processing_pipeline(
                 logger.error(f"[OCR 실패] doc_id={document_id}: {e}")
                 await update_job(db, ocr_job, JobStatus.FAILED, str(e))
                 await save_ocr_failure(db, document_id, str(e))
+                await set_document_status(db, doc, DocumentStatus.FAILED)
                 await db.commit()
                 return
 
@@ -144,7 +156,9 @@ async def run_processing_pipeline(
             except Exception as e:
                 logger.error(f"[LLM 분류/요약 실패] doc_id={document_id}: {e}")
                 await update_job(db, llm_job, JobStatus.FAILED, str(e))
+                await set_document_status(db, doc, DocumentStatus.FAILED)
                 await db.commit()
+                return
 
             embed_job = await create_processing_job(db, document_id, JobType.EMBED)
             try:
@@ -172,7 +186,13 @@ async def run_processing_pipeline(
             except Exception as e:
                 logger.error(f"[임베딩 실패] doc_id={document_id}: {e}")
                 await update_job(db, embed_job, JobStatus.FAILED, str(e))
+                await set_document_status(db, doc, DocumentStatus.FAILED)
                 await db.commit()
+                try:
+                    await update_document_payload(document_id, deleted_file="yes")
+                except Exception as qe:
+                    logger.error(f"[임베딩 실패 후 벡터 정리 실패] doc_id={document_id}: {qe}")
+                return
 
             await set_document_status(db, doc, DocumentStatus.DONE)
             await db.commit()
@@ -180,4 +200,11 @@ async def run_processing_pipeline(
 
         except Exception as e:
             logger.error(f"[파이프라인 수행 중 오류 발생] doc_id={document_id}: {e}")
-            await db.commit()
+            try:
+                await db.rollback()
+                doc = await get_document(db, document_id)
+                await set_document_status(db, doc, DocumentStatus.FAILED)
+                await db.commit()
+            except Exception as inner:
+                logger.error(f"[FAILED 상태 기록 실패] doc_id={document_id}: {inner}")
+                await db.rollback()

@@ -21,8 +21,8 @@ async def notification_list(db: AsyncSession, user_id: str):
     items_result = await db.execute(
         select(Notification, ApprovalLog.document_id)
         .join(ApprovalLog, Notification.ref_id == ApprovalLog.id)
-        .where(Notification.user_id == user_id)
-        .order_by(Notification.is_read.asc(), Notification.created_at.desc())
+        .where(Notification.user_id == user_id, Notification.is_read == False)
+        .order_by(Notification.created_at.desc())
         .limit(5)
     )
     notifications = items_result.all()

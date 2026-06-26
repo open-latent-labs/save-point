@@ -89,12 +89,19 @@ async def stream_processing_status(
             if current_doc.status in _TERMINAL_STATUSES:
                 return
 
-            # OCR 실패 등으로 파이프라인이 조기 종료된 경우
-            if jobs and all(j.job_status == JobStatus.FAILED for j in jobs):
+            if current_doc.status == DocumentStatus.FAILED:
+                failed_message = next(
+                    (
+                        j.error_message
+                        for j in reversed(jobs)
+                        if j.job_status == JobStatus.FAILED and j.error_message
+                    ),
+                    "문서 처리 중 오류가 발생했습니다.",
+                )
                 yield {
                     "event": "failed",
                     "data": json.dumps({
-                        "message": "문서 처리 중 오류가 발생했습니다.",
+                        "message": failed_message,
                         "document_status": current_doc.status.value,
                     }),
                 }
