@@ -24,12 +24,12 @@ async def change_role(body: ChangeRoleRequest, db: AsyncSession = Depends(get_db
     return await crud_change_role(db, body, payload["sub"])
 
 @router.post("/ban_user")
-async def ban_user(body: ChangeBanRequest, db: AsyncSession = Depends(get_db)):
-    return await crud_ban_user(db, body)
+async def ban_user(body: ChangeBanRequest, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_super_admin)):
+    return await crud_ban_user(db, body, payload["sub"])
 
 @router.post("/unban_user")
-async def unban_user(body: ChangeBanRequest, db: AsyncSession = Depends(get_db)):
-    return await crud_unban_user(db, body)
+async def unban_user(body: ChangeBanRequest, db: AsyncSession = Depends(get_db), payload: dict = Depends(require_super_admin)):
+    return await crud_unban_user(db, body, payload["sub"])
 
 @router.get("/all_user_list")
 async def all_user_list(body: Annotated[UserListQuery, Query()],
