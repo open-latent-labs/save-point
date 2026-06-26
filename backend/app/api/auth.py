@@ -366,11 +366,18 @@ async def logout(response: Response, payload: dict = Depends(require_auth)):
 
 
 @router.get("/me", response_model=UserInfo)
-async def me(payload: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+async def me(response: Response, payload: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == payload["sub"]))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
+    if user.ban == UserBan.BAN:
+        try:
+            await service.go_offline(payload["sub"])
+        except Exception as e:
+            logger.warning(f"[me] presence 정리 실패 (무시하고 진행) user={payload['sub']}: {e}")
+        _clear_auth_cookies(response)
+        raise HTTPException(status_code=403, detail="정지된 계정입니다.")
     return _user_info(user)
 
 
@@ -398,6 +405,8 @@ async def me_oauth(payload: dict = Depends(require_auth), db: AsyncSession = Dep
     result = await db.execute(
         select(UserOAuthAccount).where(UserOAuthAccount.user_id == payload["sub"])
     )
+    if result.scalar_one_or_none().ban== UserBan.BAN:
+        raise HTTPException(status_code=403, detail="정지된 계정입니다.")
     rows = result.scalars().all()
     return LinkedOAuthResponse(
         accounts=[OAuthAccountInfo(provider=r.provider, email=r.email) for r in rows]
