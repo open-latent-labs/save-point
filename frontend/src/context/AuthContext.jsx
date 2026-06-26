@@ -21,6 +21,16 @@ async function fetchMe() {
             if (retry.ok) return retry.json();
         }
     }
+
+    if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        // alert("정지된 계정입니다.");
+        await fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
+        const error = new Error(data.detail || "정지된 계정입니다.");
+        error.status = 403;
+        throw error;
+    }
+
     return null;
 }
 
@@ -31,7 +41,13 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         fetchMe()
             .then((data) => setUser(data))
-            .catch(() => setUser(null))
+            .catch(async (err) => {
+                if (err.status === 403) {
+                    alert(err.message);
+                    await fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
+                }
+                setUser(null);
+            })
             .finally(() => setLoading(false));
     }, []);
 
