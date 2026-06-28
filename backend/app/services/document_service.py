@@ -1,8 +1,12 @@
+import asyncio
+import io
 import os
 import re
 
+import fitz
 from fastapi import HTTPException
 from loguru import logger
+from pptx import Presentation
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,8 +35,21 @@ from app.utils.minio_client import BUCKET_NAME, upload_file
 
 _ALLOWED_EXT = {".pdf", ".pptx"}
 _MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+_MAX_PAGES = 300
 _UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]')
 _WINDOWS_RESERVED = re.compile(r'^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$', re.IGNORECASE)
+
+
+def _count_pages_sync(file_bytes: bytes, extension: str) -> int:
+    if extension == ".pdf":
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        try:
+            return len(doc)
+        finally:
+            doc.close()
+    if extension == ".pptx":
+        return len(Presentation(io.BytesIO(file_bytes)).slides)
+    return 0
 
 def validate_extension(filename: str) -> str:
     ext = os.path.splitext(filename or "")[1].lower()
@@ -118,7 +135,18 @@ async def run_processing_pipeline(
             try:
                 await update_job(db, ocr_job, JobStatus.RUNNING)
                 await db.commit()
-                logger.info(f"[OCR 시작] doc_id={document_id}, filename={filename}")
+
+                page_count = await asyncio.to_thread(_count_pages_sync, file_bytes, extension)
+                if page_count > _MAX_PAGES:
+                    msg = f"문서 페이지 수({page_count}쪽)가 최대 허용치({_MAX_PAGES}쪽)를 초과합니다."
+                    logger.warning(f"[OCR 페이지 초과] doc_id={document_id}, pages={page_count}")
+                    await update_job(db, ocr_job, JobStatus.FAILED, msg)
+                    await save_ocr_failure(db, document_id, msg)
+                    await set_document_status(db, doc, DocumentStatus.FAILED)
+                    await db.commit()
+                    return
+
+                logger.info(f"[OCR 시작] doc_id={document_id}, filename={filename}, pages={page_count}")
                 extraction = await run_ocr(file_bytes, extension)
                 raw_text = extraction.full_text
 
