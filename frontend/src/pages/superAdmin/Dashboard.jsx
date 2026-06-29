@@ -172,6 +172,8 @@ export default function UserManagement() {
     const [apiTotalPages, setApiTotalPages] = useState(1);
     const [loading, setLoading] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [suspendTarget, setSuspendTarget] = useState(null);
+    const [roleTarget, setRoleTarget] = useState(null);
     const [statsData, setStatsData] = useState(STATS_TEMPLATE.map((s) => ({ ...s, value: "-" })));
     const { getRole, updateRole } = useUserRole();
     const onlineIds = usePresence();
@@ -217,26 +219,50 @@ export default function UserManagement() {
         return () => { cancelled = true; clearInterval(autoRefresh); };
     }, [page, roleFilter, statusFilter, refreshKey]);
 
-    const toggleRole = async (e, user) => {
+    const toggleRole = (e, user) => {
         e.stopPropagation();
-        const current = getRole(user);
-        const next = current === "ADMIN" ? "USER" : "ADMIN";
-        try {
-            await changeRole({ id: user.id, role: current });
-            updateRole(user.id, next);
-        } catch (err) { console.error(err); }
+        setRoleTarget(user);
     };
 
-    const toggleSuspend = async (e, user) => {
-        e.stopPropagation();
-        const isBanned = user.ban === "BAN";
-        const confirmed = window.confirm(isBanned ? "정지를 해제하시겠습니까?" : "정지 하시겠습니까?");
-        if (!confirmed) return;
+    const executeRoleChange = async () => {
+        if (!roleTarget) return;
+        const current = getRole(roleTarget);
+        const next = current === "ADMIN" ? "USER" : "ADMIN";
         try {
-            if (isBanned) { await unbanUser({ id: user.id }); }
-            else { await banUser({ id: user.id }); }
+            await changeRole({ id: roleTarget.id, role: current });
+            updateRole(roleTarget.id, next);
+        } catch (err) { console.error(err); }
+        finally { setRoleTarget(null); }
+    };
+
+    useEffect(() => {
+        if (!roleTarget) return;
+        const handler = (e) => { if (e.key === "Escape") setRoleTarget(null); };
+        document.addEventListener("keydown", handler);
+        return () => document.removeEventListener("keydown", handler);
+    }, [roleTarget]);
+
+    const toggleSuspend = (e, user) => {
+        e.stopPropagation();
+        setSuspendTarget(user);
+    };
+
+    useEffect(() => {
+        if (!suspendTarget) return;
+        const handler = (e) => { if (e.key === "Escape") setSuspendTarget(null); };
+        document.addEventListener("keydown", handler);
+        return () => document.removeEventListener("keydown", handler);
+    }, [suspendTarget]);
+
+    const executeSuspend = async () => {
+        if (!suspendTarget) return;
+        const isBanned = suspendTarget.ban === "BAN";
+        try {
+            if (isBanned) { await unbanUser({ id: suspendTarget.id }); }
+            else { await banUser({ id: suspendTarget.id }); }
             setRefreshKey((k) => k + 1);
         } catch (err) { console.error(err); }
+        finally { setSuspendTarget(null); }
     };
 
     const filtered = useMemo(() => {
@@ -439,6 +465,71 @@ export default function UserManagement() {
                 onDelete={() => { }}
             />
             <MyPageDrawer open={myPageOpen} onClose={() => setMyPageOpen(false)} />
+
+            {/* 활동 정지 / 재개 확인 모달 */}
+            {suspendTarget && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
+                    <div className={`rounded-2xl p-6 w-[320px] shadow-2xl ${lt ? "bg-white border border-black/[0.08]" : "bg-[#11161a] border border-white/[0.08]"}`}>
+                        <h3 className={`text-[15px] font-bold mb-2 ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>
+                            {suspendTarget.ban === "BAN" ? "활동 재개" : "활동 정지"}
+                        </h3>
+                        <p className={`text-[13px] leading-relaxed ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>
+                            <span className="font-semibold">{suspendTarget.name}</span> 사용자를{" "}
+                            {suspendTarget.ban === "BAN" ? "정지 해제하시겠습니까?" : "정지하시겠습니까?"}
+                        </p>
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                type="button"
+                                onClick={() => setSuspendTarget(null)}
+                                className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${lt ? "bg-black/[0.05] text-[#374151] hover:bg-black/[0.09]" : "bg-white/[0.06] text-[#c3ccd2] hover:bg-white/[0.10]"}`}
+                            >
+                                취소
+                            </button>
+                            <button
+                                type="button"
+                                onClick={executeSuspend}
+                                className="flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors bg-[#22c55e]/[0.12] text-[#34d399] hover:bg-[#22c55e]/[0.22]"
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 권한 변경 확인 모달 */}
+            {roleTarget && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
+                    <div className={`rounded-2xl p-6 w-[320px] shadow-2xl ${lt ? "bg-white border border-black/[0.08]" : "bg-[#11161a] border border-white/[0.08]"}`}>
+                        <h3 className={`text-[15px] font-bold mb-2 ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>
+                            권한 변경
+                        </h3>
+                        <p className={`text-[13px] leading-relaxed ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>
+                            <span className="font-semibold">{roleTarget.name}</span> 사용자의 권한을{" "}
+                            <span className={`font-semibold ${getRole(roleTarget) === "ADMIN" ? "text-amber-400" : "text-[#22c55e]"}`}>
+                                {getRole(roleTarget) === "ADMIN" ? "USER" : "ADMIN"}
+                            </span>
+                            으로 변경하시겠습니까?
+                        </p>
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                type="button"
+                                onClick={() => setRoleTarget(null)}
+                                className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${lt ? "bg-black/[0.05] text-[#374151] hover:bg-black/[0.09]" : "bg-white/[0.06] text-[#c3ccd2] hover:bg-white/[0.10]"}`}
+                            >
+                                취소
+                            </button>
+                            <button
+                                type="button"
+                                onClick={executeRoleChange}
+                                className="flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors bg-[#22c55e]/[0.12] text-[#34d399] hover:bg-[#22c55e]/[0.22]"
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

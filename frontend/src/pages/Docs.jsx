@@ -226,7 +226,7 @@ export default function Docs() {
 
             {/* 메타 */}
             {activeData.document?.created_at && (
-              <p className="gd-doc-meta">{activeData.document.created_at}</p>
+              <p className="gd-doc-meta">{new Date(activeData.document.created_at).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16).replace('T', ' ')}</p>
             )}
 
             {/* 원문 내용 */}
