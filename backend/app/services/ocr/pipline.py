@@ -15,7 +15,11 @@ from app.services.ocr.extractor import (
     render_pptx_pages,
 )
 from app.services.ocr.preprocessor import preprocess_text
-from app.services.ocr.quality import QUALITY_THRESHOLD, is_blank_page, score_text
+from app.services.ocr.quality import (
+    aggregate_confidence,
+    needs_ocr,
+    text_readability,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +52,16 @@ def _available_vram_gb() -> float:
     return 0.0
 
 
-def _ocr_page(image: Image.Image, use_surya: bool) -> tuple[str, ExtractionMethod]:
+def _ocr_page(
+    image: Image.Image, use_surya: bool
+) -> tuple[str, list[float], ExtractionMethod]:
     if use_surya:
         from app.services.ocr.engines.surya import run_surya_ocr
-        return run_surya_ocr(image), ExtractionMethod.SURYA
+        text, scores = run_surya_ocr(image)
+        return text, scores, ExtractionMethod.SURYA
     from app.services.ocr.engines.paddle import run_paddle_ocr
-    return run_paddle_ocr(image), ExtractionMethod.PADDLE
+    text, scores = run_paddle_ocr(image)
+    return text, scores, ExtractionMethod.PADDLE
 
 
 def extract_document(
@@ -78,20 +86,19 @@ def extract_document(
     else:
         raise ValueError(f"지원하지 않는 파일 형식: {ext!r}. 지원 형식: .pdf, .pptx")
 
-    low_quality_indices = [
+    ocr_needed_indices = [
         i for i, (text, ir, bc) in enumerate(zip(native_texts, image_ratios, block_counts))
-        if score_text(text, image_ratio=ir, block_count=bc) < QUALITY_THRESHOLD
-        and not is_blank_page(text, ir)
+        if needs_ocr(text, image_ratio=ir, block_count=bc)
     ]
 
     use_surya = False
-    if low_quality_indices:
+    if ocr_needed_indices:
         vram_gb = _available_vram_gb()
         use_surya = vram_gb >= 6.0 and layout_important
         logger.debug(
-            "OCR fallback: %d 페이지가 임계값 미달. "
+            "OCR fallback: %d 페이지가 OCR 필요. "
             "여유 VRAM=%.1f GB, layout_important=%s → 엔진=%s",
-            len(low_quality_indices),
+            len(ocr_needed_indices),
             vram_gb,
             layout_important,
             "surya" if use_surya else "paddle",
@@ -110,25 +117,27 @@ def extract_document(
     for i, (text, image, ir, bc) in enumerate(
         zip(native_texts, page_images, image_ratios, block_counts)
     ):
-        quality = score_text(text, image_ratio=ir, block_count=bc)
-
-        # 텍스트도 이미지도 없는 빈 페이지는 OCR 스킵
-        if is_blank_page(text, ir) or quality >= QUALITY_THRESHOLD or image is None:
+        # 네이티브 텍스트로 충분하거나(빈 페이지 포함) 렌더 이미지가 없으면 OCR 스킵
+        if image is None or not needs_ocr(text, image_ratio=ir, block_count=bc):
             results.append(PageResult(
                 page_number=i + 1,
                 text=preprocess_text(text),
                 method=ExtractionMethod.NATIVE,
-                quality_score=quality,
+                quality_score=text_readability(text),
             ))
             continue
 
-        ocr_text, method = _ocr_page(image, use_surya=use_surya)
+        ocr_text, scores, method = _ocr_page(image, use_surya=use_surya)
         cleaned = preprocess_text(ocr_text)
+
+        # OCR 신뢰도 = 엔진 confidence 와 판독성 중 낮은 쪽 (엔진의 과신 방지)
+        confidence = aggregate_confidence(scores, ocr_text.split("\n"))
+        readability = text_readability(ocr_text)
         results.append(PageResult(
             page_number=i + 1,
             text=cleaned,
             method=method,
-            quality_score=score_text(ocr_text),
+            quality_score=round(min(confidence, readability), 3),
         ))
 
     return DocumentExtractionResult(file_path=file_path, pages=results)

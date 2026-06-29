@@ -27,7 +27,7 @@ def _load_models() -> dict:
     return _models
 
 
-def run_surya_ocr(image: "Image") -> str:
+def run_surya_ocr(image: "Image") -> tuple[str, list[float]]:
     from surya.ocr import run_ocr
 
     models = _load_models()
@@ -40,5 +40,8 @@ def run_surya_ocr(image: "Image") -> str:
         models["rec_processor"],
     )
     if not results:
-        return ""
-    return "\n".join(line.text for line in results[0].text_lines)
+        return "", []
+    lines = results[0].text_lines
+    texts = [line.text for line in lines]
+    scores = [float(getattr(line, "confidence", 1.0)) for line in lines]
+    return "\n".join(texts), scores
