@@ -19,9 +19,10 @@ LAYOUT_HEAVY_PAGE_SHARE = 0.3
 # 이미지 비율이 이 값 미만이면 이미지가 없는 것으로 간주
 BLANK_IMAGE_RATIO = 0.01
 
-# ── 사전 기반 유효단어 판정 자료 (영어 문서 대상) ────────────────────────────
-# 전수 사전이 아니라 "정상 영어 문서라면 몇 개는 반드시 걸리는" 고빈도 닻(anchor).
-# 깨진 글자 수프에는 거의 걸리지 않으므로 판독성의 핵심 신호가 된다.
+# ── 고빈도 영어 단어 (유효단어 가점용) ──────────────────────────────────────
+# 적중 시 해당 토큰 점수를 1.0 으로 올려 정상 산문의 판독성을 높이는 '가점' 용도.
+# 단, '사전에 없으면 깨짐'으로 판정하지는 않는다 — 전문용어·API 식별자가 많아
+# 일반 영단어가 적은 기술 문서(유니티 공식문서 등)를 불필요하게 OCR로 넘기지 않기 위함.
 _COMMON_EN = {
     "the", "of", "and", "to", "a", "in", "is", "that", "for", "it", "as",
     "with", "be", "on", "by", "at", "this", "or", "an", "are", "from", "but",
@@ -128,22 +129,15 @@ def text_readability(text: str) -> float:
     )
     char_score = good_chars / len(stripped)
 
-    # 2) 사전 기반 유효단어 비율 (공백 단위 토큰 — ISRI 규칙이 대소문자·기호까지 본다)
+    # 2) 단어 품질: 토큰별 유효도 평균 (공백 단위 토큰, ISRI 가비지 규칙 기반)
+    #    사전(_COMMON_EN) 적중은 1.0 으로 가점만 할 뿐, '사전에 없으면 깨짐'으로 보지 않는다.
+    #    깨진 토큰(반복문자·자음덩어리·기호 등 ISRI 가비지)이 0.0 으로 점수를 끌어내린다.
     tokens = stripped.split()
-    if tokens:
-        validities = [_word_validity(t) for t in tokens]
-        word_score = sum(validities) / len(tokens)
-        dict_hits = sum(1 for v in validities if v >= 1.0)
-    else:
-        word_score = 0.0
-        dict_hits = 0
+    word_score = sum(_word_validity(t) for t in tokens) / len(tokens) if tokens else 0.0
 
-    readability = 0.4 * char_score + 0.6 * word_score
-
-    # 사전 적중이 전혀 없는 다토큰 텍스트는 키보드 난타/깨짐으로 간주해 상한 제한
-    if dict_hits == 0 and len(tokens) >= 4:
-        readability = min(readability, 0.3)
-
+    # 단어 품질을 주신호(0.7), 문자 품질을 보조(0.3)로 둔다. 가비지 토큰이 많으면
+    # word_score 가 낮아져 임계값 아래로 떨어지고, 사전에 없는 정상 전문용어는 유지된다.
+    readability = 0.3 * char_score + 0.7 * word_score
     return round(min(readability, 1.0), 3)
 
 

@@ -12,6 +12,7 @@ from app.schemas.extraction import DocumentExtractionResult, ExtractionMethod, P
 from app.services.ocr.extractor import (
     extract_pdf_pages,
     extract_pptx_native_text,
+    render_pdf_pages,
     render_pptx_pages,
 )
 from app.services.ocr.preprocessor import preprocess_text
@@ -74,18 +75,19 @@ def extract_document(
 
     if ext == ".pdf":
         raw_pages = extract_pdf_pages(file_path)
-        native_texts: list[str]            = [t          for t, _, _,  _  in raw_pages]
-        page_images: list[Image.Image | None] = [img      for _, img, _, _  in raw_pages]
-        image_ratios: list[float]          = [ir         for _, _, ir, _   in raw_pages]
-        block_counts: list[int]            = [bc         for _, _, _,  bc  in raw_pages]
+        native_texts: list[str]   = [t  for t,  _,  _ in raw_pages]
+        image_ratios: list[float] = [ir for _,  ir, _ in raw_pages]
+        block_counts: list[int]   = [bc for _,  _,  bc in raw_pages]
     elif ext == ".pptx":
         pptx_data = extract_pptx_native_text(file_path)
         native_texts  = [t  for t,  _,  _ in pptx_data]
         image_ratios  = [ir for _,  ir, _ in pptx_data]
         block_counts  = [bc for _,  _,  bc in pptx_data]
-        page_images   = [None] * len(native_texts)
     else:
         raise ValueError(f"지원하지 않는 파일 형식: {ext!r}. 지원 형식: .pdf, .pptx")
+
+    # 렌더링은 OCR이 필요한 페이지만 (아래에서 인덱스 확정 후 채운다)
+    page_images: list[Image.Image | None] = [None] * len(native_texts)
 
     ocr_needed_indices = [
         i for i, (text, ir, bc) in enumerate(zip(native_texts, image_ratios, block_counts))
@@ -107,12 +109,15 @@ def extract_document(
             "surya" if use_surya else "paddle",
         )
 
-        if ext == ".pptx":
+        # OCR 필요 페이지만 렌더링
+        needed = set(ocr_needed_indices)
+        if ext == ".pdf":
+            for i, img in render_pdf_pages(file_path, needed).items():
+                page_images[i] = img
+        else:  # pptx
             try:
-                rendered = render_pptx_pages(file_path)
-                for i, img in enumerate(rendered):
-                    if i < len(page_images):
-                        page_images[i] = img
+                for i, img in render_pptx_pages(file_path, needed).items():
+                    page_images[i] = img
             except RuntimeError as exc:
                 logger.warning("PPTX 이미지 렌더링 실패, pptx-python 원본 추출 텍스트로 대체합니다: %s", exc)
 

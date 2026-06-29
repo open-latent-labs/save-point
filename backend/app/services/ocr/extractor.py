@@ -9,9 +9,9 @@ from PIL import Image
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
-def extract_pdf_pages(file_path: str) -> list[tuple[str, Image.Image, float, int]]:
+def extract_pdf_pages(file_path: str) -> list[tuple[str, float, int]]:
     doc = fitz.open(file_path)
-    pages: list[tuple[str, Image.Image, float, int]] = []
+    pages: list[tuple[str, float, int]] = []
     for page in doc:
         blocks = page.get_text("blocks")  # (x0, y0, x1, y1, text, block_no, block_type)
 
@@ -23,13 +23,26 @@ def extract_pdf_pages(file_path: str) -> list[tuple[str, Image.Image, float, int
         page_area = page.rect.width * page.rect.height
         image_ratio = min(image_block_area / page_area, 1.0) if page_area > 0 else 0.0
 
-        text = page.get_text()
-        pix = page.get_pixmap(dpi=150)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)        
-
-        pages.append((text, img, image_ratio, text_block_count))
+        pages.append((page.get_text(), image_ratio, text_block_count))
     doc.close()
     return pages
+
+
+def render_pdf_pages(
+    file_path: str, indices: set[int], dpi: int = 150
+) -> dict[int, Image.Image]:
+    if not indices:
+        return {}
+    doc = fitz.open(file_path)
+    images: dict[int, Image.Image] = {}
+    try:
+        for i in sorted(indices):
+            if 0 <= i < doc.page_count:
+                pix = doc[i].get_pixmap(dpi=dpi)
+                images[i] = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    finally:
+        doc.close()
+    return images
 
 
 # 그룹 도형을 재귀적으로 순회하며 (텍스트 줄, 텍스트 블록 수, 이미지 면적) 집계
@@ -74,7 +87,14 @@ def extract_pptx_native_text(file_path: str) -> list[tuple[str, float, int]]:
     return results
 
 
-def render_pptx_pages(file_path: str) -> list[Image.Image]:
+def render_pptx_pages(
+    file_path: str, indices: set[int] | None = None, dpi: int = 150
+) -> dict[int, Image.Image]:
+    """LibreOffice 로 PDF 변환 후 지정한 페이지 인덱스만 이미지로 렌더링.
+
+    indices=None 이면 전 페이지. (LibreOffice 변환 자체는 문서 단위라 불가피하지만,
+    무거운 픽스맵 렌더링은 OCR 필요 페이지로 한정한다.)
+    """
     path = Path(file_path)
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
@@ -99,9 +119,13 @@ def render_pptx_pages(file_path: str) -> list[Image.Image]:
 
         pdf_path = Path(tmpdir) / (path.stem + ".pdf")
         doc = fitz.open(str(pdf_path))
-        images: list[Image.Image] = []
-        for page in doc:
-            pix = page.get_pixmap(dpi=150)
-            images.append(Image.frombytes("RGB", [pix.width, pix.height], pix.samples))
-        doc.close()
+        images: dict[int, Image.Image] = {}
+        try:
+            for i, page in enumerate(doc):
+                if indices is not None and i not in indices:
+                    continue
+                pix = page.get_pixmap(dpi=dpi)
+                images[i] = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        finally:
+            doc.close()
     return images
