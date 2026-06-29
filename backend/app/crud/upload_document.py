@@ -107,7 +107,9 @@ async def save_ocr_result(
     for page in pages:
         engine_counts[page.method] = engine_counts.get(page.method, 0) + 1
     dominant = max(engine_counts, key=engine_counts.get) if engine_counts else ExtractionMethod.NATIVE
-    avg_quality = sum(p.quality_score for p in pages) / total if total else 0.0
+    # 빈 페이지(텍스트 없음)는 quality_score=0.0 이라 평균을 끌어내리므로 제외
+    scored = [p for p in pages if p.text.strip()]
+    avg_quality = sum(p.quality_score for p in scored) / len(scored) if scored else 0.0
 
     db.add(OcrResult(
         document_id=document_id,

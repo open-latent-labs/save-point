@@ -17,6 +17,7 @@ from app.services.ocr.extractor import (
 from app.services.ocr.preprocessor import preprocess_text
 from app.services.ocr.quality import (
     aggregate_confidence,
+    is_layout_important,
     needs_ocr,
     text_readability,
 )
@@ -66,7 +67,7 @@ def _ocr_page(
 
 def extract_document(
     file_path: str,
-    layout_important: bool = False,
+    layout_important: bool | None = None,
 ) -> DocumentExtractionResult:
     path = Path(file_path)
     ext = path.suffix.lower()
@@ -93,6 +94,8 @@ def extract_document(
 
     use_surya = False
     if ocr_needed_indices:
+        if layout_important is None:
+            layout_important = is_layout_important(image_ratios)
         vram_gb = _available_vram_gb()
         use_surya = vram_gb >= 6.0 and layout_important
         logger.debug(

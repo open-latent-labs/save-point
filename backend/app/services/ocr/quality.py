@@ -11,6 +11,11 @@ READABILITY_THRESHOLD = 0.4
 # 그림 속 텍스트를 놓쳤을 수 있으므로 OCR 수행
 IMAGE_COVERAGE_THRESHOLD = 0.5
 
+# 페이지의 이 비율 이상을 그림이 덮으면 '그림 중심 페이지'로 본다
+LAYOUT_HEAVY_IMAGE_RATIO = 0.3
+# 그림 중심 페이지가 문서 전체의 이 비율 이상이면 레이아웃 보존이 중요한 문서로 본다
+LAYOUT_HEAVY_PAGE_SHARE = 0.3
+
 # 이미지 비율이 이 값 미만이면 이미지가 없는 것으로 간주
 BLANK_IMAGE_RATIO = 0.01
 
@@ -165,6 +170,15 @@ def needs_ocr(
     if image_ratio >= IMAGE_COVERAGE_THRESHOLD:
         return True
     return False
+
+
+# ── 레이아웃 중요도(is_layout_important) ─────────────────────────────────────
+def is_layout_important(image_ratios: list[float]) -> bool:
+    # pdf 는 문단마다 블록이 잡혀서 block_count를 보조 신호로 쓰기에는 노이즈가 크니 image_ratio 만으로 판단
+    if not image_ratios:
+        return False
+    heavy_pages = sum(1 for r in image_ratios if r >= LAYOUT_HEAVY_IMAGE_RATIO)
+    return heavy_pages / len(image_ratios) >= LAYOUT_HEAVY_PAGE_SHARE
 
 
 # ── OCR confidence 집계 ──────────────────────────────────────────────────────
