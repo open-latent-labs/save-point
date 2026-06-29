@@ -19,7 +19,7 @@ async def generate_stream(messages: list[dict]):
     # 비동기 HTTP 클라이언트 열기
     # AsyncClient -> requests의 비동기 버전 -> Ollama 서버에 HTTP 요청 보낼 때 사용
     # timeout=60 -> 응답 없으면 오류 처리
-    async with httpx.AsyncClient(timeout=180) as client:
+    async with httpx.AsyncClient(timeout=600) as client:
         async with client.stream(
             "POST",
             settings.ollama_chat_url,
@@ -62,7 +62,7 @@ async def generate(
         payload["format"] = "json"
 
     last_exc: Exception | None = None
-    async with httpx.AsyncClient(timeout=180) as client:
+    async with httpx.AsyncClient(timeout=600) as client:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 async with ollama_semaphore:
