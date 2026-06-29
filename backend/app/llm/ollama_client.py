@@ -48,14 +48,15 @@ async def generate(
     prompt: str,
     model: str | None = None,
     json_mode: bool = False,
+    options: dict | None = None,
 ) -> str:
     payload: dict = {
         "model": model or settings.summary_model,
         "prompt": prompt,
         "stream": False,
-        "options" : {
-            "num_ctx" : 12000,
-            "temperature" : 0
+        "options": options if options is not None else {
+            "num_ctx": 4096,
+            "temperature": 0,
         },
     }
     if json_mode:
