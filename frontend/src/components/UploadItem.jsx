@@ -84,9 +84,16 @@ export default function UploadItem({ item, onRemove, onCategory }) {
             <IconCheck width="15" height="15" />
           </span>
         )}
-        <button className="gd-up-del" onClick={() => onRemove(item.id)} aria-label="파일 제거">
-          <IconTrash width="16" height="16" />
-        </button>
+        {(status === "queued" || status === "uploading") && (
+          <button className="gd-up-cancel" onClick={() => onRemove(item.id)} aria-label="업로드 취소">
+            취소
+          </button>
+        )}
+        {(status === "done" || status === "error") && (
+          <button className="gd-up-del" onClick={() => onRemove(item.id)} aria-label="파일 제거">
+            <IconTrash width="16" height="16" />
+          </button>
+        )}
       </div>
     </div>
   );

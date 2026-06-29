@@ -3353,6 +3353,24 @@ a {
   background: rgba(224, 138, 138, .08);
 }
 
+.gd-up-cancel {
+  background: transparent;
+  border: 0;
+  color: var(--faint);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  transition: color .15s, background .15s;
+}
+
+.gd-up-cancel:hover {
+  color: #E08A8A;
+  background: rgba(224, 138, 138, .08);
+}
+
 /* 액션 */
 .gd-up-actions {
   margin-top: 28px;
