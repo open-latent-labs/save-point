@@ -16,7 +16,6 @@ const SAMPLE_USER = {
 };
 
 const TABS = ["기본 정보", "활동 통계"];
-const ROLE_OPTIONS = ["ADMIN", "USER"];
 
 /* ---------- 아이콘 ---------- */
 const Icon = ({ name, size = 20, className = "" }) => {
@@ -59,57 +58,6 @@ const Avatar = ({ name }) => {
 };
 
 /* ---------- 셀렉트 ---------- */
-const Select = ({ value, options, onChange, lt = false }) => {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, []);
-
-    return (
-        <div className="relative" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                className={`inline-flex items-center justify-between gap-2 w-full border rounded-[10px] pl-3.5 pr-3 py-1.5 text-[13.5px] cursor-pointer transition-all duration-150 ${
-                    lt
-                    ? "bg-white text-[#374151] border-black/[0.10] shadow-sm hover:border-black/[0.20] hover:text-[#111827]"
-                    : "bg-gradient-to-b from-[#151b20] to-[#11161a] border-white/[0.08] text-[#c3ccd2] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/[0.16] hover:text-[#e7ecef]"
-                }`}
-            >
-                <span>{value}</span>
-                <Icon name="chevron-down" size={14} className={`opacity-50 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
-            </button>
-
-            {open && (
-                <div className={`absolute z-50 top-[calc(100%+4px)] left-0 right-0 border rounded-[10px] overflow-hidden shadow-xl ${
-                    lt
-                    ? "bg-white border-black/[0.10]"
-                    : "bg-[#11161a] border-white/[0.08] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
-                }`}>
-                    {options.map((o) => (
-                        <button
-                            key={o}
-                            type="button"
-                            onClick={() => { onChange?.(o); setOpen(false); }}
-                            className={`w-full text-left px-3.5 py-2.5 text-[13.5px] transition-colors ${value === o
-                                ? "text-[#34d399] bg-[#22c55e]/[0.08]"
-                                : lt
-                                    ? "text-[#6B7280] hover:bg-black/[0.04] hover:text-[#111827]"
-                                    : "text-[#c3ccd2] hover:bg-white/[0.05] hover:text-[#e7ecef]"
-                            }`}
-                        >
-                            {o}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
 
 
 export default function UserDetailSidebar({
@@ -125,6 +73,9 @@ export default function UserDetailSidebar({
     const [tab, setTab] = useState("기본 정보");
     const [roleLog, setRoleLog] = useState([]);
     const [roleLogLoading, setRoleLogLoading] = useState(false);
+    const [confirm, setConfirm] = useState(null);
+    const [roleConfirm, setRoleConfirm] = useState(null);
+    const [isBanned, setIsBanned] = useState(user?.ban === "BAN");
     const { getRole, updateRole } = useUserRole();
 
     const lastUserRef = useRef(user);
@@ -149,8 +100,20 @@ export default function UserDetailSidebar({
         if (user) {
             setTab("기본 정보");
             setRoleLog([]);
+            setIsBanned(user.ban === "BAN");
         }
     }, [user?.id]);
+
+    useEffect(() => {
+        if (!roleConfirm && !confirm) return;
+        const handler = (e) => {
+            if (e.key !== "Escape") return;
+            if (roleConfirm) setRoleConfirm(null);
+            else if (confirm) setConfirm(null);
+        };
+        document.addEventListener("keydown", handler);
+        return () => document.removeEventListener("keydown", handler);
+    }, [roleConfirm, confirm]);
 
     useEffect(() => {
         if (tab !== "활동 통계" || !displayUser?.id) return;
@@ -244,7 +207,26 @@ export default function UserDetailSidebar({
                             {/* 기본 정보 카드 */}
                             <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
                                 <dl className="space-y-3.5">
-                                    <Row label="등급" lt={lt}><Select value={role} options={ROLE_OPTIONS} onChange={handleRoleChange} lt={lt} /></Row>
+                                    <Row label="등급" lt={lt}>
+                                        <div className="inline-flex items-center gap-2 shrink-0">
+                                            <span className={`text-[13px] font-semibold ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>{role}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setRoleConfirm(role === "ADMIN" ? "USER" : "ADMIN")}
+                                                className={`px-3 py-1 text-[12px] font-medium rounded-[8px] border transition-colors ${
+                                                    role === "ADMIN"
+                                                        ? lt
+                                                            ? "bg-amber-50 border-amber-300 text-amber-600 hover:bg-amber-100"
+                                                            : "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                                                        : lt
+                                                            ? "bg-green-50 border-green-300 text-green-600 hover:bg-green-100"
+                                                            : "bg-[#22c55e]/10 border-[#22c55e]/30 text-[#22c55e] hover:bg-[#22c55e]/20"
+                                                }`}
+                                            >
+                                                {role === "ADMIN" ? "USER" : "ADMIN"}으로 변경
+                                            </button>
+                                        </div>
+                                    </Row>
                                     <Row label="이메일" lt={lt}><span className={lt ? "text-[#111827]" : "text-[#e7ecef]"}>{displayUser.email}</span></Row>
                                     <Row label="가입일" lt={lt}><span className={lt ? "text-[#111827]" : "text-[#e7ecef]"}>{displayUser.joinedAt}</span></Row>
                                     <Row label="최근 접속" align="start" lt={lt}>
@@ -274,12 +256,12 @@ export default function UserDetailSidebar({
                             <section className={`border rounded-2xl p-5 ${lt ? "bg-white border-black/[0.07] shadow-sm" : "bg-[#11161a] border-white/[0.06]"}`}>
                                 <h3 className={`text-[13.5px] font-semibold mb-4 ${lt ? "text-[#374151]" : "text-[#c3ccd2]"}`}>관리 기능</h3>
                                 <div className="grid gap-3">
-                                    {displayUser.ban !== "BAN" && (
-                                        <ActionButton icon="alert" label="사용자 정지" onClick={() => onSuspend(displayUser)} variant="warning" />
-                                    )}
-                                    {displayUser.ban === "BAN" && (
-                                        <ActionButton icon="alert" label="활동 재개" onClick={() => onUnsuspend(displayUser)} variant="success" />
-                                    )}
+                                    <ActionButton
+                                        icon="alert"
+                                        label={isBanned ? "활동 재개" : "사용자 정지"}
+                                        variant={isBanned ? "success" : "warning"}
+                                        onClick={() => setConfirm(isBanned ? "unsuspend" : "suspend")}
+                                    />
                                 </div>
                             </section>
                         </>
@@ -351,18 +333,79 @@ export default function UserDetailSidebar({
                     })()}
                 </div>
             </aside>
+            {/* 권한 변경 확인 모달 */}
+            {roleConfirm && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
+                    <div className={`rounded-2xl p-6 w-[320px] shadow-2xl ${lt ? "bg-white border border-black/[0.08]" : "bg-[#11161a] border border-white/[0.08]"}`}>
+                        <h3 className={`text-[15px] font-bold mb-2 ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>
+                            권한 변경
+                        </h3>
+                        <p className={`text-[13px] leading-relaxed ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>
+                            <span className="font-semibold">{displayUser.name}</span> 사용자의 권한을{" "}
+                            <span className={`font-semibold ${roleConfirm === "ADMIN" ? "text-[#22c55e]" : "text-amber-400"}`}>
+                                {roleConfirm}
+                            </span>
+                            으로 변경하시겠습니까?
+                        </p>
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                type="button"
+                                onClick={() => setRoleConfirm(null)}
+                                className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${lt ? "bg-black/[0.05] text-[#374151] hover:bg-black/[0.09]" : "bg-white/[0.06] text-[#c3ccd2] hover:bg-white/[0.10]"}`}
+                            >
+                                취소
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { handleRoleChange(roleConfirm); setRoleConfirm(null); }}
+                                className="flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors bg-[#22c55e]/[0.12] text-[#34d399] hover:bg-[#22c55e]/[0.22]"
+                            >
+                                변경
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* 확인 다이얼로그 */}
+            {confirm && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
+                    <div className={`rounded-2xl p-6 w-[320px] shadow-2xl ${lt ? "bg-white border border-black/[0.08]" : "bg-[#11161a] border border-white/[0.08]"}`}>
+                        <h3 className={`text-[15px] font-bold mb-2 ${lt ? "text-[#111827]" : "text-[#e7ecef]"}`}>
+                            {confirm === "suspend" ? "사용자 정지" : "활동 재개"}
+                        </h3>
+                        <p className={`text-[13px] ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>
+                            {confirm === "suspend"
+                                ? `${displayUser.name} 사용자를 정지하시겠습니까?`
+                                : `${displayUser.name} 사용자의 활동을 재개하시겠습니까?`}
+                        </p>
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                type="button"
+                                onClick={() => setConfirm(null)}
+                                className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${lt ? "bg-black/[0.05] text-[#374151] hover:bg-black/[0.09]" : "bg-white/[0.06] text-[#c3ccd2] hover:bg-white/[0.10]"}`}
+                            >
+                                취소
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirm === "suspend") { onSuspend(displayUser); setIsBanned(true); }
+                                    else { onUnsuspend(displayUser); setIsBanned(false); }
+                                    setConfirm(null);
+                                }}
+                                className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${confirm === "suspend" ? "bg-[#f5b94a]/[0.15] text-[#f5b94a] hover:bg-[#f5b94a]/[0.25]" : "bg-[#22c55e]/[0.12] text-[#34d399] hover:bg-[#22c55e]/[0.22]"}`}
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
 
 /* ---------- 라벨/값 행 ---------- */
-const Row = ({ label, children, align = "center", lt = false }) => (
-    <div className={`grid grid-cols-[72px_1fr] gap-4 items-${align === "start" ? "start" : "center"}`}>
-        <dt className={`text-[13px] pt-0.5 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>{label}</dt>
-        <dd className="text-[13.5px]">{children}</dd>
-    </div>
-);
-
 /* ---------- 관리 기능 버튼 ---------- */
 const ACTION_VARIANTS = {
     neutral: "bg-white/[0.04] text-[#c3ccd2] border border-white/[0.1] hover:bg-white/[0.08]",
@@ -380,3 +423,13 @@ const ActionButton = ({ icon, label, onClick, variant = "neutral", className = "
         <span>{label}</span>
     </button>
 );
+
+/* ---------- 라벨/값 행 ---------- */
+const Row = ({ label, children, align = "center", lt = false }) => (
+    <div className={`grid grid-cols-[72px_1fr] gap-4 items-${align === "start" ? "start" : "center"}`}>
+        <dt className={`text-[13px] pt-0.5 ${lt ? "text-[#6B7280]" : "text-[#8a949c]"}`}>{label}</dt>
+        <dd className="text-[13.5px]">{children}</dd>
+    </div>
+);
+
+/* ---------- 관리 기능 버튼 ---------- */
