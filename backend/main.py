@@ -15,7 +15,7 @@ from app.api.superAdmin import router as superAdmin_router
 from app.api.admin import router as admin_router
 from app.api.summary import router as summary_router
 from app.api.notification import router as notification_router
-from app.services.flag_model import get_flag_model
+# [SPARSE 비활성화] from app.services.flag_model import get_flag_model
 from app.services.reranker import get_reranker
 from app.config import settings
 import app.models
@@ -72,7 +72,7 @@ async def lifespan(_app: FastAPI):
     # 서버 시작 시 모델 미리 로드 (ML 라이브러리 불가 환경에서도 서버는 기동)
     try:
         print("모델 로드 중...")
-        await asyncio.to_thread(get_flag_model)
+        # [SPARSE 비활성화] await asyncio.to_thread(get_flag_model)
         if not settings.rerank_url:
             await asyncio.to_thread(get_reranker)
         else:

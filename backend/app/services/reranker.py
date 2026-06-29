@@ -7,6 +7,9 @@ settings = get_settings()
 
 _reranker = None
 
+# 리랭크 점수 threshold (rank-1 제외, 2위~top_k에만 적용)
+RERANK_SCORE_THRESHOLD = 0.1
+
 # 싱글톤 구조 (로컬 모드에서만 사용)
 def get_reranker() -> CrossEncoder:
     global _reranker
@@ -43,7 +46,16 @@ async def _rerank_local(question: str, search_results: list[dict], top_k: int) -
         print(f"  score: {score:.4f} | {result['filename']} chunk_{result['chunk_index']}")
     print()
 
-    return [result for score, result in reranked[:top_k] if score > 0.1]
+    # rank-1(가장 높은 점수)은 threshold 무관 항상 통과.
+    # far-paraphrase 질의에서는 reranker가 정답을 1위로 정확히 찾아도 절대 점수가
+    # 낮게(0.02~0.09대) 나오는 경우가 있어, 그런 경우까지 threshold로 걸러내고 있었음.
+    # near-paraphrase는 1위가 거의 항상 threshold를 넘기고 있어서 이 변경으로 영향 없음.
+    # rank 2~top_k는 기존과 동일하게 threshold 적용 (애매한 후보 컷 기능 유지).
+    return [
+        result
+        for rank, (score, result) in enumerate(reranked[:top_k])
+        if rank == 0 or score > RERANK_SCORE_THRESHOLD
+    ]
 
 
 async def _rerank_remote(question: str, search_results: list[dict], top_k: int) -> list[dict]:
@@ -71,4 +83,9 @@ async def _rerank_remote(question: str, search_results: list[dict], top_k: int) 
         print(f"  score: {item['score']:.4f} | {result['filename']} chunk_{result['chunk_index']}")
     print()
 
-    return [search_results[item["index"]] for item in ranked[:top_k] if item["score"] > 0.01]
+    # rank-1은 threshold 무관 항상 통과 (_rerank_local과 동일한 이유, 동일한 정책)
+    return [
+        search_results[item["index"]]
+        for rank, item in enumerate(ranked[:top_k])
+        if rank == 0 or item["score"] > RERANK_SCORE_THRESHOLD
+    ]
