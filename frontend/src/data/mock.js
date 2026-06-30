@@ -13,11 +13,11 @@ export const HERO = {
 };
 
 export const SUGGESTIONS = [
-  "UE5 Nanite 렌더링 파이프라인",
-  "Unity DOTS 멀티스레딩",
-  "Halo Infinite AI 설계",
-  "PBR 셰이더 최적화",
-  "모바일 드로우콜 배칭",
+  "AsyncOperation과 비동기 로딩",
+  "Coroutine과 async/await 차이",
+  "Physics Raycast 사용법",
+  "NavMesh AI 구현",
+  "Animation Rigging 사용법",
 ];
 
 // 사이드바 문서 카테고리 (백엔드 Category enum과 동일한 키 사용)
