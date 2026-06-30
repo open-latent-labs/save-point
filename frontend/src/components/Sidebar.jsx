@@ -154,7 +154,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
         {/* 헤더 */}
         <div className="gd-sb-head">
           <Link to="/home" className="gd-logo" onClick={() => onNavigate?.()}>
-            {BRAND}<span className="ai">.ai</span>
+            {BRAND}
           </Link>
           <button className="gd-sb-close" onClick={() => onNavigate?.()} aria-label="사이드바 닫기">
             <IconClose width="18" height="18" />

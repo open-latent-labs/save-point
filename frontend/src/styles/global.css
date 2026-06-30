@@ -422,6 +422,7 @@ a {
 }
 
 .gd-logo {
+  --neon: 0 0 3px rgba(255, 255, 255, .55), 0 0 7px var(--mint), 0 0 14px var(--mint);
   font-family: var(--font-script);
   font-size: 26px;
   color: #fff;
@@ -430,16 +431,9 @@ a {
   user-select: none;
   cursor: pointer;
   text-decoration: none;
+  text-shadow: var(--neon);
 }
 
-.gd-logo .ai {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mint);
-  margin-left: 1px;
-  letter-spacing: -.5px;
-}
 
 .gd-sb-close {
   display: none;
@@ -3747,7 +3741,10 @@ a {
 [data-theme="light"] .gd-doc-modal { background: #FFFFFF; }
 [data-theme="light"] .gd-doc-modal-search { background: rgba(0,0,0,.04); }
 /* 라이트 테마 텍스트 색상 보정 */
-[data-theme="light"] .gd-logo { color: var(--text); }
+[data-theme="light"] .gd-logo {
+  color: var(--text);
+  --neon: 0 0 8px var(--mint), 0 0 16px rgba(0, 0, 0, .12);
+}
 [data-theme="light"] .gd-msg-text { color: #1F2937; }
 [data-theme="light"] .gd-msg.user .gd-msg-text { color: #111827; }
 [data-theme="light"] .gd-chip { background: rgba(0,0,0,.04); }

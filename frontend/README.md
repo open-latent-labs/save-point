@@ -1,4 +1,4 @@
-# GameDocs.AI
+# save-point
 
 게임 기술 문서 요약·분류 + Q&A 챗봇 UI. 기존 `GameDocsAI.jsx` 의 다크 + 민트 무드를 유지하면서
 **좌측 고정 사이드바**와 **ChatGPT 스타일 채팅 페이지**로 확장했습니다.
