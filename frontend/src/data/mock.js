@@ -13,7 +13,7 @@ export const HERO = {
 };
 
 export const SUGGESTIONS = [
-  "AsyncOperation과 비동기 로딩",
+  "Addressables로 리소스 관리하기",
   "Coroutine과 async/await 차이",
   "Physics Raycast 사용법",
   "NavMesh AI 구현",

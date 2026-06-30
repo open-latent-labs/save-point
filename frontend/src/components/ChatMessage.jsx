@@ -39,6 +39,13 @@ export default function ChatMessage({ message, userName }) {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
+                    table({ node, children, ...props }) {
+                      return (
+                        <div className="gd-msg-table-wrap">
+                          <table {...props}>{children}</table>
+                        </div>
+                      );
+                    },
                     code({ node, inline, className, children, ...props }) {
                       const match = /language-(\w+)/.exec(className || "");
                       return !inline && match ? (

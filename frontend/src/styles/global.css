@@ -1455,6 +1455,42 @@ a {
   color: var(--dim);
 }
 
+/* 마크다운 표 */
+.gd-msg-table-wrap {
+  margin: .7em 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gd-msg-text table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .95em;
+}
+.gd-msg-text thead th {
+  background: rgba(255, 255, 255, .04);
+  font-weight: 600;
+  text-align: left;
+}
+.gd-msg-text th,
+.gd-msg-text td {
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.gd-msg-text tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, .02);
+}
+/* 래퍼가 바깥 테두리를 그리므로 표 가장자리 셀의 외곽 테두리는 생략 */
+.gd-msg-text table tr td:first-child,
+.gd-msg-text table tr th:first-child { border-left: none; }
+.gd-msg-text table tr td:last-child,
+.gd-msg-text table tr th:last-child { border-right: none; }
+.gd-msg-text thead tr:first-child th { border-top: none; }
+.gd-msg-text tbody tr:last-child td { border-bottom: none; }
+
 .gd-msg.user .gd-msg-text {
   color: var(--text);
 }
@@ -3747,6 +3783,8 @@ a {
 }
 [data-theme="light"] .gd-msg-text { color: #1F2937; }
 [data-theme="light"] .gd-msg.user .gd-msg-text { color: #111827; }
+[data-theme="light"] .gd-msg-text thead th { background: rgba(0, 0, 0, .04); }
+[data-theme="light"] .gd-msg-text tbody tr:nth-child(even) td { background: rgba(0, 0, 0, .02); }
 [data-theme="light"] .gd-chip { background: rgba(0,0,0,.04); }
 [data-theme="light"] .gd-docitem-name { color: #111827; }
 [data-theme="light"] .gd-sb-room-title { color: var(--dim); }
