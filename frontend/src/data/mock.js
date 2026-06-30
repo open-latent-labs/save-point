@@ -1,6 +1,6 @@
 // 정적 카피 / 메뉴 데이터 모음
 
-export const BRAND = "GameDocs";
+export const BRAND = "savepoint";
 
 export const HERO = {
   titleLine1: "게임 개발의 모든 문서를",

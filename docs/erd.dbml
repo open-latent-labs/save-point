@@ -1,6 +1,6 @@
 // =============================================================
 // erd.dbml
-// GameDocs.AI - PostgreSQL 15+ schema
+// save-point - PostgreSQL 15+ schema
 // dbdiagram.io / dbml-cli 용
 // 참고: ULID PK(varchar 26)는 백엔드 생성, BIGINT PK는 IDENTITY(increment)
 // =============================================================

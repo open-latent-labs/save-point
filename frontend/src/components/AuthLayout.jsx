@@ -46,7 +46,7 @@ export default function AuthLayout({ kicker, title, subtitle, children }) {
       {/* 좌측 브랜드 패널 */}
       <section className="gd-auth-brand">
         <Link to="/" className="gd-logo gd-auth-logo">
-          {BRAND}<span className="ai">.ai</span>
+          {BRAND}
         </Link>
 
         <div className="gd-auth-brand-body">
@@ -64,14 +64,14 @@ export default function AuthLayout({ kicker, title, subtitle, children }) {
           </ul>
         </div>
 
-        <p className="gd-auth-foot">© {new Date().getFullYear()} GameDocs.AI</p>
+        <p className="gd-auth-foot">© {new Date().getFullYear()} save-point</p>
       </section>
 
       {/* 우측 카드 */}
       <section className="gd-auth-pane">
         <div className="gd-auth-card">
           <Link to="/" className="gd-logo gd-auth-mobilelogo">
-            {BRAND}<span className="ai">.ai</span>
+            {BRAND}
           </Link>
           {kicker && <div className="gd-auth-kicker">{kicker}</div>}
           <h1 className="gd-auth-title">{title}</h1>

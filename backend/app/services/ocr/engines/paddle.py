@@ -38,15 +38,19 @@ def _get_ocr():
     return _paddle_ocr
 
 
-def run_paddle_ocr(image: "Image") -> str:
+def run_paddle_ocr(image: "Image") -> tuple[str, list[float]]:
     import numpy as np
 
     result = _get_ocr().predict(np.array(image))
 
-    texts = []
+    texts: list[str] = []
+    scores: list[float] = []
 
     for page in result:
-        for item in page.get("rec_texts", []):
+        recs = page.get("rec_texts", [])
+        confs = page.get("rec_scores", [])
+        for i, item in enumerate(recs):
             texts.append(item)
+            scores.append(float(confs[i]) if i < len(confs) else 1.0)
 
-    return "\n".join(texts)
+    return "\n".join(texts), scores

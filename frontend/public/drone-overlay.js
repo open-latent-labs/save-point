@@ -1,5 +1,5 @@
 /**
- * GameDocs.ai — Living AI Drone Overlay (Enhanced V3)
+ * save-point — Living AI Drone Overlay (Enhanced V3)
  * FSM + 감정 시스템 기반 자율 행동 드론
  * * 통합된 핵심 기능:
  * - 마우스 포획 & 관성 던지기 물리 시스템
