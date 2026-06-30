@@ -31,8 +31,16 @@ export function useHeartbeat() {
                         savePending(loadPending().filter((id) => id !== data.document_id));
                     }
                     showBrowserNotification(data.message || "새 알림이 도착했습니다.");
+                    if (data.type === "DOCUMENT_APPROVED") {
+                        window.__droneNotify?.("문서가 승인됐어요! 🎉");
+                    } else if (data.type === "DOCUMENT_REJECTED") {
+                        window.__droneNotify?.("문서가 반려됐어요... 😢 다시 도전해봐요!");
+                    } else {
+                        window.__droneNotify?.(data.message || "새 알림이 도착했습니다.");
+                    }
                 } catch {
                     showBrowserNotification("새 알림이 도착했습니다.");
+                    window.__droneNotify?.("새 알림이 도착했습니다.");
                 }
             });
 

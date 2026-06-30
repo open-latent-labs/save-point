@@ -43,6 +43,8 @@ export default function Chat() {
   const currentRoomIdRef = useRef(currentRoomId);
   // loadMessages를 막을 방 id 추적
   const skipLoadRef = useRef(new Set());
+  // 동시 스트리밍 방 수 추적 — 0이 될 때만 드론 thinking 해제
+  const thinkCountRef = useRef(0);
 
   const messages = messagesMap[currentRoomId] ?? [];
   const busy = busyRooms.has(currentRoomId);
@@ -167,6 +169,8 @@ export default function Chat() {
         }, { replace: true });
       }
 
+      thinkCountRef.current += 1;
+      window.__droneSetThinking?.(true);
       const abort = streamChat(
         q,
         user?.id ?? "",
@@ -190,6 +194,8 @@ export default function Chat() {
           }));
         },
         () => {
+          thinkCountRef.current = Math.max(0, thinkCountRef.current - 1);
+          if (thinkCountRef.current === 0) window.__droneSetThinking?.(false);
           // 완료 후 skipLoad 해제
           skipLoadRef.current.delete(capturedRoomId);
 
@@ -207,6 +213,8 @@ export default function Chat() {
           abortMapRef.current.delete(capturedRoomId);
         },
         (errorText) => {
+          thinkCountRef.current = Math.max(0, thinkCountRef.current - 1);
+          if (thinkCountRef.current === 0) window.__droneSetThinking?.(false);
           skipLoadRef.current.delete(capturedRoomId);
 
           setMessagesMap((prev) => ({
@@ -230,10 +238,12 @@ export default function Chat() {
     [busyRooms, currentRoomId, setSearchParams, selectedDocs]
   );
 
-  // 언마운트 시 진행 중인 스트리밍 abort → 백엔드가 부분 답변 저장
+  // 언마운트 시 진행 중인 스트리밍 abort → 백엔드가 부분 답변 저장 + 드론 thinking 해제
   useEffect(() => {
     return () => {
       abortMapRef.current.forEach((abort) => abort());
+      thinkCountRef.current = 0;
+      window.__droneSetThinking?.(false);
     };
   }, []);
 

@@ -67,6 +67,7 @@ export async function apiFetch(url, options = {}) {
 
     if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
+        if (res.status >= 500) window.__droneError?.();
         throw new Error(parseError(text));
     }
     return res.json();
