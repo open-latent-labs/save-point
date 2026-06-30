@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconMenu, IconUser, IconBell, IconSun, IconMoon } from "./Icons.jsx";
+import { IconMenu, IconUser, IconBell, IconSun, IconMoon, IconDrone } from "./Icons.jsx";
 import { notification_list, notification_count, notification_read } from "../api/notification.js";
 
 export default function Topbar({ onMenu, onProfile, hideBell = false }) {
@@ -12,6 +12,7 @@ export default function Topbar({ onMenu, onProfile, hideBell = false }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
 
+  const [droneVisible, setDroneVisible] = useState(() => window.__droneVisible?.() ?? true);
   const [theme, setTheme] = useState(() => localStorage.getItem("gamedocs_theme") ?? "mint");
   const [themeAnimKey, setThemeAnimKey] = useState(0);
 
@@ -98,6 +99,20 @@ export default function Topbar({ onMenu, onProfile, hideBell = false }) {
         <span key={themeAnimKey} style={{ display: "flex", animation: "gdSpin 0.4s cubic-bezier(.4,0,.2,1)" }}>
           {theme === "light" ? <IconMoon width={16} height={16} /> : <IconSun width={16} height={16} />}
         </span>
+      </button>
+
+      {/* 드론 토글 */}
+      <button
+        onClick={() => {
+          const next = window.__droneToggle?.();
+          if (next !== undefined) setDroneVisible(next);
+        }}
+        aria-label={droneVisible ? "웹펫 숨기기" : "웹펫 보이기"}
+        title={droneVisible ? "웹펫 숨기기" : "웹펫 보이기"}
+        className="relative inline-flex items-center justify-center w-[34px] h-[34px] rounded-full border border-white/[.16] bg-transparent cursor-pointer transition-all duration-200 hover:border-[var(--mint)] hover:bg-[rgba(54,224,161,.08)] shrink-0"
+        style={{ color: droneVisible ? "var(--mint)" : "var(--dim)" }}
+      >
+        <IconDrone width={16} height={16} />
       </button>
 
       {/* 알림 벨 */}

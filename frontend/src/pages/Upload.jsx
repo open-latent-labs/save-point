@@ -388,6 +388,7 @@ export default function Upload() {
 
     // 대기열에서 꺼내 실제 전송을 시작하는 순간 'uploading'으로 전환
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status: "uploading" } : it)));
+    window.__droneUploadStatus?.("파일 업로드 중 📤");
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {
@@ -416,11 +417,20 @@ export default function Upload() {
               { withCredentials: true }
             );
             esRef.current[id] = es;
+            window.__droneUploadStatus?.("AI가 문서를 분석 중... 🔍");
+            let prevJobType = null;
+
+            const JOB_MSGS = {
+              OCR:                "OCR 텍스트 추출 중... 📄",
+              CLASSIFY_SUMMARIZE: "분류 및 요약 중... 🧠",
+              EMBED:              "벡터 임베딩 중... 🔢",
+            };
 
             const finish = () => {
               es.close();
               delete esRef.current[id];
               releaseSlot(id); // 처리 완료 → 다음 업로드 시작
+              window.__droneUploadStatus?.("문서 처리 완료! ✅", 3000);
               setItems((prev) =>
                 prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
               );
@@ -438,6 +448,7 @@ export default function Upload() {
               es.close();
               delete esRef.current[id];
               releaseSlot(id); // 처리 실패 → 다음 업로드 시작
+              window.__droneUploadStatus?.("문서 처리 중 오류 발생 ❌", 3000);
               setItems((prev) =>
                 prev.map((it) =>
                   it.id === id ? { ...it, status: "error", error: message } : it
@@ -449,6 +460,16 @@ export default function Upload() {
 
             es.addEventListener("status", (e) => {
               const data = JSON.parse(e.data);
+
+              // 현재 실행 중인 job 감지 → 단계가 바뀔 때만 메시지 변경
+              const running = data.jobs?.find(j => j.status === "RUNNING" || j.status === "RETRYING");
+              const jobType = running?.type ?? null;
+              if (jobType && jobType !== prevJobType) {
+                prevJobType = jobType;
+                const msg = JOB_MSGS[jobType];
+                if (msg) window.__droneUploadStatus?.(msg);
+              }
+
               setItems((prev) =>
                 prev.map((it) =>
                   it.id === id
@@ -473,10 +494,12 @@ export default function Upload() {
           } else {
             // document_id가 없어 처리 스트림을 못 여는 경우 → 슬롯 반환
             releaseSlot(id);
+            if (activeIdsRef.current.size === 0) window.__droneUploadStatus?.("문서 처리 완료! ✅", 3000);
           }
         } catch {
           // JSON 파싱 실패 시 업로드 성공으로 처리
           releaseSlot(id);
+          if (activeIdsRef.current.size === 0) window.__droneUploadStatus?.("문서 처리 완료! ✅", 3000);
           setItems((prev) =>
             prev.map((it) => (it.id === id ? { ...it, status: "done", progress: 100 } : it))
           );
@@ -500,6 +523,7 @@ export default function Upload() {
         );
         // 서버 오류 → 처리 단계로 못 넘어가므로 즉시 슬롯 반환
         releaseSlot(id);
+        if (activeIdsRef.current.size === 0) window.__droneUploadStatus?.("업로드 실패 ❌", 3000);
       }
       delete xhrRef.current[id];
     };
@@ -511,6 +535,7 @@ export default function Upload() {
       delete xhrRef.current[id];
       // 네트워크 오류 → 슬롯 반환
       releaseSlot(id);
+      if (activeIdsRef.current.size === 0) window.__droneUploadStatus?.("업로드 실패 ❌", 3000);
     };
 
     const formData = new FormData();
@@ -567,16 +592,22 @@ export default function Upload() {
     delete esRef.current[id];
 
     releaseSlot(id);
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setItems((prev) => {
+      const next = prev.filter((it) => it.id !== id);
+      const stillActive = next.some((it) => ["queued", "uploading", "processing"].includes(it.status));
+      if (!stillActive) window.__droneUnlockUpload?.();
+      return next;
+    });
   };
 
   const setCategory = (id, category) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, category } : it)));
 
-  // 언마운트 시 진행 중인 모든 XHR·EventSource 정리
+  // 언마운트 시 진행 중인 모든 XHR·EventSource 정리 + 드론 lock 해제
   useEffect(() => () => {
     Object.values(xhrRef.current).forEach((xhr) => xhr.abort());
     Object.values(esRef.current).forEach((es) => es.close());
+    window.__droneUnlockUpload?.();
   }, []);
 
   const processingItems = items.filter((i) => i.status === "processing" || i.status === "done");

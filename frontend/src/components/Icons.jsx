@@ -171,3 +171,17 @@ export const IconKakao = (p) => (
     <rect x="14.5" y="9.5" width="2" height="3.5" rx="1" fill="#FEE500" />
   </svg>
 );
+
+export const IconDrone = (p) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...p}>
+    <circle cx="6" cy="6" r="2" />
+    <circle cx="18" cy="6" r="2" />
+    <circle cx="6" cy="18" r="2" />
+    <circle cx="18" cy="18" r="2" />
+    <line x1="8" y1="6" x2="10" y2="10" />
+    <line x1="16" y1="6" x2="14" y2="10" />
+    <line x1="8" y1="18" x2="10" y2="14" />
+    <line x1="16" y1="18" x2="14" y2="14" />
+    <rect x="10" y="10" width="4" height="4" rx="1" />
+  </svg>
+);

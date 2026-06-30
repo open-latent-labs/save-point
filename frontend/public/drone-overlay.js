@@ -141,8 +141,22 @@
       "반가워요!",
       "탐색 중...",
     ];
-    function say(txt, dur = 2200) {
+    let sayLock = 0; // 0=없음, 1=업로드, 2=AI thinking (높을수록 우선)
+    function say(txt, dur = 2200, priority = 0) {
+      if (priority < sayLock) return;
+      const now = performance.now();
+      // priority=0 (FSM 랜덤 메시지)는 현재 메시지가 아직 표시 중이면 덮어쓰지 않음
+      if (priority === 0 && bubble._until > now) return;
       bubble.textContent = txt || BUBBLES[(Math.random() * BUBBLES.length) | 0];
+      bubble._until = dur === Infinity ? Infinity : now + dur;
+      sayLock = priority;
+    }
+    function sayUnlock(priority) {
+      if (sayLock <= priority) sayLock = 0;
+    }
+    // sayLock을 무시하고 무조건 표시 (알림·에러 전용)
+    function sayDirect(txt, dur) {
+      bubble.textContent = txt;
       bubble._until = performance.now() + dur;
     }
 
@@ -270,9 +284,8 @@
       yaw: rand(0, 99),
     };
 
-    let mouseX = innerWidth / 2,
-      mouseY = innerHeight / 2;
     let lastActivity = performance.now();
+    let isIdle = false;
     let mouseWorld = { x: 0, y: 0 };
     let mouseVelWorld = { x: 0, y: 0 }; // 던지기 물리용 마우스 월드 속도
     let isCaptured = false;
@@ -291,17 +304,25 @@
       mouseVelWorld.x = lerp(mouseVelWorld.x, clamp(nvx, -40, 40), 0.5);
       mouseVelWorld.y = lerp(mouseVelWorld.y, clamp(nvy, -40, 40), 0.5);
 
-      mouseX = e.clientX;
-      mouseY = e.clientY;
       mouseWorld = nextMouseWorld;
-      lastActivity = now;
+      resetIdle();
+
+      // 브라우저 밖에서 마우스를 놓은 경우 강제 해제
+      if (isCaptured && !(e.buttons & 1)) {
+        isCaptured = false;
+        if (bt.state === "captured") {
+          drone.vx = clamp(mouseVelWorld.x * 1.2, -60, 60);
+          drone.vy = clamp(mouseVelWorld.y * 1.2, -60, 60);
+          bt.enter("idle");
+        }
+      }
     });
 
     addEventListener("mousedown", (e) => {
-      if (!isReady || bt.state === "trick") return;
+      if (!isReady || bt.state === "trick" || userHidden) return;
       // 드론과의 2D 스크린 마우스 거리 판정 (포획 반경 40px)
       const dist = Math.hypot(e.clientX - drone.sx, e.clientY - drone.sy);
-      if (dist < 40) {
+      if (dist < 70) {
         isCaptured = true;
         bt.enter("captured");
       }
@@ -312,8 +333,9 @@
         isCaptured = false;
         if (bt.state === "captured") {
           // 던진 속도(마우스 물리 관성) 그대로 오버레이 좌표계에 주입
-          drone.vx = clamp(mouseVelWorld.x * 0.35, -18, 18);
-          drone.vy = clamp(mouseVelWorld.y * 0.35, -18, 18);
+          drone.vx = clamp(mouseVelWorld.x * 2.5, -120, 120);
+          drone.vy = clamp(mouseVelWorld.y * 2.5, -120, 120);
+          thrownTimer = 1.5;
           say("우와아아앙~ 🚀", 1600);
           bt.enter("idle");
         }
@@ -336,11 +358,11 @@
           );
         }
       }
-      lastActivity = performance.now();
+      resetIdle();
     });
 
     addEventListener("input", () => {
-      lastActivity = performance.now();
+      resetIdle();
       if (bt.state !== "trick" && !isCaptured && chance(0.25)) {
         say(
           [
@@ -353,14 +375,14 @@
       }
     });
 
-    addEventListener("keydown", () => {
+    function resetIdle() {
       lastActivity = performance.now();
-    });
-    addEventListener("click", () => {
-      lastActivity = performance.now();
-    });
+      isIdle = false;
+    }
+    addEventListener("keydown", resetIdle);
+    addEventListener("click", resetIdle);
     addEventListener("dblclick", () => {
-      lastActivity = performance.now();
+      resetIdle();
     });
     addEventListener("resize", () => {
       renderer.setSize(innerWidth, innerHeight);
@@ -612,8 +634,8 @@
             this.stateName = "CAPTURED";
             this.hold = 99999;
             say(
-              ["앗! 잡혔다 😲", "나 놓아줘요~! 놔줘!", "간지러워요! 엉엉 XD"][
-                (Math.random() * 3) | 0
+              ["앗! 잡혔다 😲", "나 놓아줘요~! 놔줘!"][
+                (Math.random() * 2) | 0
               ],
               2000,
             );
@@ -806,6 +828,20 @@
 
       bt.update(dt);
 
+      // notify 오버라이드: notifyTimer 동안 드론 목표를 알림 벨 위치로 유도
+      if (notifyTimer > 0) {
+        notifyTimer = Math.max(0, notifyTimer - dt);
+        drone.tx = notifyTX;
+        drone.ty = notifyTY;
+      }
+
+      // 유휴 시간 감지: 5분 이상 활동 없으면 졸림 상태
+      if (!isIdle && !userHidden && (performance.now() - lastActivity) > 5 * 60 * 1000) {
+        isIdle = true;
+        say("졸려요... 💤", 4000);
+        bt.enter("rest");
+      }
+
       const speedScale = (0.4 + emo.energy * 0.8) * (1 - emo.sleepiness * 0.5);
       let accelK = 3.0 * speedScale,
         damp = 3.2;
@@ -866,12 +902,76 @@
         drone.bob = Math.sin(ph.bz * 1.3) * (0.12 + emo.energy * 0.05);
       }
 
-      const mW = bounds.halfW * 0.97,
-        mH = bounds.halfH * 0.97;
-      if (drone.x > mW) drone.vx -= (drone.x - mW) * 8 * dt;
-      if (drone.x < -mW) drone.vx -= (drone.x + mW) * 8 * dt;
-      if (drone.y > mH) drone.vy -= (drone.y - mH) * 8 * dt;
-      if (drone.y < -mH) drone.vy -= (drone.y + mH) * 8 * dt;
+      if (flyingAway) {
+        drone.vx += (exitTX - drone.x) * 18 * dt;
+        drone.vy += (exitTY - drone.y) * 18 * dt;
+        droneAlpha = clamp(droneAlpha - dt * 2.5, 0, 1);
+        canvas.style.opacity = String(droneAlpha.toFixed(3));
+        const offScreen =
+          Math.abs(drone.x) > bounds.halfW + 8 ||
+          Math.abs(drone.y) > bounds.halfH + 8;
+        if (offScreen || droneAlpha <= 0) {
+          flyingAway = false;
+          setDroneVisible(false);
+          canvas.style.opacity = "1";
+          droneAlpha = 1;
+          drone.x = 0;
+          drone.y = 0;
+          drone.vx = 0;
+          drone.vy = 0;
+        }
+      } else if (fadingAway) {
+        droneAlpha = clamp(droneAlpha - dt * 1.8, 0, 1);
+        flickerTime += dt * rand(20, 40);
+        const flicker =
+          droneAlpha *
+          clamp(
+            0.3 + Math.abs(Math.sin(flickerTime)) * 0.7 + rand(-0.2, 0.2),
+            0,
+            1,
+          );
+        canvas.style.opacity = String(flicker.toFixed(3));
+        if (droneAlpha <= 0) {
+          fadingAway = false;
+          setDroneVisible(false);
+          canvas.style.opacity = "1";
+          droneAlpha = 1;
+        }
+      } else {
+        thrownTimer = Math.max(0, thrownTimer - dt);
+        const boundK = thrownTimer > 0 ? 1.5 : 8;
+        const mW = bounds.halfW * 0.97,
+          mH = bounds.halfH * 0.97;
+        if (drone.x > mW) drone.vx -= (drone.x - mW) * boundK * dt;
+        if (drone.x < -mW) drone.vx -= (drone.x + mW) * boundK * dt;
+        if (drone.y > mH) drone.vy -= (drone.y - mH) * boundK * dt;
+        if (drone.y < -mH) drone.vy -= (drone.y + mH) * boundK * dt;
+        if (flyingIn) {
+          droneAlpha = clamp(droneAlpha + dt * 2.5, 0, 1);
+          canvas.style.opacity = String(droneAlpha.toFixed(3));
+          if (droneAlpha >= 1) {
+            flyingIn = false;
+            canvas.style.opacity = "1";
+            say(ARRIVE_MSGS[(Math.random() * ARRIVE_MSGS.length) | 0], 1800);
+          }
+        } else if (fadingIn) {
+          droneAlpha = clamp(droneAlpha + dt * 1.8, 0, 1);
+          flickerTime += dt * rand(20, 40);
+          const flicker =
+            droneAlpha *
+            clamp(
+              0.3 + Math.abs(Math.sin(flickerTime)) * 0.7 + rand(-0.2, 0.2),
+              0,
+              1,
+            );
+          canvas.style.opacity = String(flicker.toFixed(3));
+          if (droneAlpha >= 1) {
+            fadingIn = false;
+            canvas.style.opacity = "1";
+            say(ARRIVE_MSGS[(Math.random() * ARRIVE_MSGS.length) | 0], 1800);
+          }
+        }
+      }
 
       dg.position.set(drone.x, drone.y + drone.bob, drone.z);
 
@@ -982,8 +1082,9 @@
       }
 
       const pulse = 1 + 0.25 * Math.sin(ph.bz * 3);
-      underGlow.intensity = (1.0 + emo.energy * 1.2) * pulse;
-      tealL.intensity = 3.0 + emo.mood * 1.5 + 0.6 * Math.sin(ph.bz * 2.5);
+      const thinkPulse = isThinking ? (1.5 + 0.5 * Math.sin(ph.bz * 9)) : 1;
+      underGlow.intensity = (1.0 + emo.energy * 1.2) * pulse * thinkPulse;
+      tealL.intensity = (3.0 + emo.mood * 1.5 + 0.6 * Math.sin(ph.bz * 2.5)) * (isThinking ? 1.5 : 1);
 
       renderer.render(scene, camera);
 
@@ -1005,30 +1106,231 @@
         bubble.style.opacity = "0";
         bubble.style.transform = "translateY(4px)";
       }
-
     }
 
     requestAnimationFrame(loop);
 
     const AUTH_PATHS = ["/login", "/signup", "/forgot-password"];
     function isAuthPage() {
-      return AUTH_PATHS.some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
+      return AUTH_PATHS.some(
+        (p) => location.pathname === p || location.pathname.startsWith(p + "/"),
+      );
     }
     function setDroneVisible(v) {
       canvas.style.display = v ? "" : "none";
       bubble.style.display = v ? "" : "none";
     }
-    setDroneVisible(!isAuthPage());
+    let thrownTimer  = 0;
+    let isThinking   = false;
+    let notifyTimer  = 0;
+    let notifyTX     = 0, notifyTY = 0;
+    let userHidden   = false;
+    let flyingAway = false;
+    let fadingAway = false;
+    let flyingIn = false;
+    let fadingIn = false;
+    let droneAlpha = 1;
+    let exitTX = 0,
+      exitTY = 0;
+    let flickerTime = 0;
+    let lastHideMode = "fly"; // "fly" | "fade"
+
+    const DEPART_MSGS = [
+      "잠깐 자리 비울게요 👋",
+      "또 봐요~",
+      "삐릭!",
+      "충전하고 올게요 🔋",
+      "다녀올게요!",
+      "슝—",
+    ];
+    const ARRIVE_MSGS = [
+      "다시 돌아왔어요! 🛸",
+      "충전 완료! ⚡",
+      "안녕하세요~",
+      "잘 지내셨어요?",
+      "왔어요! 👋",
+    ];
+
+    function applyVisibility() {
+      if (!userHidden) setDroneVisible(!isAuthPage());
+    }
+    applyVisibility();
+
+    window.__droneToggle = function () {
+      if (flyingAway || fadingAway || flyingIn || fadingIn) return !userHidden;
+      userHidden = !userHidden;
+      if (userHidden) {
+        say(DEPART_MSGS[(Math.random() * DEPART_MSGS.length) | 0], 1200);
+        if (chance(0.5)) {
+          // 모드 1: 날아가기
+          lastHideMode = "fly";
+          flyingAway = true;
+          const dir = Math.floor(rand(0, 4));
+          exitTX =
+            dir === 2
+              ? -(bounds.halfW + 20)
+              : dir === 3
+                ? bounds.halfW + 20
+                : drone.x + rand(-3, 3);
+          exitTY =
+            dir === 0
+              ? bounds.halfH + 20
+              : dir === 1
+                ? -(bounds.halfH + 20)
+                : drone.y + rand(-3, 3);
+        } else {
+          // 모드 2: 제자리 깜빡이며 사라지기
+          lastHideMode = "fade";
+          fadingAway = true;
+          flickerTime = 0;
+          droneAlpha = 1;
+        }
+      } else {
+        droneAlpha = 0;
+        canvas.style.opacity = "0";
+        setDroneVisible(!isAuthPage());
+        if (lastHideMode === "fly") {
+          // 날아서 나타나기
+          flyingIn = true;
+          const dir = Math.floor(rand(0, 4));
+          drone.x =
+            dir === 3
+              ? -(bounds.halfW + 12)
+              : dir === 2
+                ? bounds.halfW + 12
+                : rand(-bounds.halfW * 0.4, bounds.halfW * 0.4);
+          drone.y =
+            dir === 0
+              ? -(bounds.halfH + 12)
+              : dir === 1
+                ? bounds.halfH + 12
+                : rand(-bounds.halfH * 0.4, bounds.halfH * 0.4);
+          drone.vx = 0;
+          drone.vy = 0;
+        } else {
+          // 제자리에서 깜빡이며 나타나기
+          fadingIn = true;
+          flickerTime = 0;
+          drone.x = 0;
+          drone.y = 0;
+          drone.vx = 0;
+          drone.vy = 0;
+        }
+      }
+      return !userHidden;
+    };
+    window.__droneVisible = () => !userHidden;
+
+    // AI 스트리밍 중 드론 글로우 강화 + 메시지
+    window.__droneSetThinking = function (active) {
+      isThinking = !!active;
+      if (active && !userHidden) {
+        say("분석 중... 🔍", Infinity, 2);
+      } else if (!active) {
+        sayUnlock(2);
+        // Infinity인 경우만 지움 (sayDirect로 표시 중인 알림은 건드리지 않음)
+        if (bubble._until === Infinity) bubble._until = 0;
+        if (!userHidden && performance.now() >= (bubble._until || 0)) say("답변 완료! ✨", 2500);
+      }
+    };
+
+    // 알림 연동 - 드론이 알림 벨 쪽으로 날아가서 메시지 표시
+    window.__droneNotify = function (message) {
+      if (userHidden) return;
+      const world = screenToWorld(innerWidth - 90, 36);
+      notifyTX = world.x;
+      notifyTY = world.y;
+      notifyTimer = 3.0;
+      setTimeout(() => {
+        if (!userHidden) sayDirect("🔔 " + message, 3500);
+      }, 900);
+    };
+
+    // 업로드 진행 상태 메시지 (dur=Infinity면 다음 단계가 올 때까지 유지)
+    window.__droneUploadStatus = function (message, dur = Infinity) {
+      const priority = dur === Infinity ? 1 : 0; // 완료/오류는 우선순위 0
+      if (priority === 0) { sayUnlock(1); bubble._until = 0; } // 숨김 상태여도 lock 해제
+      if (userHidden) return;
+      say(message, dur, priority);
+    };
+    // 업로드 취소 시 lock 강제 해제
+    window.__droneUnlockUpload = function () { sayUnlock(1); bubble._until = 0; };
+
+    // 페이지 이동 반응
+    window.__dronePage = function (pathname) {
+      if (userHidden) return;
+      const PAGE_MSGS = {
+        "/home":     ["홈이다! 🏠", "여기 자주 오시네요~", "반갑습니다!"],
+        "/upload":   ["문서 업로드 페이지 📄", "어떤 걸 올리실 건가요?", "새 문서인가요? 🗂️"],
+        "/chat":     ["채팅 시작! 💬", "무엇이든 물어봐요~", "AI 도우미 출동! 🤖"],
+        "/approval": ["승인 대기 문서들 📋", "검토 중인 문서가 있어요"],
+        "/docs":     ["문서 열람 중 📖", "흥미로운 문서네요!", "잘 읽어보세요 👀"],
+      };
+      let pool = null;
+      for (const [prefix, arr] of Object.entries(PAGE_MSGS)) {
+        if (pathname === prefix || pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) {
+          pool = arr; break;
+        }
+      }
+      if (pool) setTimeout(() => { if (!userHidden) say(pool[(Math.random() * pool.length) | 0], 2200, 0); }, 400);
+    };
+
+    // 문서 카테고리 반응
+    const CAT_MSGS = {
+      SCRIPTING:   ["스크립팅 문서네요 💻", "코드 냄새가 나요~", "스크립트 공부 중인가요? 📝"],
+      RENDERING:   ["렌더링 문서네요 🎨", "그래픽스다! ✨", "화면이 예뻐질 것 같아요 🖼️"],
+      EDITOR:      ["에디터 관련이네요 🛠️", "툴 공부 중인가요?", "유용한 내용일 것 같아요!"],
+      PHYSICS:     ["물리 엔진이다 ⚙️", "중력을 느껴봐요~", "충돌 처리 관련인가요? 💥"],
+      MATH:        ["수학이다... 🔢", "머리 아프지 않나요? 😅", "계산이 많겠네요 📐"],
+      UI:          ["UI 문서네요 🖱️", "예쁜 화면 만들 거예요?", "UX도 중요해요! ✨"],
+      XR:          ["XR/VR 문서네요 🥽", "가상 현실이다!", "멋진 세계를 만드시겠어요 🌐"],
+      ANIMATION:   ["애니메이션 문서네요 🎬", "움직임이 중요하죠!", "부드럽게 움직여요~ 💃"],
+      INPUT:       ["입력 처리 문서네요 🎮", "컨트롤러 관련인가요?", "조작감이 생명이죠!"],
+      PERFORMANCE: ["성능 최적화 문서 ⚡", "빠르게 만들 거예요?", "FPS 올려봐요! 🚀"],
+      AUDIO:       ["오디오 문서네요 🎵", "소리도 중요하죠!", "배경음악 만들건가요? 🎶"],
+      NETWORKING:  ["네트워크 문서네요 🌐", "멀티플레이어 개발 중인가요?", "패킷이 날아가요~ 📡"],
+      OTHER:       ["흥미로운 문서네요! 📖", "어떤 내용인지 궁금해요~"],
+    };
+    window.__droneDocCategory = function (category) {
+      if (userHidden || !category) return;
+      const pool = CAT_MSGS[category] ?? CAT_MSGS.OTHER;
+      if (!userHidden) say(pool[(Math.random() * pool.length) | 0], 2500, 0);
+    };
+
+    // API 에러 반응 - 업로드/AI 중에도 항상 표시 (sayDirect로 lock 우회)
+    window.__droneError = function () {
+      if (userHidden) return;
+      const msgs = ["서버가 좀 이상한 것 같아요 😅", "오류가 났어요... 다시 시도해봐요", "이런, 문제가 생겼어요 😟"];
+      sayDirect(msgs[(Math.random() * msgs.length) | 0], 3000);
+    };
+
+    // 테마 전환 반응
+    window.addEventListener("gamedocs:theme", () => {
+      if (userHidden) return;
+      const theme = localStorage.getItem("gamedocs_theme") ?? "mint";
+      setTimeout(() => {
+        if (!userHidden) say(theme === "light" ? "눈부셔요! ☀️" : "어두워졌다 🌙", 2000, 0);
+      }, 200);
+    });
+
+    // 하루 첫 방문 인사
+    const today = new Date().toDateString();
+    const lastVisit = localStorage.getItem("gamedocs_drone_visit");
+    if (lastVisit !== today) {
+      localStorage.setItem("gamedocs_drone_visit", today);
+      setTimeout(() => { if (!userHidden) say(lastVisit ? "오늘도 왔군요! 👋" : "처음 오셨군요! 반가워요 🛸", 3000, 0); }, 3000);
+    }
+
     const origPush = history.pushState.bind(history);
     history.pushState = function (...args) {
       origPush(...args);
-      setDroneVisible(!isAuthPage());
+      applyVisibility();
     };
     const origReplace = history.replaceState.bind(history);
     history.replaceState = function (...args) {
       origReplace(...args);
-      setDroneVisible(!isAuthPage());
+      applyVisibility();
     };
-    addEventListener("popstate", () => setDroneVisible(!isAuthPage()));
+    addEventListener("popstate", () => applyVisibility());
   }
 })();

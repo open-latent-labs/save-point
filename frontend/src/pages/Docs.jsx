@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -28,26 +28,35 @@ export default function Docs() {
   const [isEditing, setIsEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const categoryTimerRef = useRef(null);
 
   useEffect(() => {
+    clearTimeout(categoryTimerRef.current);
     if (isOriginalView) {
       document_original(docId).then((data) => setOriginalData(data));
     } else {
       const saved = localStorage.getItem(`gamedocs_edited_${docId}`);
+      let loadedFromCache = false;
       if (saved) {
         try {
-          setDocData(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          setDocData(parsed);
           setIsEditing(false);
-          return;
+          categoryTimerRef.current = setTimeout(() => window.__droneDocCategory?.(parsed?.summary?.category), 2800);
+          loadedFromCache = true;
         } catch (e) { console.error(e); }
       }
-      document_content(docId).then((data) => {
-        setDocData(data);
-        setIsFav(data?.document?.is_bookmarked ?? false);
-        setIsPin(data?.document?.is_pinned ?? false);
-        setIsEditing(false);
-      });
+      if (!loadedFromCache) {
+        document_content(docId).then((data) => {
+          setDocData(data);
+          setIsFav(data?.document?.is_bookmarked ?? false);
+          setIsPin(data?.document?.is_pinned ?? false);
+          setIsEditing(false);
+          categoryTimerRef.current = setTimeout(() => window.__droneDocCategory?.(data?.summary?.category), 2800);
+        });
+      }
     }
+    return () => clearTimeout(categoryTimerRef.current);
   }, [docId, isOriginalView]);
 
   const activeData = isOriginalView ? originalData : docData;

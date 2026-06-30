@@ -67,6 +67,11 @@ export default function Shell() {
     if (isMobile) setSidebarOpen(false);
   }, [location.pathname, location.search]);
 
+  useEffect(() => {
+    const t = setTimeout(() => window.__dronePage?.(location.pathname), 400);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
+
   return (
     <div className="gd-app">
       <Sidebar
