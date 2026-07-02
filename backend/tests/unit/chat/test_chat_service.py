@@ -77,8 +77,8 @@ def fake_repo(monkeypatch):
     monkeypatch.setattr(chat_service, "get_messages", repo.get_messages)
     monkeypatch.setattr(chat_service, "AsyncSessionLocal", lambda: _FakeAsyncSession())
 
-    # User.ask_count 증가용 db.execute(update(...)) — 인자 그대로 받아주는 더블이면 충분
-    monkeypatch.setattr(chat_service, "update", lambda *a, **k: None)
+    # User.ask_count 증가용 db.execute(update(...))는 실제 SQLAlchemy update()로
+    # 문장만 만들고 _FakeAsyncSession.execute가 인자를 그대로 받아 삼키므로 별도 패치 불필요.
 
     return repo
 
