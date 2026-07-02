@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from sqlalchemy import select
 from qdrant_client.models import (
     Filter, FieldCondition, MatchValue,
-    SparseVector, FusionQuery, Fusion, Prefetch,
+    # SparseVector, FusionQuery, Fusion, Prefetch,  # [SPARSE 비활성화] 하이브리드 → 덴스 전환
 )
 
 import httpx
@@ -27,7 +27,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.document import Document
 from app.models.enums import DocumentAccess
 from app.config import get_settings as _get_settings
-from app.services.rag_service import embed_query_sparse
+# from app.services.rag_service import embed_query_sparse  # [SPARSE 비활성화]
 from app.services.reranker import rerank as _rerank
 
 _settings = _get_settings()
@@ -54,7 +54,7 @@ log = logging.getLogger("dataset")
 _loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_loop)
 
-OLLAMA_URL = "https://140bg4xem5soaw-11434.proxy.runpod.net/api/chat"
+OLLAMA_URL = "{runpod ollama url}"
 TEACHER = "qwen3.5:9b"
 TOP_K = 4                 # 컨텍스트로 넣을 청크 수 (추론 때와 동일하게)
 QUESTIONS_PER_CHUNK = 3
@@ -87,7 +87,7 @@ def ollama_chat(messages: List[Dict], temperature: float = 0.3, think: bool = Fa
         "messages": messages,
         "stream": False,
         "think": think,
-        "options": {"temperature": temperature, "top_p": 0.95, "num_ctx": 12000},
+        "options": {"temperature": temperature, "top_p": 0.95, "num_ctx": 32768},
     }
     for attempt in range(3):
         try:
@@ -178,7 +178,7 @@ def load_chunks() -> List[Dict]:
 
 async def _retrieve_topk_async(question: str, k: int) -> List[Dict]:
     dense_vector = await embed_query_dense(question)
-    sparse_vector = await embed_query_sparse(question)
+    # sparse_vector = await embed_query_sparse(question)  # [SPARSE 비활성화]
 
     user_filter = Filter(
         must=[
@@ -190,23 +190,33 @@ async def _retrieve_topk_async(question: str, k: int) -> List[Dict]:
     )
 
     client = get_qdrant_client()
+    # ── 덴스 검색 (실제 사용) ────────────────────────────────
     results = await client.query_points(
         collection_name=_settings.qdrant_collection_name,
-        prefetch=[
-            Prefetch(query=dense_vector, using="dense", limit=20),
-            Prefetch(
-                query=SparseVector(
-                    indices=sparse_vector["indices"],
-                    values=sparse_vector["values"],
-                ),
-                using="sparse",
-                limit=20,
-            ),
-        ],
-        query=FusionQuery(fusion=Fusion.RRF),
+        query=dense_vector,
+        using="dense",
         query_filter=user_filter,
         limit=k * 4,  # 리랭킹 후보를 넉넉히 확보
     )
+
+    # ── 덴스 + 스파스 RRF 퓨전 ───────────────────────────────  [SPARSE 비활성화]
+    # results = await client.query_points(
+    #     collection_name=_settings.qdrant_collection_name,
+    #     prefetch=[
+    #         Prefetch(query=dense_vector, using="dense", limit=20),
+    #         Prefetch(
+    #             query=SparseVector(
+    #                 indices=sparse_vector["indices"],
+    #                 values=sparse_vector["values"],
+    #             ),
+    #             using="sparse",
+    #             limit=20,
+    #         ),
+    #     ],
+    #     query=FusionQuery(fusion=Fusion.RRF),
+    #     query_filter=user_filter,
+    #     limit=k * 4,  # 리랭킹 후보를 넉넉히 확보
+    # )
 
     candidates = []
     for r in results.points:
@@ -234,7 +244,7 @@ async def _retrieve_topk_async(question: str, k: int) -> List[Dict]:
 
 def retrieve_topk(question: str, k: int = TOP_K) -> List[Dict]:
     """
-    BGE-M3 dense+sparse → Qdrant RRF → ko-reranker 파이프라인으로 상위 k개 청크 반환.
+    BGE-M3 dense → Qdrant 덴스 검색 → ko-reranker 파이프라인으로 상위 k개 청크 반환.
     추론 파이프라인(query_pipeline.py)과 동일한 retriever를 사용해 학습/추론 분포를 맞춤.
     반환 형식: [{"chunk_id": str, "text": str}, ...]
     """
