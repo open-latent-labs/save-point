@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { saveApproved, loadApproved, savePending, loadPending } from "../data/upload.js";
 
-const SSE_URL = `api/auth/stream`;
+const SSE_URL = `/api/auth/stream`;
 
 function showBrowserNotification(message) {
     const show = () => new Notification("새 알림", { body: message, icon: "/logo.png" });

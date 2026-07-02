@@ -7,7 +7,7 @@ _env = os.getenv("APP_ENV", "prod") # runpod 서버 사용 원할시 dev -> prod
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=f"env/.env.{_env}",
-        env_file_encoding="utf-8",
+        env_file_encoding="utf-8",  
         case_sensitive=False,
         extra="ignore",
     )

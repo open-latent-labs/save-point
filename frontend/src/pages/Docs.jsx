@@ -100,6 +100,7 @@ export default function Docs() {
     localStorage.removeItem(`gamedocs_edited_${docId}`);
     window.dispatchEvent(new Event("gamedocs:pins"));
     window.dispatchEvent(new Event("gamedocs:public-docs"));
+    window.dispatchEvent(new Event("gamedocs:doc-deleted"));
     navigate(-1);
   };
 

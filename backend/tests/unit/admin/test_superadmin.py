@@ -192,3 +192,94 @@ async def test_admin_rejected_docs_sets_status_rejected(mock_db, mock_redis):
 
     # Assert
     assert doc.status == DocumentStatus.REJECTED
+
+
+async def test_admin_rejected_docs_missing_doc_raises_404(mock_db):
+    """존재하지 않는 문서에 admin_rejected_docs 호출 시 HTTPException(404)."""
+    from app.crud.admin import admin_rejected_docs
+
+    # Arrange
+    _db_returns(mock_db, None)
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc:
+        await admin_rejected_docs(mock_db, "ghost-doc", "admin-1")
+    assert exc.value.status_code == 404
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  superAdmin.py — ban_user / unban_user 엣지 케이스
+# ════════════════════════════════════════════════════════════════════════════
+
+async def test_ban_user_missing_user_raises_404(mock_db):
+    """존재하지 않는 유저에 ban_user 호출 시 HTTPException(404)."""
+    from app.crud.superAdmin import ban_user
+
+    # Arrange
+    _db_returns(mock_db, None)
+    body = ChangeBanRequest(id="ghost", ban="UNBAN")
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc:
+        await ban_user(mock_db, body, user_id="super-1")
+    assert exc.value.status_code == 404
+
+
+async def test_unban_user_missing_user_raises_404(mock_db):
+    """존재하지 않는 유저에 unban_user 호출 시 HTTPException(404)."""
+    from app.crud.superAdmin import unban_user
+
+    # Arrange
+    _db_returns(mock_db, None)
+    body = ChangeBanRequest(id="ghost", ban="BAN")
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc:
+        await unban_user(mock_db, body, user_id="super-1")
+    assert exc.value.status_code == 404
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  admin.py — admin_cancel_pending / admin_publish_docs
+# ════════════════════════════════════════════════════════════════════════════
+
+async def test_admin_cancel_pending_sets_status_done(mock_db):
+    """admin_cancel_pending 호출 시 문서 상태가 DONE으로 전환된다."""
+    from app.crud.admin import admin_cancel_pending
+
+    # Arrange
+    doc = _make_doc(DocumentStatus.PENDING)
+    _db_returns(mock_db, doc)
+
+    # Act
+    await admin_cancel_pending(mock_db, "doc-1")
+
+    # Assert
+    assert doc.status == DocumentStatus.DONE
+
+
+async def test_admin_cancel_pending_missing_doc_raises_404(mock_db):
+    """존재하지 않는 문서에 admin_cancel_pending 호출 시 HTTPException(404)."""
+    from app.crud.admin import admin_cancel_pending
+
+    # Arrange
+    _db_returns(mock_db, None)
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc:
+        await admin_cancel_pending(mock_db, "ghost-doc")
+    assert exc.value.status_code == 404
+
+
+async def test_admin_publish_docs_returns_none_when_doc_missing(mock_db):
+    """존재하지 않는 문서에 admin_publish_docs 호출 시 None을 반환한다."""
+    from app.crud.admin import admin_publish_docs
+
+    # Arrange
+    _db_returns(mock_db, None)
+
+    # Act
+    result = await admin_publish_docs(mock_db, "ghost-doc", "admin-1")
+
+    # Assert
+    assert result is None

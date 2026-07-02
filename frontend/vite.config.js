@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_TARGET,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          cookieDomainRewrite: "localhost",
+          cookieDomainRewrite: { "www.savepoint.n-e.kr": "localhost" },
         }
       }
     },
