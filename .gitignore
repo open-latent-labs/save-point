@@ -15,6 +15,9 @@ dist-ssr/
 # Vite cache
 frontend/.vite/
 
+# nginx 설정
+frontend/nginx.conf
+
 
 # Environment variables (secrets!)
 .env

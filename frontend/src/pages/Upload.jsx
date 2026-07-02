@@ -208,13 +208,16 @@ export default function Upload() {
       const ids = loadApproved();
       setMyDocs((prev) => prev.map((d) => ids.includes(d.id) ? { ...d, isPublic: true, status: "APPROVED" } : d));
     };
+    const syncDocDeleted = () => setRefreshKey((k) => k + 1);
     window.addEventListener("gamedocs:pending", syncPending);
     window.addEventListener("gamedocs:rejected", syncRejected);
     window.addEventListener("gamedocs:approved", syncApproved);
+    window.addEventListener("gamedocs:doc-deleted", syncDocDeleted);
     return () => {
       window.removeEventListener("gamedocs:pending", syncPending);
       window.removeEventListener("gamedocs:rejected", syncRejected);
       window.removeEventListener("gamedocs:approved", syncApproved);
+      window.removeEventListener("gamedocs:doc-deleted", syncDocDeleted);
     };
   }, []);
 
@@ -336,7 +339,7 @@ export default function Upload() {
     setDeleteTarget(null);
     try {
       await document_delete(id);
-      setMyDocs((prev) => prev.filter((d) => d.id !== id));
+      setRefreshKey((k) => k + 1);
       window.dispatchEvent(new Event("gamedocs:pins"));
       window.dispatchEvent(new Event("gamedocs:public-docs"));
     } catch (e) {
@@ -421,9 +424,9 @@ export default function Upload() {
             let prevJobType = null;
 
             const JOB_MSGS = {
-              OCR:                "OCR 텍스트 추출 중... 📄",
+              OCR: "OCR 텍스트 추출 중... 📄",
               CLASSIFY_SUMMARIZE: "분류 및 요약 중... 🧠",
-              EMBED:              "벡터 임베딩 중... 🔢",
+              EMBED: "벡터 임베딩 중... 🔢",
             };
 
             const finish = () => {
@@ -1095,7 +1098,7 @@ export default function Upload() {
                 }}>
                   {deleteTarget.name}
                 </p>
-                <div style={{
+                {/* <div style={{
                   padding: "9px 12px", borderRadius: 8,
                   background: "rgba(224,138,138,.07)",
                   border: "1px solid rgba(224,138,138,.18)",
@@ -1104,7 +1107,7 @@ export default function Upload() {
                   marginBottom: 20,
                 }}>
                   삭제된 문서는 복구할 수 없습니다.
-                </div>
+                </div> */}
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     onClick={() => setDeleteTarget(null)}
