@@ -50,6 +50,7 @@ env/
 
 uploads/
 *.pdf
+!docs/발표자료.pdf
 
 logs/
 *.log
